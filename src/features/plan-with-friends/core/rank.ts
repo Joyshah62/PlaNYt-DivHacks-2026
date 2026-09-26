@@ -1,4 +1,4 @@
-import type { PlanRequest } from "@/lib/plan/types";
+import type { PlanRequest } from "../bridge/index";
 import { MAX_DAY_STOPS, type Candidate, type Trip } from "./types";
 
 export function rankCandidates(trip: Trip): { inDay: Candidate[]; waiting: Candidate[] } {

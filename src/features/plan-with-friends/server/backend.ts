@@ -1,5 +1,5 @@
-import type { StopInput } from "@/lib/plan/types";
-import type { TripSettings } from "./types";
+import type { StopInput } from "../bridge/index";
+import type { TripSettings } from "../core/types";
 
 export const TRIP_TTL_SECONDS = 60 * 60 * 24 * 30;
 

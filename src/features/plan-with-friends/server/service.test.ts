@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { DEFAULT_PROFILE } from "@/lib/plan/profile";
-import { decodePlan } from "@/lib/plan/share";
-import type { StopInput } from "@/lib/plan/types";
+import { DEFAULT_PROFILE } from "../bridge/index";
+import { decodePlan } from "../bridge/index";
+import type { StopInput } from "../bridge/index";
 import { memoryBackend } from "./memory";
 import { createTripService, TripError, type TripService } from "./service";
-import type { TripSettings } from "./types";
+import type { TripSettings } from "../core/types";
 
 const met: StopInput = { key: "met", name: "The Met", lat: 40.7794, lon: -73.9632, visitMin: 150, attractionId: "met" };
 const park: StopInput = { key: "central-park", name: "Central Park", lat: 40.774, lon: -73.971, visitMin: 90, attractionId: "central-park" };

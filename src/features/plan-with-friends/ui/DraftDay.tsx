@@ -1,6 +1,6 @@
-import { CROWD_COLOR, CROWD_LABEL, LEG_VERB } from "@/lib/plan/display";
-import { clock, duration } from "@/lib/plan/time";
-import type { DayPlan } from "@/lib/plan/types";
+import { CROWD_COLOR, CROWD_LABEL, LEG_VERB } from "../bridge/index";
+import { clock, duration } from "../bridge/index";
+import type { DayPlan } from "../bridge/index";
 
 export function DraftDay({ plan, updating, error, locked }: { plan: DayPlan | null; updating: boolean; error: string | null; locked: boolean }) {
   return (

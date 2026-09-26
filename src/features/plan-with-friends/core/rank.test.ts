@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PROFILE } from "@/lib/plan/profile";
+import { DEFAULT_PROFILE } from "../bridge/index";
 import { draftRequest, rankCandidates } from "./rank";
 import type { Candidate, Trip, TripSettings } from "./types";
 

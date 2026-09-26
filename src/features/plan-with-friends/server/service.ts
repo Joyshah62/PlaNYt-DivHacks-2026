@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
-import { encodePlan } from "@/lib/plan/share";
-import type { StopInput } from "@/lib/plan/types";
+import { encodePlan } from "../bridge/index";
+import type { StopInput } from "../bridge/index";
 import type { TripBackend, TripMeta } from "./backend";
-import { draftRequest } from "./rank";
-import { MAX_CANDIDATES, type Trip, type TripSettings } from "./types";
+import { draftRequest } from "../core/rank";
+import { MAX_CANDIDATES, type Trip, type TripSettings } from "../core/types";
 
 export class TripError extends Error {
   constructor(

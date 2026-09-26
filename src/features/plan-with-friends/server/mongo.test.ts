@@ -1,10 +1,10 @@
 import { MongoClient } from "mongodb";
 import { afterAll, describe, expect, it } from "vitest";
-import { DEFAULT_PROFILE } from "@/lib/plan/profile";
-import type { StopInput } from "@/lib/plan/types";
+import { DEFAULT_PROFILE } from "../bridge/index";
+import type { StopInput } from "../bridge/index";
 import { mongoBackend } from "./mongo";
 import { createTripService } from "./service";
-import type { TripSettings } from "./types";
+import type { TripSettings } from "../core/types";
 
 const uri = process.env.MONGODB_URI;
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { DayPlan } from "@/lib/plan/types";
-import { draftRequest } from "@/lib/trip/rank";
-import type { Trip } from "@/lib/trip/types";
+import type { DayPlan } from "../bridge/index";
+import { draftRequest } from "../core/rank";
+import type { Trip } from "../core/types";
 
 export function useDraftPlan(trip: Trip | null) {
   // Polling hands back a new Trip every 4 s; only a change in the request itself re-plans.

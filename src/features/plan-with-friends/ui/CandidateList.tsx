@@ -1,9 +1,9 @@
 "use client";
 
 import { ChevronUp } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { rankCandidates } from "@/lib/trip/rank";
-import type { Candidate, Trip } from "@/lib/trip/types";
+import { cn } from "../bridge/ui";
+import { rankCandidates } from "../core/rank";
+import type { Candidate, Trip } from "../core/types";
 
 export function CandidateList({
   trip,

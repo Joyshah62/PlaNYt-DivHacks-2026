@@ -1,4 +1,4 @@
-import { getDb, hasMongo } from "@/lib/mongo";
+import { getDb, hasMongo } from "../bridge/server";
 import { memoryBackend } from "./memory";
 import { mongoBackend } from "./mongo";
 import { createTripService, type TripService } from "./service";

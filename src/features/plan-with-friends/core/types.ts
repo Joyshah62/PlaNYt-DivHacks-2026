@@ -1,4 +1,4 @@
-import type { PlanRequest, StopInput } from "@/lib/plan/types";
+import type { PlanRequest, StopInput } from "../bridge/index";
 
 export const MAX_DAY_STOPS = 10;
 export const MAX_CANDIDATES = 30;

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { inNycArea } from "@/lib/osm/geo";
-import { StopSchema } from "@/lib/plan/schema";
+import { inNycArea } from "../bridge/index";
+import { StopSchema } from "../bridge/index";
 
 export const TRIP_ID = /^[A-Za-z0-9_-]{10}$/;
 

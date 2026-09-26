@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PROFILE } from "@/lib/plan/profile";
-import { encodePlan } from "@/lib/plan/share";
-import type { StopInput } from "@/lib/plan/types";
-import { POST as createTrip } from "./route";
-import { GET as getTrip } from "./[id]/route";
-import { POST as joinTrip } from "./[id]/join/route";
-import { POST as addCandidate } from "./[id]/candidates/route";
-import { POST as vote } from "./[id]/vote/route";
-import { POST as lock } from "./[id]/lock/route";
+import { DEFAULT_PROFILE } from "../../bridge/index";
+import { encodePlan } from "../../bridge/index";
+import type { StopInput } from "../../bridge/index";
+import { POST as createTrip } from "./create";
+import { GET as getTrip } from "./get";
+import { POST as joinTrip } from "./join";
+import { POST as addCandidate } from "./candidates";
+import { POST as vote } from "./vote";
+import { POST as lock } from "./lock";
 
 const met: StopInput = { key: "met", name: "The Met", lat: 40.7794, lon: -73.9632, visitMin: 150, attractionId: "met" };
 const bridge: StopInput = { key: "brooklyn-bridge", name: "Brooklyn Bridge walk", lat: 40.7118, lon: -74.0035, visitMin: 45, attractionId: "brooklyn-bridge" };

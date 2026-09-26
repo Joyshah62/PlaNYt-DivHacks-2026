@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, useSyncExternalStore, type SubmitEvent } from "react";
-import { stopFromAttraction, StopPicker } from "@/components/plan/StopPicker";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import type { StopInput } from "@/lib/plan/types";
-import { tripApi, TripApiError } from "@/lib/trip/client";
-import { clearIdentity, parseIdentity, readIdentityRaw, storeIdentity, subscribeIdentity, type TripIdentity } from "@/lib/trip/local";
-import { MAX_CANDIDATES, type Trip } from "@/lib/trip/types";
+import { stopFromAttraction, StopPicker } from "../bridge/ui";
+import { Button } from "../bridge/ui";
+import { Input } from "../bridge/ui";
+import type { StopInput } from "../bridge/index";
+import { tripApi, TripApiError } from "./client";
+import { clearIdentity, parseIdentity, readIdentityRaw, storeIdentity, subscribeIdentity, type TripIdentity } from "./local";
+import { MAX_CANDIDATES, type Trip } from "../core/types";
 import { CandidateList } from "./CandidateList";
 import { DraftDay } from "./DraftDay";
 import { useDraftPlan } from "./useDraftPlan";

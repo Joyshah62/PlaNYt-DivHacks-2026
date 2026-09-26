@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SubmitEvent } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { tripApi } from "@/lib/trip/client";
-import { storeIdentity } from "@/lib/trip/local";
-import type { Trip } from "@/lib/trip/types";
+import { Button } from "../bridge/ui";
+import { Input } from "../bridge/ui";
+import { tripApi } from "./client";
+import { storeIdentity } from "./local";
+import type { Trip } from "../core/types";
 
 export function TripStart({ code }: { code: string | null }) {
   const router = useRouter();
