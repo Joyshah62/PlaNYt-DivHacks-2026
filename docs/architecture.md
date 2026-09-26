@@ -66,6 +66,9 @@ Catalog photo metadata is built from Wikipedia/Wikimedia Commons with attributio
 | `GET /api/resolve` | Resolve an NYC place/address to coordinates |
 | `GET /api/route` | Route geometry for a leg |
 | `GET /api/weather` | Forecast used by the day picker |
+| `POST /api/trips` | Start a group trip from a plan code |
+| `GET /api/trips/[id]` | Group trip state (members, places, votes, lock) |
+| `POST /api/trips/[id]/join`, `/candidates`, `/vote`, `/lock` | Join, suggest a place, vote, organizer lock |
 
 ## Code map
 
@@ -83,6 +86,8 @@ Catalog photo metadata is built from Wikipedia/Wikimedia Commons with attributio
 | `src/lib/discover/` | Place discovery and ranking |
 | `src/lib/osm/` | Geocoding, routing, and OSM queries |
 | `scripts/` | Dataset builders and MapLibre worker setup |
+| `src/lib/trip/`, `src/components/trip/` | Plan with friends: group voting, storage, trip page |
+| `src/lib/mongo.ts` | Shared MongoDB Atlas connection |
 
 ## Data sources
 
@@ -98,6 +103,7 @@ Catalog photo metadata is built from Wikipedia/Wikimedia Commons with attributio
 | Wikipedia / Wikimedia Commons | Catalog photos with per-photo credit/license |
 | Google Places (optional) | Live photo lookup |
 | Google Gemini (optional key) | Natural-language intent extraction and chat |
+| MongoDB Atlas | Group trip storage for Plan with friends (one document per trip, 30-day TTL) |
 
 Public service availability and terms can change. Respect each provider’s attribution, usage, and rate limits.
 

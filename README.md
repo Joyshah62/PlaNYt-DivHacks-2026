@@ -27,7 +27,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) enables natural-language planning. `GOOGLE_PLACES_API_KEY` enables live Google place photos. Both are optional; manual planning and catalog photos work without them.
+Open http://localhost:3000. `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) enables natural-language planning. `GOOGLE_PLACES_API_KEY` enables live Google place photos. Both are optional; manual planning and catalog photos work without them. `MONGODB_URI` (MongoDB Atlas) stores "Plan with friends" group trips; without it trips live in the dev server's memory.
 
 ## Common commands
 
