@@ -8,6 +8,7 @@ import { AskRoam } from "./AskRoam";
 import { AvatarStack } from "./Avatar";
 import { ConsensusBar } from "./ConsensusBar";
 import { DraftDay } from "./DraftDay";
+import { GettingHomePanel } from "./GettingHomePanel";
 import { GroupMapPanel } from "./GroupMapPanel";
 import { JoinCard } from "./JoinCard";
 import { PlacesPanel } from "./PlacesPanel";
@@ -96,6 +97,7 @@ export function TripRoom({ id }: { id: string }) {
         <div className={cn("flex flex-col gap-4 lg:sticky lg:top-4", tab !== "day" && "hidden lg:flex")}>
           <GroupMapPanel trip={trip} plan={draft.plan} memberId={me?.id ?? null} onSuggest={actions.suggest} />
           <DraftDay plan={draft.plan} updating={draft.updating} error={draft.error} locked={room.locked} />
+          <GettingHomePanel trip={trip} tripId={id} plan={draft.plan} />
         </div>
       </div>
 
