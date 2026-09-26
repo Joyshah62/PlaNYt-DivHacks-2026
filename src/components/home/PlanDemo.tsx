@@ -124,6 +124,7 @@ export function PlanDemo() {
         <button type="button" className="ed-btn ed-btn--ghost ed-demo-replay" onClick={() => void play()} disabled={!map}>
           ↻ Replay
         </button>
+        <p className="ed-footnote ed-mono">An example day. In the planner, the crowd bars come from MTA subway ridership near each stop.</p>
       </div>
       <div className="ed-demo-map">
         <div ref={hostRef} className="ed-map-host" />

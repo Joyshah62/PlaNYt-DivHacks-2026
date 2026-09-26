@@ -82,6 +82,13 @@
 }
 .ed-map-host { position: absolute; inset: 0; }
 
+/* Map credits: small and quiet. They must stay (Esri's licence, Google's terms); MapLibre's
+   starts collapsed to its (i) button (cityMapLibre.ts). */
+.ed .maplibregl-ctrl-attrib { font: 400 10px/1.5 var(--f-mono); }
+.ed .maplibregl-ctrl-attrib.maplibregl-compact { background: rgba(255, 255, 255, 0.55); margin: 8px; }
+.ed .maplibregl-ctrl-attrib.maplibregl-compact:not([open]) { opacity: 0.6; transition: opacity 0.2s; }
+.ed .maplibregl-ctrl-attrib.maplibregl-compact:not([open]):hover { opacity: 1; }
+
 @keyframes ed-rise { to { opacity: 1; transform: none; } }
 
 /* ── Hero ─────────────────────────────────────────────── */
@@ -179,6 +186,7 @@
 .ed-crowd b { width: 4px; background: var(--ink); opacity: 0.25; }
 .ed-crowd b.on { background: var(--red); opacity: 1; }
 .ed-demo-replay { margin-top: 18px; align-self: start; }
+.ed-footnote { margin: auto 0 0; padding-top: 24px; max-width: 46ch; color: var(--muted); letter-spacing: 0.08em; line-height: 1.6; }
 .ed-demo-map { position: relative; overflow: hidden; background: var(--night); border-left: 1px solid var(--rule); }
 .ed-callout {
   position: absolute; z-index: 3; left: 20px; bottom: 44px; padding: 14px 18px; opacity: 0; transition: opacity 0.6s;
@@ -190,10 +198,28 @@
 
 /* ── Neighborhoods ────────────────────────────────────── */
 .ed-story { display: grid; grid-template-columns: minmax(340px, 0.8fr) 1.2fr; border-top: 3px double var(--rule); }
+.ed-chapters { position: relative; }
+.ed-story-index {
+  position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px 20px;
+  padding-block: 18px 12px; border-bottom: 1px solid var(--rule);
+}
+.ed-story-index a { text-decoration: none; opacity: 0.45; transition: opacity 0.3s; }
+.ed-story-index a span { color: var(--red); margin-right: 2px; }
+.ed-story-index a.on, .ed-story-index a:hover { opacity: 1; }
+.ed-story-index a.on { text-decoration: underline; text-decoration-color: var(--red); text-underline-offset: 5px; }
 .ed-chapter {
-  min-height: 95vh; display: flex; flex-direction: column; justify-content: center; padding-block: 40px;
+  position: relative; overflow: hidden;
+  min-height: 75vh; display: flex; flex-direction: column; justify-content: center; padding-block: 40px;
   opacity: 0.25; transition: opacity 0.5s;
 }
+/* The chapter's numeral, set huge in outline behind it: a magazine device that fills the column. */
+.ed-chapter::before {
+  content: attr(data-numeral); position: absolute; z-index: 0; right: var(--gut); top: 50%; transform: translateY(-50%);
+  font: 400 clamp(180px, 20vw, 340px) / 0.8 var(--f-display); color: transparent;
+  -webkit-text-stroke: 1px var(--ink); opacity: 0.16; pointer-events: none;
+}
+.ed-chapter.active::before { opacity: 0.3; }
+.ed-chapter > * { position: relative; z-index: 1; }
 .ed-chapter.active { opacity: 1; }
 .ed-chapter h3 { font-family: var(--f-display); font-weight: 400; font-size: clamp(44px, 5vw, 84px); line-height: 0.9; margin: 10px 0 14px; }
 .ed-chapter p { font-size: 19px; line-height: 1.45; max-width: 34ch; margin: 0 0 18px; }
@@ -213,6 +239,7 @@
   .ed-demo-map { min-height: 60vh; border-left: 0; border-top: 1px solid var(--rule); }
   .ed-sticky { height: 50vh; order: -1; z-index: 5; border-left: 0; }
   .ed-chapter { min-height: 70vh; }
+  .ed-story-index { display: none; } /* the pinned map takes the top of the screen on phones */
 }
 
 @media (prefers-reduced-motion: reduce) {

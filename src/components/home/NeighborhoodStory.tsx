@@ -51,9 +51,17 @@ export function NeighborhoodStory() {
   const current = NEIGHBORHOODS[active];
   return (
     <section ref={sectionRef} id="neighborhoods" className="ed-story ed-paper" aria-label="Neighborhoods">
-      <div ref={chaptersRef}>
+      <div ref={chaptersRef} className="ed-chapters">
+        {/* A running table of contents keeps the column anchored while the chapters scroll. */}
+        <nav className="ed-story-index ed-paper ed-gut ed-mono" aria-label="Neighborhoods">
+          {NEIGHBORHOODS.map((n, i) => (
+            <a key={n.name} href={`#chapter-${i}`} className={i === active ? "on" : undefined} aria-current={i === active ? "true" : undefined}>
+              <span>{n.numeral}</span> {n.name} {n.italic}
+            </a>
+          ))}
+        </nav>
         {NEIGHBORHOODS.map((n, i) => (
-          <article key={n.name} data-index={i} className={`ed-chapter ed-gut${i === active ? " active" : ""}`}>
+          <article key={n.name} id={`chapter-${i}`} data-index={i} data-numeral={n.numeral} className={`ed-chapter ed-gut${i === active ? " active" : ""}`}>
             <span className="ed-mono ed-kicker">{i === 0 ? `Neighborhoods · ${n.numeral}` : n.numeral}</span>
             <h3>{n.name} <i>{n.italic}</i></h3>
             <p>{n.body}</p>

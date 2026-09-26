@@ -1,18 +1,38 @@
 "use client";
 
-import { Map as MapLibre, Marker, type GeoJSONSource } from "maplibre-gl";
+import { Map as MapLibre, Marker, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { SATELLITE_3D_STYLE, ensureWorker, resolveMissingStyleImages } from "@/components/map/mapStyle";
+import { ensureWorker } from "@/components/map/mapStyle";
 import { rangeToZoom, type Camera, type LatLng } from "./camera";
 import { visibleTimeout, type CityMap } from "./cityMap";
 
 // Above ~50° the flat satellite raster runs out of tiles and shows a jagged black horizon.
 const MAX_PITCH = 50;
 
+// Flat satellite imagery (no terrain requests; Manhattan is flat) over a dusk-coloured base, so
+// tiles that haven't arrived read as shadow rather than black.
+const STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    satellite: {
+      type: "raster",
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: "Tiles © Esri, Maxar, Earthstar Geographics",
+    },
+  },
+  layers: [
+    { id: "base", type: "background", paint: { "background-color": "#2a2823" } },
+    { id: "satellite", type: "raster", source: "satellite" },
+  ],
+};
+
 const view = (c: Camera) => ({
   center: [c.lng, c.lat] as [number, number],
   zoom: rangeToZoom(c.range),
-  pitch: Math.min(c.tilt, MAX_PITCH),
+  // Zoomed out, the horizon comes into view sooner: tilt less over wide views.
+  pitch: Math.min(c.tilt, rangeToZoom(c.range) < 13 ? 40 : MAX_PITCH),
   bearing: c.heading,
 });
 
@@ -25,10 +45,9 @@ export async function createLibreMap(host: HTMLElement, cam: Camera, signal?: Ab
   el.style.cssText = "position:absolute;inset:0";
   host.append(el);
   const map = new MapLibre({
-    container: el, style: SATELLITE_3D_STYLE, ...view(cam), maxPitch: MAX_PITCH,
+    container: el, style: STYLE, ...view(cam), maxPitch: MAX_PITCH,
     interactive: false, attributionControl: { compact: true }, fadeDuration: 0,
   });
-  resolveMissingStyleImages(map);
   await new Promise<void>((resolve, reject) => {
     const done = () => {
       cancelTimer();
@@ -45,6 +64,13 @@ export async function createLibreMap(host: HTMLElement, cam: Camera, signal?: Ab
     map.once("idle", done);
     signal?.addEventListener("abort", abort, { once: true });
   });
+
+  // The compact credit opens itself once the tiles' attribution arrives and only collapses after
+  // a drag, which these maps never get: collapse it to its (i) button. The credit stays one
+  // click away (Esri requires it).
+  const credit = el.querySelector(".maplibregl-ctrl-attrib");
+  credit?.classList.remove("maplibregl-compact-show");
+  credit?.removeAttribute("open");
 
   let raf = 0;
   const stop = () => {
