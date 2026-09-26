@@ -200,17 +200,6 @@ come from Wikipedia.
 | `npm run poi-data` | Rebuild the local copy of NYC places from OpenStreetMap, used by "Find something that fits my trip" (a few minutes) |
 | `node scripts/build-photo-data.mjs` | Rebuild catalog photos and credits from Wikipedia |
 
-## API
-
-| Endpoint | Does |
-|---|---|
-| `POST /api/plan` | Stops + day + mode + crowd preference → ordered, timed itinerary with reasons |
-| `POST /api/assistant` | Free text → stops and settings (Gemini), with places geocoded |
-| `GET /api/resolve?q=` | Any NYC place or address → a point (NYC GeoSearch, Nominatim) |
-| `GET /api/route?from=&to=&mode=` | Street geometry for one leg (walk, bike, car), for the map |
-| `GET /api/place?id=` or `?lat=&lon=` `&date=` | Hours, hourly area busyness and the quietest time for one place |
-| `GET /api/photo?id=` or `?name=&lat=&lon=` | One photo with credit (Google, capped; else Wikipedia) |
-
 ## Project structure
 
 ```text
@@ -221,16 +210,6 @@ src/
   lib/osm/             OSRM routing, Nominatim geocoding
 scripts/               crowd-data builder, MapLibre worker copy
 ```
-
-## Limitations
-
-- Crowd levels describe the area around a place, not the queue inside it.
-- Opening hours are typical published hours; holidays and seasons vary.
-- Subway times are estimates for ordering the day, without live schedules or
-  service changes. Follow the Google Maps link for the actual trip.
-- Saved plans live in this browser's storage; the share link is the portable copy.
-- Public routing and geocoding servers are free and rate-limited; if routing
-  is down, the plan falls back to straight-line estimates and says so.
 
 ## Data sources
 
