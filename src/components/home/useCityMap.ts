@@ -15,7 +15,8 @@ export function useCityMap(host: RefObject<HTMLElement | null>, initial: Camera,
     if (!enabled || !el) return;
     let live = true;
     let made: CityMap | null = null;
-    createCityMap(el, initial, role).then(
+    const building = new AbortController();
+    createCityMap(el, initial, role, building.signal).then(
       (m) => {
         if (!live) return m?.destroy();
         made = m;
@@ -25,6 +26,7 @@ export function useCityMap(host: RefObject<HTMLElement | null>, initial: Camera,
     );
     return () => {
       live = false;
+      building.abort();
       made?.destroy();
     };
   }, [host, initial, role, enabled]);

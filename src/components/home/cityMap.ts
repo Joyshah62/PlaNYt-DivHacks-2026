@@ -33,6 +33,27 @@ export function chooseEngine(env: EngineEnv, role: MapRole): "google" | "maplibr
   return "google";
 }
 
+type VisibilityDoc = Pick<Document, "visibilityState" | "addEventListener" | "removeEventListener">;
+
+/**
+ * Like setTimeout, but the clock only starts once the page is visible. A hidden tab doesn't
+ * render maps, so "no answer yet" there means "not tried yet", not "slow". Returns a cancel.
+ */
+export function visibleTimeout(doc: VisibilityDoc, ms: number, fn: () => void): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const start = () => {
+    if (doc.visibilityState !== "visible" || timer !== undefined) return;
+    doc.removeEventListener("visibilitychange", start);
+    timer = setTimeout(fn, ms);
+  };
+  doc.addEventListener("visibilitychange", start);
+  start();
+  return () => {
+    doc.removeEventListener("visibilitychange", start);
+    clearTimeout(timer);
+  };
+}
+
 let webgl: boolean | undefined;
 export function readEnv(): EngineEnv {
   if (webgl === undefined) {
@@ -56,19 +77,28 @@ export function readEnv(): EngineEnv {
 // Once Google has failed on this page, later maps go straight to the fallback.
 let googleBroken = false;
 
-/** Build a map in `host` and resolve once it has painted. Engines load on demand. */
-export async function createCityMap(host: HTMLElement, cam: Camera, role: MapRole): Promise<CityMap | null> {
+/**
+ * Build a map in `host` and resolve once it has painted. Engines load on demand. Aborting
+ * `signal` (the caller unmounted) removes a half-built map at once and resolves null.
+ */
+export async function createCityMap(host: HTMLElement, cam: Camera, role: MapRole, signal?: AbortSignal): Promise<CityMap | null> {
   const engine = chooseEngine(readEnv(), role);
   if (engine === "none") return null;
   if (engine === "google" && !googleBroken) {
     try {
       const { createGoogleMap } = await import("./cityMapGoogle");
-      return await createGoogleMap(host, cam);
+      if (signal?.aborted) return null;
+      return await createGoogleMap(host, cam, signal);
     } catch (err) {
+      if (signal?.aborted) return null;
       console.warn("Google 3D map unavailable, using the satellite fallback.", err);
       googleBroken = true;
     }
   }
   const { createLibreMap } = await import("./cityMapLibre");
-  return createLibreMap(host, cam);
+  if (signal?.aborted) return null;
+  return createLibreMap(host, cam, signal).catch((err) => {
+    if (signal?.aborted) return null;
+    throw err;
+  });
 }

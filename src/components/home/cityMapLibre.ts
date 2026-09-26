@@ -4,7 +4,7 @@ import { Map as MapLibre, Marker, type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { SATELLITE_3D_STYLE, ensureWorker, resolveMissingStyleImages } from "@/components/map/mapStyle";
 import { rangeToZoom, type Camera, type LatLng } from "./camera";
-import type { CityMap } from "./cityMap";
+import { visibleTimeout, type CityMap } from "./cityMap";
 
 const view = (c: Camera) => ({
   center: [c.lng, c.lat] as [number, number],
@@ -15,7 +15,8 @@ const view = (c: Camera) => ({
 
 const ROUTE = "roam-route";
 
-export async function createLibreMap(host: HTMLElement, cam: Camera): Promise<CityMap> {
+export async function createLibreMap(host: HTMLElement, cam: Camera, signal?: AbortSignal): Promise<CityMap> {
+  signal?.throwIfAborted();
   ensureWorker();
   const el = document.createElement("div");
   el.style.cssText = "position:absolute;inset:0";
@@ -25,12 +26,21 @@ export async function createLibreMap(host: HTMLElement, cam: Camera): Promise<Ci
     interactive: false, attributionControl: { compact: true }, fadeDuration: 0,
   });
   resolveMissingStyleImages(map);
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, 8000);
-    map.once("idle", () => {
-      clearTimeout(timer);
+  await new Promise<void>((resolve, reject) => {
+    const done = () => {
+      cancelTimer();
+      signal?.removeEventListener("abort", abort);
       resolve();
-    });
+    };
+    const abort = () => {
+      cancelTimer();
+      map.remove();
+      el.remove();
+      reject(signal?.reason);
+    };
+    const cancelTimer = visibleTimeout(document, 8000, done);
+    map.once("idle", done);
+    signal?.addEventListener("abort", abort, { once: true });
   });
 
   let raf = 0;

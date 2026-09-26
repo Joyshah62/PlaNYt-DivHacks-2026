@@ -2,7 +2,7 @@
 
 import { importLibrary, setOptions } from "@googlemaps/js-api-loader";
 import type { Camera } from "./camera";
-import type { CityMap } from "./cityMap";
+import { visibleTimeout, type CityMap } from "./cityMap";
 
 // `beta`, not `alpha`: in alpha every maps3d overlay constructor throws (checked 2026-09-26).
 let configured = false;
@@ -29,21 +29,24 @@ const toCam = (c: Camera) => ({
   heading: c.heading,
 });
 
-export async function createGoogleMap(host: HTMLElement, cam: Camera): Promise<CityMap> {
+export async function createGoogleMap(host: HTMLElement, cam: Camera, signal?: AbortSignal): Promise<CityMap> {
   if (authFailed) throw new Error("Google Maps rejected the key");
   configure();
   const { Map3DElement, MapMode, Polyline3DElement, Marker3DElement } = await importLibrary("maps3d");
+  signal?.throwIfAborted(); // don't create (and pay for) a map nobody will see
   const map = new Map3DElement({ ...toCam(cam), mode: MapMode.SATELLITE, defaultUIHidden: true });
   map.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
   host.append(map);
 
-  // Ready = first steady frame. Failure = gmp-error or an auth failure. Slow = give up waiting at 8 s.
+  // Ready = first steady frame. Failure = gmp-error or an auth failure. Slow = give up after 8 s of
+  // visible time (a hidden tab renders nothing, so waiting there proves nothing).
   await new Promise<void>((resolve, reject) => {
     const finish = (fn: () => void) => {
-      clearTimeout(timer);
+      cancelTimer();
       map.removeEventListener("gmp-steadychange", onSteady);
       map.removeEventListener("gmp-error", onError);
       authListeners.delete(onError);
+      signal?.removeEventListener("abort", onError);
       fn();
     };
     const onSteady = (e: Event) => {
@@ -53,10 +56,11 @@ export async function createGoogleMap(host: HTMLElement, cam: Camera): Promise<C
       map.remove();
       reject(new Error("Google 3D map failed to load"));
     });
-    const timer = setTimeout(() => finish(resolve), 8000);
+    const cancelTimer = visibleTimeout(document, 8000, () => finish(resolve));
     map.addEventListener("gmp-steadychange", onSteady);
     map.addEventListener("gmp-error", onError);
     authListeners.add(onError);
+    signal?.addEventListener("abort", onError);
   });
 
   let line: google.maps.maps3d.Polyline3DElement | null = null;
