@@ -15,19 +15,18 @@ The UX hierarchy:
 
 ### Landing Page (`/`)
 
-**Goal:** Communicate the product's value in under 10 seconds and get users into the planner.
+**Goal:** Communicate the product in under 10 seconds and get people into the planner.
 
-**Layout:** Full-screen hero. Left half: headline + prompt bar. Right half: a live MapLibre GL map of NYC as the background (not a static image — it moves, reinforcing that this is a real mapping product). A glassmorphism gradient fades the map to the left so the type stays readable.
+**Design:** Editorial New York: cream paper and ink (charcoal "evening edition" in dark mode), Instrument Serif headlines, Newsreader text, IBM Plex Mono labels, one red accent, numbered route bullets. Styles live in `src/app/home.css`, scoped under `.ed`.
 
-**Hero headline:** *"See New York, not the crowds."* — names the core differentiator immediately, not the product category.
+**Sections:**
+1. **Hero:** "New York" is printed in ink; Google's photorealistic 3D Manhattan fades in inside the letters, the page dives through a letter, and the camera lands orbiting the Empire State Building. The deck holds the prompt (submits to `/plan?q=…`) and three journey links. Plays once per session; reduced motion and lite devices start landed.
+2. **Watch it plan:** a self-typing prompt builds an example itinerary while the route draws on a 3D map.
+3. **Neighborhoods:** scrollytelling; a pinned 3D map flies to each neighborhood.
+4. **Journeys:** a contents list of four ready-made days.
+5. **Colophon:** data sources.
 
-**Prompt bar on the landing:** A single input. Submitting it navigates to `/plan?q=...` which auto-runs the AI. There is no "sign up" gate.
-
-**Sample itinerary card:** A hardcoded preview ("Central Park → The Met → Top of the Rock → Chelsea Market") with crowd badges and a "saves 1h 17m of travel" note. This concretizes the pitch before the user has typed anything.
-
-**Features section ("A day planned like a local would plan it"):** Four feature tiles with icons, plain-English descriptions. No jargon. Each tile explains *what the user gets*, not how it works.
-
-**Footer:** Attribution for all open data sources. Transparency about what crowd levels mean ("the area around a place, not the line inside it").
+**Performance:** copy is server-rendered; each map is created only near the viewport and idles off screen; Google failures fall back to MapLibre.
 
 ---
 
