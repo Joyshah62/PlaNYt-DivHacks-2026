@@ -1,0 +1,310 @@
+{
+ "met": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Metropolitan_Museum_of_Art_%28The_Met%29_-_Central_Park%2C_NYC.jpg/960px-Metropolitan_Museum_of_Art_%28The_Met%29_-_Central_Park%2C_NYC.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Hugo Schneider",
+  "license": "CC BY-SA 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Metropolitan_Museum_of_Art_(The_Met)_-_Central_Park,_NYC.jpg",
+  "article": "Metropolitan Museum of Art"
+ },
+ "moma": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/MoMa_NY_USA_1.jpg/960px-MoMa_NY_USA_1.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "hibino",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:MoMa_NY_USA_1.jpg",
+  "article": "Museum of Modern Art"
+ },
+ "amnh": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/USA-NYC-American_Museum_of_Natural_History.JPG/960px-USA-NYC-American_Museum_of_Natural_History.JPG?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Ingfbruno",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:USA-NYC-American_Museum_of_Natural_History.JPG",
+  "article": "American Museum of Natural History"
+ },
+ "guggenheim": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Solomon_R._Guggenheim_Museum_%2848059131351%29.jpg/960px-Solomon_R._Guggenheim_Museum_%2848059131351%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Ajay Suresh from New York, NY, USA",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Solomon_R._Guggenheim_Museum_(48059131351).jpg",
+  "article": "Solomon R. Guggenheim Museum"
+ },
+ "whitney": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/59/Whitney_Museum_of_American_Art_%2849051573133%29.jpg/960px-Whitney_Museum_of_American_Art_%2849051573133%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Ajay Suresh from New York, NY, USA",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Whitney_Museum_of_American_Art_(49051573133).jpg",
+  "article": "Whitney Museum of American Art"
+ },
+ "911-museum": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/9-11_Memorial_and_Museum_%2828815276064%29.jpg/960px-9-11_Memorial_and_Museum_%2828815276064%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Paul Sableman",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:9-11_Memorial_and_Museum_(28815276064).jpg",
+  "article": "National September 11 Memorial & Museum"
+ },
+ "tenement": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/97_Orchard_Street_Front.jpg/960px-97_Orchard_Street_Front.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Fletcher6",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:97_Orchard_Street_Front.jpg",
+  "article": "Lower East Side Tenement Museum"
+ },
+ "intrepid": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e6/Intrepid_Museum_%2849052290092%29.jpg/960px-Intrepid_Museum_%2849052290092%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Ajay Suresh from New York, NY, USA",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Intrepid_Museum_(49052290092).jpg",
+  "article": "Intrepid Museum"
+ },
+ "brooklyn-museum": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Brooklyn_Museum_-_Entrance_%2852302265063%29.jpg/960px-Brooklyn_Museum_-_Entrance_%2852302265063%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "ajay_suresh",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_Entrance_(52302265063).jpg",
+  "article": "Brooklyn Museum"
+ },
+ "cloisters": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/The_Met_Cloisters.jpg/960px-The_Met_Cloisters.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Christopher Down",
+  "license": "CC BY 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:The_Met_Cloisters.jpg",
+  "article": "The Cloisters"
+ },
+ "top-of-the-rock": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/30_Rockefeller_Plaza_view_from_Empire_State_Building%2C_around_1_pm.jpg/960px-30_Rockefeller_Plaza_view_from_Empire_State_Building%2C_around_1_pm.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "David.Cole",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:30_Rockefeller_Plaza_view_from_Empire_State_Building,_around_1_pm.jpg",
+  "article": "30 Rockefeller Plaza"
+ },
+ "empire-state": {
+  "url": "https://upload.wikimedia.org/wikipedia/commons/1/10/Empire_State_Building_%28aerial_view%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+  "credit": "Sam Valadi",
+  "license": "Public domain",
+  "source": "https://commons.wikimedia.org/wiki/File:Empire_State_Building_(aerial_view).jpg",
+  "article": "Empire State Building"
+ },
+ "summit": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/00/One_Vanderbilt_April_2023.jpg/960px-One_Vanderbilt_April_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Percival Kestreltail",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:One_Vanderbilt_April_2023.jpg",
+  "article": "One Vanderbilt"
+ },
+ "edge": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Hudson_Yards_from_Hudson_Commons_%2895131p%29_%2830_Hudson_Yards%29.jpg/960px-Hudson_Yards_from_Hudson_Commons_%2895131p%29_%2830_Hudson_Yards%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Rhododendrites",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Hudson_Yards_from_Hudson_Commons_(95131p)_(30_Hudson_Yards).jpg",
+  "article": "30 Hudson Yards"
+ },
+ "one-world": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/One_WTC_logo.svg/960px-One_WTC_logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "One World Trade Center",
+  "license": "Public domain",
+  "source": "https://commons.wikimedia.org/wiki/File:One_WTC_logo.svg",
+  "article": "One World Trade Center"
+ },
+ "statue-of-liberty": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Front_view_of_Statue_of_Liberty_%28cropped%29.jpg/960px-Front_view_of_Statue_of_Liberty_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "AskALotl",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:Front_view_of_Statue_of_Liberty_(cropped).jpg",
+  "article": "Statue of Liberty"
+ },
+ "staten-island-ferry": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/Spirit_of_America_-_Staten_Island_Ferry.jpg/960px-Spirit_of_America_-_Staten_Island_Ferry.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "InSapphoWeTrust",
+  "license": "CC BY-SA 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Spirit_of_America_-_Staten_Island_Ferry.jpg",
+  "article": "Staten Island Ferry"
+ },
+ "brooklyn-bridge": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Brooklyn_Bridge_and_the_Lower_Manhattan_skyline_from_Pebble_Beach%2C_New_York.jpg/960px-Brooklyn_Bridge_and_the_Lower_Manhattan_skyline_from_Pebble_Beach%2C_New_York.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Christian David",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Brooklyn_Bridge_and_the_Lower_Manhattan_skyline_from_Pebble_Beach,_New_York.jpg",
+  "article": "Brooklyn Bridge"
+ },
+ "times-square": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/New_york_times_square-terabass.jpg/960px-New_york_times_square-terabass.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Terabass",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:New_york_times_square-terabass.jpg",
+  "article": "Times Square"
+ },
+ "grand-central": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Image-Grand_central_Station_Outside_Night_2.jpg/960px-Image-Grand_central_Station_Outside_Night_2.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Fcb981 ; Eric Baetscher (attribution required)",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Image-Grand_central_Station_Outside_Night_2.jpg",
+  "article": "Grand Central Terminal"
+ },
+ "st-patricks": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/St._Patrick%27s_Cathedral_-_2026_%2855284018525%29.jpg/960px-St._Patrick%27s_Cathedral_-_2026_%2855284018525%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Ajay Suresh",
+  "license": "CC BY 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:St._Patrick%27s_Cathedral_-_2026_(55284018525).jpg",
+  "article": "St. Patrick's Cathedral (New York City)"
+ },
+ "wall-street": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Wall_Street_%2855314253740%29.jpg/960px-Wall_Street_%2855314253740%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Ajay Suresh",
+  "license": "CC BY 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Wall_Street_(55314253740).jpg",
+  "article": "Wall Street"
+ },
+ "roosevelt-tram": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Roosevelt_Island_tramcar_2010.jpg/960px-Roosevelt_Island_tramcar_2010.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Autopilot",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Roosevelt_Island_tramcar_2010.jpg",
+  "article": "Roosevelt Island Tramway"
+ },
+ "vessel": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/Hudson_Yards_Plaza_March_2019_53.jpg/960px-Hudson_Yards_Plaza_March_2019_53.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Epicgenius",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Hudson_Yards_Plaza_March_2019_53.jpg",
+  "article": "Vessel (structure)"
+ },
+ "central-park": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Global_Citizen_Festival_Central_Park_New_York_City_from_NYonAir_%2815351915006%29.jpg/960px-Global_Citizen_Festival_Central_Park_New_York_City_from_NYonAir_%2815351915006%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Anthony Quintano from Hillsborough, NJ, United States",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Global_Citizen_Festival_Central_Park_New_York_City_from_NYonAir_(15351915006).jpg",
+  "article": "Central Park"
+ },
+ "high-line": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/High_Line_Park%2C_Section_1a.jpg/960px-High_Line_Park%2C_Section_1a.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Dansnguyen",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:High_Line_Park,_Section_1a.jpg",
+  "article": "High Line"
+ },
+ "little-island": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Little_Island_at_Pier_55.jpg/960px-Little_Island_at_Pier_55.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Praneeth Thalla",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Little_Island_at_Pier_55.jpg",
+  "article": "Little Island at Pier 55"
+ },
+ "brooklyn-bridge-park": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/View_of_Brooklyn_Bridge_Park_from_Manhattan_Bridge.jpg/960px-View_of_Brooklyn_Bridge_Park_from_Manhattan_Bridge.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "(User:Wgreaves)",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:View_of_Brooklyn_Bridge_Park_from_Manhattan_Bridge.jpg",
+  "article": "Brooklyn Bridge Park"
+ },
+ "washington-square": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Washington_Square_Arch-Isabella.jpg/960px-Washington_Square_Arch-Isabella.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Isabella Ruffalo-Burgat",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Washington_Square_Arch-Isabella.jpg",
+  "article": "Washington Square Park"
+ },
+ "bryant-park": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/New-York_-_Bryant_Park.jpg/960px-New-York_-_Bryant_Park.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Jean-Christophe BENOIST",
+  "license": "CC BY 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:New-York_-_Bryant_Park.jpg",
+  "article": "Bryant Park"
+ },
+ "prospect-park": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Prospect_Park_New_York_October_2015_003.jpg/960px-Prospect_Park_New_York_October_2015_003.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "King of Hearts",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Prospect_Park_New_York_October_2015_003.jpg",
+  "article": "Prospect Park (Brooklyn)"
+ },
+ "botanic-garden": {
+  "url": "https://upload.wikimedia.org/wikipedia/commons/1/1c/Brooklyn_botanic_garden_fragrance_garden_gate.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+  "credit": "Three60five (talk) (Uploads)",
+  "license": "Public domain",
+  "source": "https://commons.wikimedia.org/wiki/File:Brooklyn_botanic_garden_fragrance_garden_gate.jpg",
+  "article": "Brooklyn Botanic Garden"
+ },
+ "domino-park": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Domino_Park%2C_Brooklyn%2C_New_York_City_%28June_2018%29.jpg/960px-Domino_Park%2C_Brooklyn%2C_New_York_City_%28June_2018%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "MusikAnimal",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Domino_Park,_Brooklyn,_New_York_City_(June_2018).jpg",
+  "article": "Domino Park"
+ },
+ "chelsea-market": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Chelsea_Market_%2849052085186%29.jpg/960px-Chelsea_Market_%2849052085186%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Ajay Suresh from New York, NY, USA",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Chelsea_Market_(49052085186).jpg",
+  "article": "Chelsea Market"
+ },
+ "katz": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/Katz%27s_Delicatessen_%2851623899326%29.jpg/960px-Katz%27s_Delicatessen_%2851623899326%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "ajay_suresh",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Katz%27s_Delicatessen_(51623899326).jpg",
+  "article": "Katz's Delicatessen"
+ },
+ "chinatown": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/2024-05-20_13_32_04_View_west_along_East_Broadway_from_the_Manhattan_Bridge_in_Manhattan%2C_New_York_City%2C_New_York.jpg/960px-2024-05-20_13_32_04_View_west_along_East_Broadway_from_the_Manhattan_Bridge_in_Manhattan%2C_New_York_City%2C_New_York.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Famartin",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:2024-05-20_13_32_04_View_west_along_East_Broadway_from_the_Manhattan_Bridge_in_Manhattan,_New_York_City,_New_York.jpg",
+  "article": "Chinatown, Manhattan"
+ },
+ "flushing": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Flushing%2C_Queens%2C_NY%2C_USA_-_panoramio_%281%29.jpg/960px-Flushing%2C_Queens%2C_NY%2C_USA_-_panoramio_%281%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Raman Patel",
+  "license": "CC BY 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Flushing,_Queens,_NY,_USA_-_panoramio_(1).jpg",
+  "article": "Flushing, Queens"
+ },
+ "soho": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Cast_Iron_Grand_Crosby_jeh_crop.jpg/960px-Cast_Iron_Grand_Crosby_jeh_crop.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Jim.henderson; cropped by Beyond My Ken (talk) 05:00, 19 June 2011 (UTC)",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:Cast_Iron_Grand_Crosby_jeh_crop.jpg",
+  "article": "SoHo, Manhattan"
+ },
+ "little-italy": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Little_Italy_-_Manhattan_%2851624758690%29.jpg/960px-Little_Italy_-_Manhattan_%2851624758690%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "ajay_suresh",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Little_Italy_-_Manhattan_(51624758690).jpg",
+  "article": "Little Italy, Manhattan"
+ },
+ "dumbo": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/DUMBO_Brooklyn%2C_as_seen_from_the_viewing_gallery_of_One_World_Trade_Center.jpg/960px-DUMBO_Brooklyn%2C_as_seen_from_the_viewing_gallery_of_One_World_Trade_Center.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Benhodgson",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:DUMBO_Brooklyn,_as_seen_from_the_viewing_gallery_of_One_World_Trade_Center.jpg",
+  "article": "Dumbo, Brooklyn"
+ },
+ "williamsburg": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/WilliamsburgBK.jpg/960px-WilliamsburgBK.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Justicex07",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:WilliamsburgBK.jpg",
+  "article": "Williamsburg, Brooklyn"
+ },
+ "harlem": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Harlem_-_Apollo_Theater_%2848555309512%29.jpg/960px-Harlem_-_Apollo_Theater_%2848555309512%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Ajay Suresh from New York, NY, USA",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Harlem_-_Apollo_Theater_(48555309512).jpg",
+  "article": "Apollo Theater"
+ },
+ "coney-island": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Coney_Island_beach_and_amusement_parks_%28June_2016%29.jpg/960px-Coney_Island_beach_and_amusement_parks_%28June_2016%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "MusikAnimal",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Coney_Island_beach_and_amusement_parks_(June_2016).jpg",
+  "article": "Coney Island"
+ },
+ "west-village": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/2_Horatio_Street_NYC_Summer_from_the_North.jpg/960px-2_Horatio_Street_NYC_Summer_from_the_North.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "WindingRoad",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:2_Horatio_Street_NYC_Summer_from_the_North.jpg",
+  "article": "West Village"
+ }
+}

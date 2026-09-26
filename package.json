@@ -1,5 +1,5 @@
 {
-  "name": "rentcheck-nyc",
+  "name": "roam-nyc",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,10 +11,13 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "postinstall": "node scripts/copy-maplibre-worker.mjs"
+    "postinstall": "node scripts/copy-maplibre-worker.mjs",
+    "crowd-data": "node scripts/build-crowd-data.mjs",
+    "poi-data": "node scripts/build-poi-data.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
+    "@google/genai": "^2.24.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
     "lucide-react": "^1.47.0",

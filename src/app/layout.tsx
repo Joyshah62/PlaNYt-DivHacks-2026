@@ -22,14 +22,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RentCheck NYC",
-  description: "Building records, neighborhood and commute for any NYC apartment, read through your own priorities.",
+  title: "Roam NYC · Plan a day in New York around the crowds",
+  description: "Pick or describe the places you want to see. Roam orders them around travel time, opening hours and subway-ridership crowd levels.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
+    // Browsers and extensions (Chrome autofill, password managers) tag the page before
+    // React hydrates; those attributes are theirs, not a rendering bug.
     <html
+      suppressHydrationWarning
       lang="en"
+      data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} ${display.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background">

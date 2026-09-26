@@ -1,104 +1,60 @@
-import type { OverpassElement } from "./categories";
-import type { LatLon, SourceStatus } from "./types";
+import { haversine } from "./geo";
+import { USER_AGENT } from "./userAgent";
+import type { LatLon } from "./types";
 
-/** Public instances, most reliable first. Mirrors come and go; the hedge below tolerates that. */
-const ENDPOINTS = [
-  "https://overpass-api.de/api/interpreter",
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-  "https://overpass.private.coffee/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-];
+const OVERPASS = "https://overpass-api.de/api/interpreter";
 
-export const USER_AGENT = "RentCheckNYC/0.1 (hackathon project; apartment research tool)";
-
-export const RADIUS_METERS = 1200;
-
-export function buildQuery({ lat, lon }: LatLon, radius = RADIUS_METERS): string {
-  const around = `(around:${radius},${lat},${lon})`;
-  return `[out:json][timeout:25];
-(
-  nwr${around}[amenity~"^(restaurant|fast_food|cafe|bar|pub|nightclub|pharmacy|hospital|clinic|cinema|theatre)$"];
-  nwr${around}[shop~"^(supermarket|grocery|greengrocer|convenience|laundry)$"];
-  nwr${around}[leisure~"^(park|playground|fitness_centre|sports_centre)$"];
-  nwr${around}[tourism=museum];
-  nwr${around}[railway=station];
-  node${around}[highway=bus_stop];
-);
-out center tags;`;
+export interface Eatery extends LatLon {
+  id: string;
+  name: string;
+  /** "restaurant", "cafe" or "fast_food". */
+  amenity: string;
+  /** OSM's cuisine tag, first value, e.g. "pizza". */
+  cuisine: string | null;
+  meters: number;
 }
 
-export interface OverpassResult {
-  elements: OverpassElement[];
-  status: SourceStatus;
-}
+/** Keyed by a ~100 m grid cell: the same area is asked for again whenever the day is re-planned. */
+const cache = new Map<string, Eatery[]>();
 
-/** How long to wait on one mirror before also asking the next. */
-const HEDGE_AFTER_MS = 5000;
-const TOTAL_BUDGET_MS = 20_000;
+/** Named places to eat within `radius` meters, nearest first. Empty when Overpass is unavailable. */
+export async function nearbyEateries(point: LatLon, radius = 600): Promise<Eatery[]> {
+  const key = `${point.lat.toFixed(3)},${point.lon.toFixed(3)},${radius}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
 
-async function ask(endpoint: string, body: URLSearchParams, signal: AbortSignal): Promise<OverpassElement[]> {
-  const res = await fetch(endpoint, {
-    method: "POST",
-    body,
-    headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-    signal,
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`${new URL(endpoint).host} responded ${res.status}`);
-  const json = (await res.json()) as { elements?: OverpassElement[] };
-  return json.elements ?? [];
-}
-
-/**
- * The public Overpass servers are shared and often busy. Ask the first mirror;
- * if it hasn't answered in a few seconds (or fails), ask the next as well, and
- * take whichever succeeds first. Never throws - a failure is a status, not an
- * empty neighborhood.
- */
-export async function fetchNearbyElements(center: LatLon): Promise<OverpassResult> {
-  const body = new URLSearchParams({ data: buildQuery(center) });
-  const controllers = ENDPOINTS.map(() => new AbortController());
-  const deadline = setTimeout(() => controllers.forEach((c) => c.abort()), TOTAL_BUDGET_MS);
-  const errors: string[] = [];
-
+  const query = `[out:json][timeout:10];nwr(around:${radius},${point.lat},${point.lon})["amenity"~"^(restaurant|cafe|fast_food)$"]["name"];out center 150;`;
   try {
-    const elements = await new Promise<OverpassElement[]>((resolve, reject) => {
-      let started = 0;
-      let settled = 0;
-      let timer: ReturnType<typeof setTimeout> | undefined;
-
-      const launch = () => {
-        clearTimeout(timer);
-        if (started >= ENDPOINTS.length) return;
-        const i = started++;
-        ask(ENDPOINTS[i], body, controllers[i].signal).then(
-          (els) => {
-            controllers.forEach((c, j) => j !== i && c.abort());
-            resolve(els);
-          },
-          (error) => {
-            errors.push(error instanceof Error ? error.message : String(error));
-            if (++settled === ENDPOINTS.length) reject(new Error(errors.join("; ")));
-            else launch(); // failed fast: don't wait out the hedge delay
-          },
-        );
-        if (started < ENDPOINTS.length) timer = setTimeout(launch, HEDGE_AFTER_MS);
-      };
-      launch();
+    const res = await fetch(OVERPASS, {
+      method: "POST",
+      headers: { "User-Agent": USER_AGENT, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ data: query }),
+      signal: AbortSignal.timeout(12_000),
     });
-
-    return {
-      elements,
-      status: { ok: true, source: "OpenStreetMap via Overpass", retrievedAt: new Date().toISOString(), error: null },
+    if (!res.ok) throw new Error(`Overpass responded ${res.status}`);
+    const body = (await res.json()) as {
+      elements: { type: string; id: number; lat?: number; lon?: number; center?: LatLon; tags?: Record<string, string> }[];
     };
+    const out: Eatery[] = [];
+    for (const el of body.elements) {
+      const at = el.center ?? (el.lat !== undefined && el.lon !== undefined ? { lat: el.lat, lon: el.lon } : null);
+      const tags = el.tags ?? {};
+      if (!at || !tags.name) continue;
+      out.push({
+        id: `${el.type[0]}${el.id}`,
+        name: tags.name,
+        amenity: tags.amenity,
+        cuisine: tags.cuisine?.split(";")[0].trim().replace(/_/g, " ") || null,
+        lat: at.lat,
+        lon: at.lon,
+        meters: Math.round(haversine(point, at)),
+      });
+    }
+    out.sort((a, b) => a.meters - b.meters);
+    cache.set(key, out);
+    return out;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[overpass]", message);
-    return {
-      elements: [],
-      status: { ok: false, source: "OpenStreetMap via Overpass", retrievedAt: null, error: message },
-    };
-  } finally {
-    clearTimeout(deadline);
+    console.error("[overpass]", error instanceof Error ? error.message : error);
+    return [];
   }
 }

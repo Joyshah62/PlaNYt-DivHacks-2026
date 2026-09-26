@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The dev server blocks its scripts for any other hostname, so a page opened
+  // through an ngrok tunnel renders but never runs. Development only.
+  allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
 };
 
 export default nextConfig;

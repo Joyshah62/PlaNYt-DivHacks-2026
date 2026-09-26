@@ -1,13 +1,14 @@
 import { haversine } from "./geo";
-import { USER_AGENT } from "./overpass";
+import { USER_AGENT } from "./userAgent";
 import type { LatLon, RouteResult } from "./types";
 
 /**
  * Public OSRM servers, tried in order. The OSRM project's demo only routes cars;
- * FOSSGIS hosts separate foot and car profiles. Both are free and fair-use.
+ * FOSSGIS hosts separate foot, bike and car profiles. Both are free and fair-use.
  */
 const SERVERS = {
   foot: [{ host: "https://routing.openstreetmap.de/routed-foot", profile: "foot" }],
+  bike: [{ host: "https://routing.openstreetmap.de/routed-bike", profile: "bike" }],
   car: [
     { host: "https://router.project-osrm.org", profile: "driving" },
     { host: "https://routing.openstreetmap.de/routed-car", profile: "driving" },
@@ -150,12 +151,34 @@ export async function osrmTable(
   return results.flat() as TableLeg[];
 }
 
+/**
+ * Every point to every other, in one request. For a day's worth of stops
+ * (a dozen at most) this stays far under the server's coordinate limit.
+ * Returns null if no server answered, so the caller can estimate instead.
+ */
+export async function osrmMatrix(profile: Profile, points: LatLon[], options: TableOptions = {}): Promise<TableLeg[][] | null> {
+  if (points.length < 2) return points.map(() => [{ duration: 0, distance: 0 }]);
+  const path = `${coordinates(points)}?annotations=duration,distance`;
+  for (const { host, profile: name } of SERVERS[profile]) {
+    try {
+      const json = await getJson<TableResponse>(`${host}/table/v1/${name}/${path}`, options);
+      if (json.code !== "Ok" || json.durations?.length !== points.length) continue;
+      return json.durations.map((row, i) =>
+        row.map((duration, j) => ({ duration: duration ?? null, distance: json.distances?.[i]?.[j] ?? null })),
+      );
+    } catch (error) {
+      console.error("[osrm matrix]", host, error instanceof Error ? error.message : error);
+    }
+  }
+  return null;
+}
+
 export function toMinutes(seconds: number | null): number | null {
   return seconds === null ? null : Math.max(1, Math.round(seconds / 60));
 }
 
 /**
- * A drawable route from the apartment to one place. Walks start from whichever
+ * A drawable route between two points. Walks start from whichever
  * nearby path gets there fastest (see parseTable), with a short connector from
  * the address itself so the line visibly leaves the building.
  */

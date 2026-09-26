@@ -1,5 +1,5 @@
 import { geocodePoint } from "@/lib/nyc/geosearch";
-import { USER_AGENT } from "./overpass";
+import { USER_AGENT } from "./userAgent";
 import { findKnownDestination } from "./places";
 import type { LatLon } from "./types";
 

@@ -43,3 +43,6 @@ next-env.d.ts
 
 # copied from node_modules by scripts/copy-maplibre-worker.mjs
 /public/maplibre/
+
+# Google photo usage counter (see src/lib/plan/photos.ts)
+/.data/

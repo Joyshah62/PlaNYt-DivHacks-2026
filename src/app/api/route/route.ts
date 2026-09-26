@@ -11,12 +11,13 @@ function point(raw: string | null): LatLon | null {
   return inNycArea(p) ? p : null;
 }
 
-/** GET /api/route?from=lat,lon&to=lat,lon&mode=foot|car - one drawable route. */
+/** GET /api/route?from=lat,lon&to=lat,lon&mode=foot|bike|car - one drawable route. */
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const from = point(params.get("from"));
   const to = point(params.get("to"));
-  const mode = params.get("mode") === "car" ? "car" : "foot";
+  const raw = params.get("mode");
+  const mode = raw === "car" || raw === "bike" ? raw : "foot";
   if (!from || !to) return Response.json({ error: "Two NYC points are required." }, { status: 400 });
 
   const key = `${mode}|${from.lat.toFixed(5)},${from.lon.toFixed(5)}|${to.lat.toFixed(5)},${to.lon.toFixed(5)}`;

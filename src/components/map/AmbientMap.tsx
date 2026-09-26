@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { AttributionControl, Map as MapLibre } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { STYLES, ensureWorker, prefersReducedMotion, resolveColors, useDarkScheme } from "./mapStyle";
+import { STYLES, ensureWorker, prefersReducedMotion, resolveColors, resolveMissingStyleImages, useDarkScheme } from "./mapStyle";
 
 /**
  * The landing page backdrop: the city in 3D, drifting slowly. Decorative, so it
@@ -27,6 +27,7 @@ export function AmbientMap({ className }: { className?: string }) {
       attributionControl: false,
       fadeDuration: 0,
     });
+    resolveMissingStyleImages(map);
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
 
     map.on("style.load", () => {

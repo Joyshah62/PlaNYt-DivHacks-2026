@@ -271,7 +271,21 @@
   animation-delay: var(--delay, 0ms);
 }
 
-/* The apartment marker on the map. */
+/* The itinerary header's photos drift slowly, like a travel documentary. */
+@keyframes kenburns {
+  from {
+    transform: scale(1.04) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.14) translate3d(-2%, -1.5%, 0);
+  }
+}
+.hero-kenburns {
+  animation: kenburns 18s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* The starting-point marker on the map. */
 @keyframes ping-ring {
   0% {
     transform: scale(0.6);
@@ -307,6 +321,204 @@
   box-shadow:
     0 0 0 3px var(--background),
     0 4px 14px oklch(0 0 0 / 0.3);
+}
+
+/* A stop on the planner map: numbered once the day is ordered. */
+.plan-pin {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  border-radius: 9999px;
+  background: var(--foreground);
+  color: var(--background);
+  font: 600 13px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    0 0 0 3px var(--background),
+    0 4px 14px oklch(0 0 0 / 0.28);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.plan-pin:empty {
+  min-width: 16px;
+  height: 16px;
+  padding: 0;
+}
+.plan-pin:hover,
+.plan-pin.is-active {
+  background: var(--brand);
+  color: var(--on-color);
+  transform: scale(1.15);
+}
+
+/* A stop with a photo: a round thumbnail with its number on a badge. */
+/* No position here: MapLibre positions markers absolutely, which also anchors the badge. */
+.plan-pin.has-photo {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  background-color: var(--muted);
+  background-size: cover;
+  background-position: center;
+  box-shadow:
+    0 0 0 3px var(--background),
+    0 0 0 5px var(--foreground),
+    0 8px 22px oklch(0 0 0 / 0.35);
+}
+.plan-pin.has-photo > span {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 11.5px;
+  box-shadow: 0 0 0 2px var(--background);
+}
+.plan-pin.has-photo:hover,
+.plan-pin.has-photo.is-active {
+  box-shadow:
+    0 0 0 3px var(--background),
+    0 0 0 6px var(--brand),
+    0 10px 26px oklch(0 0 0 / 0.4);
+}
+.plan-pin.has-photo:hover > span,
+.plan-pin.has-photo.is-active > span {
+  background: var(--brand);
+  color: var(--on-color);
+}
+
+/* While found places are on the map, the day's pins step back so the lettered results show. */
+.is-discovering .plan-pin {
+  /* MapLibre sets marker opacity inline. */
+  opacity: 0.55 !important;
+}
+.is-discovering .plan-pin.has-photo {
+  width: 30px;
+  height: 30px;
+}
+
+/* The traveler during playback: a bright dot with a sonar ring. */
+.traveler-marker {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: var(--brand);
+  box-shadow:
+    0 0 0 3px #fff,
+    0 0 18px 4px color-mix(in oklch, var(--brand) 70%, transparent);
+  z-index: 5;
+}
+.traveler-marker::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  border: 2px solid var(--brand);
+  animation: ping-ring 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* The play button before first use: a slow halo that says "press me". */
+@keyframes halo {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--brand) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 16px color-mix(in oklch, var(--brand) 0%, transparent);
+  }
+}
+.play-halo {
+  animation: halo 1.8s ease-out infinite;
+}
+
+/* The day's timeline: a filled track up to the current time. */
+.day-scrubber {
+  appearance: none;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+.day-scrubber::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, var(--brand) var(--progress), var(--muted) var(--progress));
+}
+.day-scrubber::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, var(--brand) var(--progress), var(--muted) var(--progress));
+}
+.day-scrubber::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  border-radius: 9999px;
+  background: var(--card);
+  border: 3px solid var(--brand);
+  box-shadow: 0 2px 8px oklch(0 0 0 / 0.25);
+}
+.day-scrubber::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--card);
+  border: 3px solid var(--brand);
+}
+.day-scrubber:focus-visible {
+  outline: none;
+}
+.day-scrubber:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--brand) 30%, transparent);
+}
+.heat-legend {
+  background: linear-gradient(to right, rgba(56, 189, 248, 0.5), rgba(129, 140, 248, 0.7), rgba(250, 204, 21, 0.8), rgba(249, 115, 22, 0.9), rgba(239, 68, 68, 1));
+}
+
+/* Phones: the panel is a sheet over the map; keep the map's attribution above it. */
+@media (max-width: 1023px) {
+  .maplibregl-ctrl-bottom-right {
+    bottom: var(--sheet-h, 0px);
+    transition: bottom 0.3s ease-out;
+  }
+}
+
+/* Hovering a stop on the map: a small photo card. */
+.pin-card {
+  pointer-events: none;
+}
+.pin-card .maplibregl-popup-content {
+  padding: 0 !important;
+  overflow: hidden;
+  width: 220px;
+}
+.pin-card img {
+  display: block;
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+}
+.pin-card .maplibregl-popup-content > div > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 12px 10px;
+  font-size: 12px;
+}
+.pin-card strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.pin-card span {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
 }
 
 .maplibregl-popup-content {

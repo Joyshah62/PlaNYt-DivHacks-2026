@@ -1,8 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { setWorkerUrl } from "maplibre-gl";
-import type { LatLon } from "@/lib/osm/types";
+import { setWorkerUrl, type Map as MapLibre } from "maplibre-gl";
 
 let workerSet = false;
 
@@ -17,6 +16,19 @@ export const STYLES = {
   light: "https://tiles.openfreemap.org/styles/positron",
   dark: "https://tiles.openfreemap.org/styles/dark",
 };
+
+/** OpenFreeMap's current style references this optional tile texture without shipping it in its sprite. */
+export function resolveMissingStyleImages(map: MapLibre) {
+  map.setMissingStyleImageResolver((id) => {
+    if (id !== "wood-pattern" || map.hasImage(id)) return;
+    const [r = 120, g = 150, b = 120] = resolveColors()["--cat-parks"].match(/\d+/g)?.map(Number) ?? [];
+    const data = new Uint8ClampedArray([
+      r, g, b, 22, r, g, b, 12,
+      r, g, b, 12, r, g, b, 22,
+    ]);
+    map.addImage(id, new ImageData(data, 2, 2));
+  });
+}
 
 function subscribeScheme(onChange: () => void) {
   const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -40,7 +52,7 @@ export const CATEGORY_IDS = [
   "nightlife", "convenience", "laundry", "entertainment", "health", "bus",
 ] as const;
 
-const COLOR_VARS = ["--brand", "--background", "--foreground", "--muted-foreground", "--card", ...CATEGORY_IDS.map((c) => `--cat-${c}`)];
+const COLOR_VARS = ["--brand", "--background", "--foreground", "--muted", "--muted-foreground", "--card", ...CATEGORY_IDS.map((c) => `--cat-${c}`)];
 
 /** MapLibre cannot read CSS variables or oklch(); resolve them to rgb via a canvas pixel. */
 export function resolveColors(): Record<string, string> {
@@ -57,24 +69,6 @@ export function resolveColors(): Record<string, string> {
       return [name, `rgb(${r},${g},${b})`];
     }),
   );
-}
-
-/** Straight-line fallback for walking zones, matching the walk estimate model. */
-export function circleZones(center: LatLon): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: [15, 10, 5].map((min) => {
-      const meters = (min * 80) / 1.3;
-      const dLat = meters / 111_320;
-      const dLon = meters / (111_320 * Math.cos((center.lat * Math.PI) / 180));
-      const ring: [number, number][] = [];
-      for (let i = 0; i <= 96; i++) {
-        const a = (i / 96) * 2 * Math.PI;
-        ring.push([center.lon + dLon * Math.cos(a), center.lat + dLat * Math.sin(a)]);
-      }
-      return { type: "Feature" as const, properties: { min }, geometry: { type: "Polygon" as const, coordinates: [ring] } };
-    }),
-  };
 }
 
 export function prefersReducedMotion(): boolean {
