@@ -86,6 +86,7 @@ export function useTripRoom(id: string) {
     suggest: (stop: StopInput) => memberId && act(() => tripApi<Trip>(`/${id}/candidates`, { memberId, stop })),
     remove: (stopKey: string) => memberId && act(() => tripApi<Trip>(`/${id}/remove`, { memberId, stopKey })),
     vote: (stopKey: string, on: boolean) => memberId && act(() => tripApi<Trip>(`/${id}/vote`, { memberId, stopKey, on })),
+    setStart: (point: { lat: number; lon: number } | null) => memberId && act(() => tripApi<Trip>(`/${id}/start`, { memberId, point })),
     confirm: (on: boolean) => memberId && act(() => tripApi<Trip>(`/${id}/confirm`, { memberId, on })),
     setDeadline: (at: number | null) => memberId && act(() => tripApi<Trip>(`/${id}/deadline`, { memberId, at })),
     async copyInvite() {

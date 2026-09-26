@@ -5,6 +5,7 @@ import { searchPlaces } from "../places";
 export async function GET(request: Request) {
   return respond(async () => {
     const q = (new URL(request.url).searchParams.get("q") ?? "").slice(0, 80);
-    return { results: await searchPlaces(q) };
+    const forStart = new URL(request.url).searchParams.get("for") === "start";
+    return { results: await searchPlaces(q, 8, forStart) };
   });
 }

@@ -18,7 +18,18 @@ const POPULAR = POPULAR_IDS.flatMap((id) => ATTRACTIONS.filter((a) => a.id === i
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 
 /** Type a name, see real places with their address, pick one. Falls back to a map lookup. */
-export function PlaceSearch({ chosen, disabled, onPick }: { chosen: Set<string>; disabled?: boolean; onPick: (stop: StopInput) => void }) {
+export function PlaceSearch({
+  chosen,
+  disabled,
+  onPick,
+  forStart = false,
+}: {
+  chosen: Set<string>;
+  disabled?: boolean;
+  onPick: (stop: StopInput) => void;
+  /** Picking where you set off from: include subway stations, skip the popular sights. */
+  forStart?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [found, setFound] = useState<{ q: string; results: Result[] }>({ q: "", results: [] });
   const [active, setActive] = useState(0);
@@ -33,7 +44,7 @@ export function PlaceSearch({ chosen, disabled, onPick }: { chosen: Set<string>;
     if (q.length < 2) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      fetch(`/api/trips/places?q=${encodeURIComponent(q)}`, { signal: controller.signal })
+      fetch(`/api/trips/places?q=${encodeURIComponent(q)}${forStart ? "&for=start" : ""}`, { signal: controller.signal })
         .then((res) => (res.ok ? res.json() : { results: [] }))
         .then((body: { results: Result[] }) => {
           setFound({ q, results: body.results });
@@ -47,7 +58,7 @@ export function PlaceSearch({ chosen, disabled, onPick }: { chosen: Set<string>;
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [q]);
+  }, [q, forStart]);
 
   function pick(stop: StopInput) {
     setQuery("");
@@ -81,6 +92,8 @@ export function PlaceSearch({ chosen, disabled, onPick }: { chosen: Set<string>;
       setActive((a) => (a - 1 + rows) % rows);
     } else if (e.key === "Enter") {
       e.preventDefault();
+      // Wait for this query's results so a quick Enter doesn't fall through to the map lookup.
+      if (searching) return;
       if (active < results.length) pick(results[active].stop);
       else locate();
     }
@@ -96,8 +109,8 @@ export function PlaceSearch({ chosen, disabled, onPick }: { chosen: Set<string>;
           onKeyDown={onKey}
           disabled={disabled}
           autoFocus
-          placeholder="Search a restaurant, museum, bar, park…"
-          aria-label="Search for a place to suggest"
+          placeholder={forStart ? "Your neighborhood, station or address…" : "Search a restaurant, museum, bar, park…"}
+          aria-label={forStart ? "Search for where you are starting from" : "Search for a place to suggest"}
           role="combobox"
           aria-expanded={q.length >= 2}
           aria-controls={listId}
@@ -131,7 +144,9 @@ export function PlaceSearch({ chosen, disabled, onPick }: { chosen: Set<string>;
               </li>
             );
           })}
+          {searching && results.length === 0 && <li className="px-4 py-2.5 text-xs text-muted-foreground">Searching…</li>}
           {!searching && results.length === 0 && <li className="px-4 py-2.5 text-xs text-muted-foreground">No named places match. Try the map search below.</li>}
+          {!searching && (
           <li id={`${listId}-${results.length}`} role="option" aria-selected={active === results.length}>
             <button
               type="button"
@@ -144,8 +159,9 @@ export function PlaceSearch({ chosen, disabled, onPick }: { chosen: Set<string>;
               Search the map for &ldquo;{q}&rdquo; (addresses too)
             </button>
           </li>
+          )}
         </ul>
-      ) : (
+      ) : forStart ? null : (
         <div className="mt-3">
           <p className="mb-2 text-[0.7rem] font-semibold tracking-wide text-muted-foreground uppercase">Popular</p>
           <div className="flex flex-wrap gap-1.5">

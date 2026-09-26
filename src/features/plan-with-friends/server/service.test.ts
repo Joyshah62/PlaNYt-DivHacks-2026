@@ -133,6 +133,50 @@ describe("trip service: removing places", () => {
   });
 });
 
+describe("trip service: where everyone starts", () => {
+  const astor = { lat: 40.72914, lon: -73.99098 };
+  const astoria = { lat: 40.77504, lon: -73.91203 };
+  const bedStuy = { lat: 40.6868, lon: -73.9418 };
+
+  it("rounds a starting point and shows only the area", async () => {
+    const { trip, memberId } = await start();
+    const t = await svc.setStart(trip.id, memberId, astor);
+    const s = t.members[memberId].start!;
+    expect(s.area).toMatch(/^near /);
+    expect(s.lat).not.toBe(astor.lat);
+    expect(Math.abs(s.lat - astor.lat)).toBeLessThan(0.002);
+  });
+
+  it("starts the day at the stop with the shortest worst-case trip", async () => {
+    const { trip, memberId } = await start([met, bridge]);
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.setStart(trip.id, memberId, astoria);
+    const t = await svc.setStart(trip.id, rishi, bedStuy);
+    expect(t.fairness?.starts).toBe(2);
+    const pick = t.fairness!.firstStop!;
+    expect(["met", "brooklyn-bridge"]).toContain(pick.key);
+    expect(Object.keys(pick.perMember).sort()).toEqual([memberId, rishi].sort());
+    expect(t.draft?.origin?.label).toBe(`Start at ${pick.name}`);
+    expect(t.fairness?.meetup?.key).toMatch(/^meetup-/);
+  });
+
+  it("lets a voted-in meetup station start the day instead", async () => {
+    const { trip, memberId } = await start([met]);
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.setStart(trip.id, memberId, astoria);
+    const withStarts = await svc.setStart(trip.id, rishi, bedStuy);
+    const m = withStarts.fairness!.meetup!;
+    const t = await svc.addCandidate(trip.id, rishi, { key: m.key, name: m.name, lat: m.lat, lon: m.lon, visitMin: 10, attractionId: null });
+    expect(t.draft?.origin?.label).toBe(m.name);
+    expect(t.draft?.stops.map((s) => s.key)).toEqual(["met"]);
+  });
+
+  it("rejects starting points outside the city through the route schema", async () => {
+    const { StartBody } = await import("./schema");
+    expect(StartBody.safeParse({ memberId: "member123", point: { lat: 51.5, lon: -0.12 } }).success).toBe(false);
+  });
+});
+
 describe("trip service: deciding together", () => {
   it("locks when everyone is in, and freezes the trip", async () => {
     const { trip, memberId } = await start();

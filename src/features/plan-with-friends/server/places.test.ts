@@ -15,6 +15,11 @@ describe("place search over the bundled NYC data", () => {
     expect(hits.every((h) => h.name.startsWith("Levain"))).toBe(true);
   });
 
+  it("includes subway stations only when picking a starting point", async () => {
+    expect((await searchPlaces("astor pl", 8, true)).some((h) => h.detail.startsWith("Subway station"))).toBe(true);
+    expect((await searchPlaces("astor pl")).some((h) => h.detail.startsWith("Subway station"))).toBe(false);
+  });
+
   it("returns catalog sights as ready-to-plan stops", async () => {
     const [hit] = await searchPlaces("the met");
     expect(hit.stop).toMatchObject({ key: "met", attractionId: "met" });

@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { APP_API, type DayPlan } from "../bridge/index";
-import { draftRequest } from "../core/rank";
 import type { Trip } from "../core/types";
 
 export function useDraftPlan(trip: Trip | null) {
   // Polling hands back a new Trip every 4 s; only a change in the request itself re-plans.
-  const request = trip ? draftRequest(trip) : null;
-  const signature = request ? JSON.stringify(request) : "";
+  const signature = trip?.draft ? JSON.stringify(trip.draft) : "";
   const [state, setState] = useState<{ signature: string; plan: DayPlan | null; error: string | null }>({ signature: "", plan: null, error: null });
 
   useEffect(() => {

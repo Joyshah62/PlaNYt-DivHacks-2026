@@ -19,5 +19,7 @@ export const CandidateBody = z.object({
 });
 export const VoteBody = z.object({ memberId: MemberId, stopKey: z.string().min(1).max(80), on: z.boolean() });
 export const RemoveBody = z.object({ memberId: MemberId, stopKey: z.string().min(1).max(80) });
+const PointSchema = z.object({ lat: z.number(), lon: z.number() }).refine(inNycArea, { message: "Pick a starting point in New York City." });
+export const StartBody = z.object({ memberId: MemberId, point: PointSchema.nullable() });
 export const ConfirmBody = z.object({ memberId: MemberId, on: z.boolean() });
 export const DeadlineBody = z.object({ memberId: MemberId, at: z.number().int().nullable() });

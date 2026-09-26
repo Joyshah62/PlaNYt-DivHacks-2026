@@ -1,6 +1,7 @@
 import type { PlanRequest, StopInput } from "../bridge/index";
 import type { Avatar } from "./avatars";
 import type { Consensus } from "./consensus";
+import type { FairPick } from "./fairness";
 
 export const MAX_DAY_STOPS = 10;
 export const MAX_CANDIDATES = 30;
@@ -8,10 +9,25 @@ export const MAX_MEMBERS = 12;
 
 export type TripSettings = Omit<PlanRequest, "stops" | "keepOrder">;
 
+export interface StartPoint {
+  /** What others see, e.g. "near Astor Pl". */
+  area: string;
+  lat: number;
+  lon: number;
+}
+
 export interface Member {
   name: string;
   avatar: Avatar;
   joinedAt: number;
+  start?: StartPoint | null;
+}
+
+export interface Fairness {
+  /** Members who shared where they start. */
+  starts: number;
+  firstStop: FairPick | null;
+  meetup: FairPick | null;
 }
 
 export interface Candidate {
@@ -32,5 +48,8 @@ export interface Trip {
   deadline: number | null;
   confirmations: Record<string, string>;
   consensus: Consensus;
+  /** The day the group is deciding on, including where it starts. */
+  draft: PlanRequest | null;
+  fairness: Fairness | null;
   lockedCode: string | null;
 }

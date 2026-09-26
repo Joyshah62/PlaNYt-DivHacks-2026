@@ -8,8 +8,10 @@ import { AskRoam } from "./AskRoam";
 import { AvatarStack } from "./Avatar";
 import { ConsensusBar } from "./ConsensusBar";
 import { DraftDay } from "./DraftDay";
+import { GroupMapPanel } from "./GroupMapPanel";
 import { JoinCard } from "./JoinCard";
 import { PlacesPanel } from "./PlacesPanel";
+import { StartPointCard } from "./StartPointCard";
 import { useTripRoom } from "./useTripRoom";
 
 type Tab = "places" | "day";
@@ -80,17 +82,19 @@ export function TripRoom({ id }: { id: string }) {
             onClick={() => setTab(t)}
             className={cn("flex-1 rounded-full py-1.5 text-sm font-medium transition", tab === t ? "bg-foreground text-background" : "text-muted-foreground")}
           >
-            {t === "places" ? `Places · ${trip.candidates.length}` : "Day"}
+            {t === "places" ? `Places · ${trip.candidates.length}` : "Map & day"}
           </button>
         ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start">
         <div className={cn("flex flex-col gap-4", tab !== "places" && "hidden lg:flex")}>
+          {me && !room.locked && <StartPointCard start={me.start} onSet={actions.setStart} />}
           {me && !room.locked && <AskRoam onSuggest={actions.suggest} />}
           <PlacesPanel trip={trip} memberId={me?.id ?? null} locked={room.locked} onVote={actions.vote} onSuggest={actions.suggest} onRemove={actions.remove} />
         </div>
-        <div className={cn("lg:sticky lg:top-4", tab !== "day" && "hidden lg:block")}>
+        <div className={cn("flex flex-col gap-4 lg:sticky lg:top-4", tab !== "day" && "hidden lg:flex")}>
+          <GroupMapPanel trip={trip} plan={draft.plan} memberId={me?.id ?? null} onSuggest={actions.suggest} />
           <DraftDay plan={draft.plan} updating={draft.updating} error={draft.error} locked={room.locked} />
         </div>
       </div>

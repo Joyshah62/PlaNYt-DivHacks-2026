@@ -1,26 +1,34 @@
-import { ATTRACTIONS, CATEGORY, nearestStations, parseOsmHours, type StopInput } from "../bridge/index";
+import { ATTRACTIONS, CATEGORY, nearestStations, parseOsmHours, STATIONS, type StopInput } from "../bridge/index";
 import { readPoiRows } from "../bridge/server";
 import { createPlaceIndex, type PlaceHit, type PoiRow } from "../core/placeSearch";
 
-let index: Promise<ReturnType<typeof createPlaceIndex>> | null = null;
+type Index = ReturnType<typeof createPlaceIndex>;
+const indexes = new Map<string, Promise<Index>>();
 
-function placeIndex() {
-  index ??= readPoiRows()
-    .then((rows) =>
-      createPlaceIndex(
-        ATTRACTIONS,
-        rows as PoiRow[],
-        (c) => CATEGORY[c as keyof typeof CATEGORY] ?? { label: "Place", visitMin: 60 },
-        (lat, lon) => {
-          const [near] = nearestStations({ lat, lon }, 1, 1500);
-          return near ? `near ${near.station.name.replace(/\s*\(.*\)$/, "")}` : null;
-        },
-      ),
-    )
-    .catch((error: unknown) => {
-      index = null;
-      throw error;
-    });
+const labelFor = (c: string) => (c === "station" ? { label: "Subway station", visitMin: 10 } : (CATEGORY[c as keyof typeof CATEGORY] ?? { label: "Place", visitMin: 60 }));
+const nearStation = (lat: number, lon: number) => {
+  const [near] = nearestStations({ lat, lon }, 1, 1500);
+  return near ? `near ${near.station.name.replace(/\s*\(.*\)$/, "")}` : null;
+};
+
+/** Places to visit; with stations too when someone is picking where they start from. */
+function placeIndex(withStations: boolean): Promise<Index> {
+  const key = withStations ? "start" : "visit";
+  let index = indexes.get(key);
+  if (!index) {
+    index = readPoiRows()
+      .then((rows) => {
+        const stationRows: PoiRow[] = withStations
+          ? STATIONS.map((s) => [`st${s.id}`, s.name.replace(/\s*\(.*\)$/, ""), s.lat, s.lon, "station", "station", null, null, null, s.borough])
+          : [];
+        return createPlaceIndex(ATTRACTIONS, [...stationRows, ...(rows as PoiRow[])], labelFor, nearStation);
+      })
+      .catch((error: unknown) => {
+        indexes.delete(key);
+        throw error;
+      });
+    indexes.set(key, index);
+  }
   return index;
 }
 
@@ -29,8 +37,8 @@ const osmHours = (text: string) => parseOsmHours(text.replace(/,\s*(?=(?:Mo|Tu|W
 
 export type PlaceResult = PlaceHit & { stop: StopInput };
 
-export async function searchPlaces(q: string, limit = 8): Promise<PlaceResult[]> {
-  const hits = (await placeIndex()).search(q, limit);
+export async function searchPlaces(q: string, limit = 8, withStations = false): Promise<PlaceResult[]> {
+  const hits = (await placeIndex(withStations)).search(q, limit);
   return hits.map((h) => ({
     ...h,
     stop: {

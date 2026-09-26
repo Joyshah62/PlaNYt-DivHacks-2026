@@ -2,9 +2,11 @@ import { randomBytes } from "node:crypto";
 import { encodePlan, type StopInput } from "../bridge/index";
 import { defaultAvatar, type Avatar } from "../core/avatars";
 import { consensus } from "../core/consensus";
+import { fairestPoint, MEETUP_PREFIX, roundPoint, withGroupStart, type Point } from "../core/fairness";
 import { draftRequest } from "../core/rank";
-import { MAX_CANDIDATES, MAX_MEMBERS, type Member, type Trip, type TripSettings } from "../core/types";
+import { MAX_CANDIDATES, MAX_MEMBERS, type Fairness, type Member, type Trip, type TripSettings } from "../core/types";
 import type { StoredMember, StoredMeta, TripBackend, TripMeta } from "./backend";
+import { areaLabel, fairestMeetup, groupTravel } from "./travel";
 
 export class TripError extends Error {
   constructor(
@@ -57,7 +59,17 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
       .sort((a, b) => a.addedAt - b.addedAt)
       .map((r) => ({ ...r, votes: votes[r.stop.key] ?? [] }));
     const partial = { id: meta.id, title: meta.title, createdAt: meta.createdAt, hostId: meta.hostId, settings: meta.settings, members, candidates };
-    const draft = draftRequest(partial);
+    const base = draftRequest(partial);
+    const starts: Record<string, Point> = {};
+    for (const [mid, m] of Object.entries(members)) if (m.start) starts[mid] = { lat: m.start.lat, lon: m.start.lon };
+    const fairness: Fairness | null = Object.keys(starts).length
+      ? {
+          starts: Object.keys(starts).length,
+          firstStop: base ? fairestPoint(starts, base.stops.filter((s) => !s.key.startsWith(MEETUP_PREFIX)), groupTravel) : null,
+          meetup: fairestMeetup(starts),
+        }
+      : null;
+    const draft = base ? withGroupStart(base, fairness?.firstStop ?? null) : null;
     const memberIds = Object.keys(members).sort((a, b) => members[a].joinedAt - members[b].joinedAt);
     const c = consensus({ members: memberIds, confirmations, draft, deadline: meta.deadline, now: now() });
     let lockedCode = meta.lockedCode;
@@ -66,7 +78,7 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
       const code = encodePlan(draft);
       lockedCode = (await db.lock(id, code)) ? code : ((await db.getMeta(id))?.lockedCode ?? code);
     }
-    const trip: Trip = { ...partial, deadline: meta.deadline, confirmations, consensus: c, lockedCode };
+    const trip: Trip = { ...partial, deadline: meta.deadline, confirmations, consensus: c, draft, fairness, lockedCode };
     return { meta, trip };
   }
 
@@ -132,6 +144,13 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
       if (!candidate) throw new TripError(404, "That place isn't on this trip.");
       if (candidate.addedBy !== memberId) throw new TripError(403, "Only the person who suggested it can remove it.");
       await db.removeCandidate(id, stopKey);
+      return saved(id);
+    },
+
+    async setStart(id: string, memberId: string, point: Point | null) {
+      const { trip } = await editable(id, memberId);
+      const start = point ? { ...roundPoint(point), area: areaLabel(point) } : null;
+      await db.setMember(id, memberId, { ...trip.members[memberId], start });
       return saved(id);
     },
 
