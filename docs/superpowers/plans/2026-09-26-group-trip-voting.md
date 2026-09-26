@@ -4,9 +4,9 @@
 
 **Goal:** A group of friends suggests and votes on places for one NYC day. Roam's existing optimizer schedules the top-voted stops into a draft day, and the organizer locks it into a normal Roam plan link.
 
-**Architecture:** The feature is self-contained under `src/lib/trip/`, `src/app/api/trips/`, `src/app/trip/` and `src/components/trip/`. One module holds all the rules (`service.ts`) and runs on top of a small storage interface, which has two implementations: in-memory for dev and tests, and Upstash Redis for Vercel. The trip page checks for updates every 4 seconds and builds the draft day by calling the existing `POST /api/plan`. The only changes to existing files are a link in `Itinerary.tsx` and one prop in `PlannerView.tsx`.
+**Architecture:** The feature is self-contained under `src/lib/trip/`, `src/app/api/trips/`, `src/app/trip/` and `src/components/trip/`. One module holds all the rules (`service.ts`) and runs on top of a small storage interface, which has two implementations: in-memory for tests and for dev without a database, and MongoDB Atlas for real use. Each trip is one MongoDB document, and votes use atomic `$addToSet` / `$pull` updates. The trip page checks for updates every 4 seconds and builds the draft day by calling the existing `POST /api/plan`. The only changes to existing files are a link in `Itinerary.tsx` and one prop in `PlannerView.tsx`.
 
-**Tech Stack:** Next.js 16.3.5 (App Router, Turbopack), React 19.2, TypeScript, Zod 4, Vitest 5, Tailwind 4, `@upstash/redis`.
+**Tech Stack:** Next.js 16.3.5 (App Router, Turbopack), React 19.2, TypeScript, Zod 4, Vitest 5, Tailwind 4, MongoDB Atlas with the official `mongodb` Node.js driver.
 
 **Spec:** `docs/superpowers/specs/2026-09-26-group-trip-voting-design.md`
 
@@ -17,7 +17,8 @@
 - Every error response has the shape `{ error: string }`, the same as `/api/plan`.
 - The optimizer accepts at most 10 stops (`MAX_DAY_STOPS = 10`). A trip holds at most 30 candidates (`MAX_CANDIDATES = 30`).
 - Names are 1–30 characters. Trip IDs are 10 URL-safe characters (`/^[A-Za-z0-9_-]{10}$/`).
-- Redis keys expire 30 days after the last write (`TRIP_TTL_SECONDS = 2592000`).
+- Trip documents expire 30 days after the last write, using a TTL index on `expiresAt` (`TRIP_TTL_SECONDS = 2592000`).
+- MongoDB settings: `MONGODB_URI` (required for real storage) and `MONGODB_DB` (optional, default `roam`). The collection is `trips`. All database access goes through `getDb()` in `src/lib/mongo.ts`, so later features (Atlas Search) reuse the same connection.
 - Only a SHA-256 hash of the organizer key is stored, and the key is never returned except to its creator.
 - Exact user-facing text:
   - "This plan is locked."
@@ -36,11 +37,12 @@
 
 ## Changes since the design doc
 
-This plan makes four small changes to the design. Update the spec in Task 9.
+This plan makes these changes to the first version of the design. The spec has already been updated to match.
 1. **Lock computes the plan code on the server** from its own vote state. The client no longer sends a `code`, so it can't lock a different plan than the one the votes produced. The lock body is `{ organizerKey }`.
 2. **The entry point is a link, not an inline form.** The Itinerary gets a **Plan with friends** link to `/trip/start?plan={code}`. That page asks the organizer's name and creates the trip. This keeps `PlannerView.tsx` to a one-prop change.
 3. **`Trip` gains an `organizerId` field**, so the UI can label the organizer and show who locked the plan.
-4. **`store.ts` is split** into `backend.ts` (the storage interface), `service.ts` (rules), `memory.ts` and `redis.ts`. The rules are written once and tested against the memory backend.
+4. **`store.ts` is split** into `backend.ts` (the storage interface), `service.ts` (rules), `memory.ts` and `mongo.ts`. The rules are written once and tested against the memory backend.
+5. **MongoDB Atlas replaces Upstash Redis**, to qualify for the hackathon's MongoDB challenge.
 
 ## File map
 
@@ -50,9 +52,10 @@ This plan makes four small changes to the design. Update the spec in Task 9.
 | `src/lib/trip/rank.ts` | `rankCandidates()`, `draftRequest()` |
 | `src/lib/trip/backend.ts` | `TripBackend` storage interface, `TripMeta`, `CandidateRecord`, TTL |
 | `src/lib/trip/memory.ts` | In-memory `TripBackend` |
-| `src/lib/trip/redis.ts` | Upstash `TripBackend` |
+| `src/lib/mongo.ts` | Shared MongoDB client: `getDb()` (reused later by Atlas Search) |
+| `src/lib/trip/mongo.ts` | MongoDB `TripBackend`: one document per trip in `trips` |
 | `src/lib/trip/service.ts` | `createTripService()` with every rule, and `TripError` |
-| `src/lib/trip/store.ts` | `getTripStore()`: picks Redis or memory |
+| `src/lib/trip/store.ts` | `getTripStore()`: picks MongoDB or memory |
 | `src/lib/trip/schema.ts` | Zod request-body schemas |
 | `src/lib/trip/http.ts` | `readBody()`, `tripId()`, `respond()` for route handlers |
 | `src/lib/trip/local.ts` | Browser identity (`memberId`, `organizerKey`) in `localStorage` |
@@ -682,7 +685,7 @@ describe("respond", () => {
   it("hides unexpected failures behind a 503", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await respond(async () => {
-      throw new Error("redis exploded");
+      throw new Error("database exploded");
     });
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({ error: "Trips are unavailable right now." });
@@ -757,7 +760,7 @@ export async function respond(work: () => Promise<unknown>): Promise<Response> {
 }
 ```
 
-`src/lib/trip/store.ts` (memory only for now; Task 8 adds Redis):
+`src/lib/trip/store.ts` (memory only for now; Task 9 adds MongoDB):
 
 ```ts
 import { memoryBackend } from "./memory";
@@ -1870,170 +1873,288 @@ git commit -m "Add Plan with friends link to the itinerary"
 
 ---
 
-### Task 9: Upstash Redis backend, deployment and docs
+### Task 9: MongoDB Atlas backend, deployment and docs
 
 **Files:**
-- Create: `src/lib/trip/redis.ts`
-- Test: `src/lib/trip/redis.test.ts` (skipped unless Upstash env vars are set)
+- Create: `src/lib/mongo.ts`
+- Create: `src/lib/trip/mongo.ts`
+- Test: `src/lib/trip/mongo.test.ts` (skipped unless `MONGODB_URI` is set)
 - Modify: `src/lib/trip/store.ts`
-- Modify: `.env.example`, `package.json`, `package-lock.json`
-- Modify: `README.md`, `docs/architecture.md`, `docs/superpowers/specs/2026-09-26-group-trip-voting-design.md`
+- Modify: `.env.example`, `.env.local` (you fill in the value), `package.json`, `package-lock.json`
+- Modify: `README.md`, `docs/architecture.md`
 
 **Interfaces:**
-- Consumes: `TripBackend`, `TripMeta`, `CandidateRecord`, `TRIP_TTL_SECONDS`, `createTripService`
-- Produces: `redisBackend(redis: Redis): TripBackend`, and `getTripStore()` now picks Redis whenever credentials are set
+- Consumes: `TripBackend`, `TripMeta`, `CandidateRecord`, `TRIP_TTL_SECONDS`, `createTripService`, `memoryBackend`
+- Produces:
+  - `getDb(): Promise<Db>`, the shared, cached connection (Atlas Search will reuse it later)
+  - `interface TripDoc { _id: string; meta: TripMeta; members: Record<string, string>; candidates: (CandidateRecord & { votes: string[] })[]; expiresAt: Date }`
+  - `mongoBackend(db: () => Promise<Db>): TripBackend`
+  - `getTripStore()` now uses MongoDB whenever `MONGODB_URI` is set
 
-- [ ] **Step 1: Install the client**
+**Document shape (collection `trips`):**
 
-Run: `npm install @upstash/redis`
-Expected: `@upstash/redis` appears under `dependencies` in `package.json`.
+```json
+{
+  "_id": "Xy7_k2Lp9Q",
+  "meta": { "id": "Xy7_k2Lp9Q", "title": "Saturday in NYC", "createdAt": 1790000000000, "organizerId": "m_abc123def456",
+            "organizerKeyHash": "…sha256…", "settings": { "date": "2026-10-03", "…": "…" }, "lockedCode": null },
+  "members": { "m_abc123def456": "Khyati", "Qe9…": "Rishi" },
+  "candidates": [
+    { "stop": { "key": "met", "name": "The Met", "…": "…" }, "addedBy": "m_abc123def456", "addedAt": 1790000000000, "votes": ["m_abc123def456", "Qe9…"] }
+  ],
+  "expiresAt": { "$date": "2026-11-02T00:00:00Z" }
+}
+```
 
-- [ ] **Step 2: Write the Redis test (runs only with credentials)**
+Member IDs are base64url (`A–Z a–z 0–9 _ -`), so they're safe to use as field names under `members`. Every write is one `updateOne` with an atomic operator, so two people acting at once can't overwrite each other:
 
-`src/lib/trip/redis.test.ts`:
+| Action | Update |
+|---|---|
+| Add member | `$set: { "members.<id>": name }` |
+| Add candidate | filter `"candidates.stop.key": { $ne: key }` + `$push`: nothing is added if the key already exists |
+| Vote / remove vote | filter `"candidates.stop.key": key` + `$addToSet` / `$pull` on `"candidates.$.votes"` |
+| Keep alive | `$set: { expiresAt: now + 30 days }`; a TTL index (`expireAfterSeconds: 0`) deletes old trips |
+
+- [ ] **Step 1: Manual setup (you do this). Create the free Atlas cluster**
+
+Do this in your browser, not the terminal:
+
+1. Go to https://www.mongodb.com/cloud/atlas/register and sign up. A Google login works.
+2. **Create a cluster** → choose **M0 (Free)**. Provider **AWS**, region **N. Virginia (us-east-1)** (closest to NYC and to Vercel's default region). Name it `roam`. Click **Create Deployment**.
+3. In the **Connect** dialog that pops up, create a **database user**: username `roam-app` and an auto-generated password. **Copy the password somewhere safe**; you can't see it again.
+4. In the left sidebar, go to **Security → Network Access → Add IP Address → Allow access from anywhere** (`0.0.0.0/0`) → Confirm. Vercel's servers don't have fixed IP addresses, so this is required for the deployed app. The database password is what protects it.
+5. Go to **Database → Connect → Drivers**, choose **Node.js**, and copy the connection string. It looks like `mongodb+srv://roam-app:<db_password>@roam.xxxxx.mongodb.net/?retryWrites=true&w=majority&appName=roam`.
+6. Replace `<db_password>` with the password from step 3. If the password contains `@ : / ? # [ ]` or `%`, URL-encode those characters, or generate a new password without them.
+7. Open `.env.local` in the project root and add a line: `MONGODB_URI=<the full string>` (no quotes).
+8. Tell Claude "Atlas is set up". Claude then checks that the value is in the file (without printing it) and continues.
+
+- [ ] **Step 2: Install the driver**
+
+Run: `npm install mongodb`
+Expected: `mongodb` appears under `dependencies` in `package.json`.
+
+- [ ] **Step 3: Create the shared connection**
+
+`src/lib/mongo.ts`:
 
 ```ts
-import { Redis } from "@upstash/redis";
-import { describe, expect, it } from "vitest";
+import { MongoClient, type Db } from "mongodb";
+
+const g = globalThis as typeof globalThis & { __roamMongo?: Promise<MongoClient> };
+
+export function hasMongo(): boolean {
+  return !!process.env.MONGODB_URI;
+}
+
+/** One pooled client per server process; dev hot reloads and warm serverless calls reuse it. */
+export async function getDb(): Promise<Db> {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error("MONGODB_URI is not set.");
+  g.__roamMongo ??= new MongoClient(uri, { appName: "roam-nyc", maxPoolSize: 5 }).connect().catch((error: unknown) => {
+    g.__roamMongo = undefined;
+    throw error;
+  });
+  return (await g.__roamMongo).db(process.env.MONGODB_DB || "roam");
+}
+```
+
+- [ ] **Step 4: Write the MongoDB test (runs only with `MONGODB_URI`)**
+
+`src/lib/trip/mongo.test.ts`:
+
+```ts
+import { MongoClient } from "mongodb";
+import { afterAll, describe, expect, it } from "vitest";
 import { DEFAULT_PROFILE } from "@/lib/plan/profile";
-import { redisBackend } from "./redis";
+import type { StopInput } from "@/lib/plan/types";
+import { mongoBackend } from "./mongo";
 import { createTripService } from "./service";
+import type { TripSettings } from "./types";
 
-const url = process.env.UPSTASH_REDIS_REST_URL;
-const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+const uri = process.env.MONGODB_URI;
 
-describe.skipIf(!url || !token)("redis backend (live Upstash)", () => {
-  it("runs create, join, suggest, vote and lock against real Redis", async () => {
-    const svc = createTripService(redisBackend(new Redis({ url: url!, token: token!, automaticDeserialization: false })));
-    const settings = { date: "2026-10-03", startMin: 600, endMin: 1260, mode: "transit" as const, crowd: "avoid" as const, origin: null, returnToOrigin: false, profile: DEFAULT_PROFILE, meals: { lunch: false, dinner: false } };
-    const met = { key: "met", name: "The Met", lat: 40.7794, lon: -73.9632, visitMin: 150, attractionId: "met" };
-    const bridge = { key: "brooklyn-bridge", name: "Brooklyn Bridge walk", lat: 40.7118, lon: -74.0035, visitMin: 45, attractionId: "brooklyn-bridge" };
+describe.skipIf(!uri)("mongo backend (live Atlas)", () => {
+  const client = new MongoClient(uri ?? "mongodb://unused");
+  const db = client.db("roam_test");
+
+  afterAll(async () => {
+    await db.dropDatabase();
+    await client.close();
+  });
+
+  it("runs create, join, suggest, vote and lock against real MongoDB", async () => {
+    const svc = createTripService(mongoBackend(async () => db));
+    const settings: TripSettings = { date: "2026-10-03", startMin: 600, endMin: 1260, mode: "transit", crowd: "avoid", origin: null, returnToOrigin: false, profile: DEFAULT_PROFILE, meals: { lunch: false, dinner: false } };
+    const met: StopInput = { key: "met", name: "The Met", lat: 40.7794, lon: -73.9632, visitMin: 150, attractionId: "met" };
+    const bridge: StopInput = { key: "brooklyn-bridge", name: "Brooklyn Bridge walk", lat: 40.7118, lon: -74.0035, visitMin: 45, attractionId: "brooklyn-bridge" };
 
     const { trip, organizerKey } = await svc.create({ title: "Test trip", settings, stops: [met], name: "Khyati" });
-    const { memberId } = await svc.join(trip.id, "123");
+    const { memberId } = await svc.join(trip.id, "Rishi");
+    await svc.addCandidate(trip.id, memberId, bridge);
     await svc.addCandidate(trip.id, memberId, bridge);
     const voted = await svc.vote(trip.id, memberId, "met", true);
-    expect(voted.members[memberId]).toBe("123");
+
+    expect(voted.members[memberId]).toBe("Rishi");
     expect(voted.candidates.map((c) => [c.stop.key, c.votes.length])).toEqual([
       ["met", 2],
       ["brooklyn-bridge", 1],
     ]);
     expect((await svc.lock(trip.id, organizerKey)).lockedCode).toEqual(expect.any(String));
+
+    const indexes = await db.collection("trips").indexes();
+    expect(indexes.some((i) => i.key.expiresAt === 1 && i.expireAfterSeconds === 0)).toBe(true);
   });
 });
 ```
 
-The name "123" checks that a name made of digits stays a string after the round trip through Redis.
+Suggesting the bridge twice checks that the duplicate-key filter stops the second `$push`.
 
-- [ ] **Step 3: Implement the Redis backend**
+- [ ] **Step 5: Run it and confirm it fails**
 
-`src/lib/trip/redis.ts`:
+Run: `npx vitest run src/lib/trip/mongo.test.ts` (Vitest doesn't read `.env.local`, so pass the URI explicitly):
+
+```bash
+MONGODB_URI="$(grep '^MONGODB_URI=' .env.local | cut -d= -f2-)" npx vitest run src/lib/trip/mongo.test.ts
+```
+
+Expected: FAIL, "Failed to resolve import "./mongo"".
+
+- [ ] **Step 6: Implement the MongoDB backend**
+
+`src/lib/trip/mongo.ts`:
 
 ```ts
-import type { Redis } from "@upstash/redis";
+import type { Collection, Db } from "mongodb";
 import { TRIP_TTL_SECONDS, type CandidateRecord, type TripBackend, type TripMeta } from "./backend";
 
-/** Expects a client built with automaticDeserialization: false; every value is JSON we wrote. */
-export function redisBackend(redis: Redis): TripBackend {
-  const metaKey = (id: string) => `trip:${id}`;
-  const membersKey = (id: string) => `trip:${id}:members`;
-  const candsKey = (id: string) => `trip:${id}:cands`;
-  const votesKey = (id: string, stopKey: string) => `trip:${id}:votes:${stopKey}`;
-  const parseAll = <T>(hash: Record<string, string> | null): Record<string, T> =>
-    Object.fromEntries(Object.entries(hash ?? {}).map(([k, v]) => [k, JSON.parse(v) as T]));
+export interface TripDoc {
+  _id: string;
+  meta: TripMeta;
+  members: Record<string, string>;
+  candidates: (CandidateRecord & { votes: string[] })[];
+  expiresAt: Date;
+}
+
+const expiry = () => new Date(Date.now() + TRIP_TTL_SECONDS * 1000);
+
+export function mongoBackend(db: () => Promise<Db>): TripBackend {
+  let ready: Promise<Collection<TripDoc>> | null = null;
+  const trips = () =>
+    (ready ??= db()
+      .then(async (d) => {
+        const col = d.collection<TripDoc>("trips");
+        await col.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+        return col;
+      })
+      .catch((error: unknown) => {
+        ready = null;
+        throw error;
+      }));
+  const load = async (id: string) => (await trips()).findOne({ _id: id });
 
   return {
     async getMeta(id) {
-      const raw = await redis.get<string>(metaKey(id));
-      return raw ? (JSON.parse(raw) as TripMeta) : null;
+      return (await load(id))?.meta ?? null;
     },
     async setMeta(meta) {
-      await redis.set(metaKey(meta.id), JSON.stringify(meta), { ex: TRIP_TTL_SECONDS });
+      await (await trips()).updateOne(
+        { _id: meta.id },
+        { $set: { meta, expiresAt: expiry() }, $setOnInsert: { members: {}, candidates: [] } },
+        { upsert: true },
+      );
     },
     async getMembers(id) {
-      return parseAll<string>(await redis.hgetall<Record<string, string>>(membersKey(id)));
+      return (await load(id))?.members ?? {};
     },
     async setMember(id, memberId, name) {
-      await redis.hset(membersKey(id), { [memberId]: JSON.stringify(name) });
+      await (await trips()).updateOne({ _id: id }, { $set: { [`members.${memberId}`]: name, expiresAt: expiry() } });
     },
     async getCandidates(id) {
-      return parseAll<CandidateRecord>(await redis.hgetall<Record<string, string>>(candsKey(id)));
+      const doc = await load(id);
+      return Object.fromEntries((doc?.candidates ?? []).map(({ stop, addedBy, addedAt }) => [stop.key, { stop, addedBy, addedAt }]));
     },
     async addCandidate(id, record) {
-      return (await redis.hsetnx(candsKey(id), record.stop.key, JSON.stringify(record))) === 1;
+      const result = await (await trips()).updateOne(
+        { _id: id, "candidates.stop.key": { $ne: record.stop.key } },
+        { $push: { candidates: { ...record, votes: [] } }, $set: { expiresAt: expiry() } },
+      );
+      return result.modifiedCount === 1;
     },
     async getVotes(id, stopKeys) {
-      if (!stopKeys.length) return {};
-      const pipe = redis.pipeline();
-      for (const key of stopKeys) pipe.smembers(votesKey(id, key));
-      const results = await pipe.exec<string[][]>();
-      return Object.fromEntries(stopKeys.map((key, i) => [key, results[i] ?? []]));
+      const doc = await load(id);
+      const byKey = new Map((doc?.candidates ?? []).map((c) => [c.stop.key, c.votes]));
+      return Object.fromEntries(stopKeys.map((key) => [key, byKey.get(key) ?? []]));
     },
     async setVote(id, stopKey, memberId, on) {
-      if (on) await redis.sadd(votesKey(id, stopKey), memberId);
-      else await redis.srem(votesKey(id, stopKey), memberId);
+      const filter = { _id: id, "candidates.stop.key": stopKey };
+      await (await trips()).updateOne(
+        filter,
+        on ? { $addToSet: { "candidates.$.votes": memberId } } : { $pull: { "candidates.$.votes": memberId } },
+      );
     },
-    async touch(id, stopKeys) {
-      const pipe = redis.pipeline();
-      for (const key of [metaKey(id), membersKey(id), candsKey(id), ...stopKeys.map((s) => votesKey(id, s))]) pipe.expire(key, TRIP_TTL_SECONDS);
-      await pipe.exec();
+    async touch(id) {
+      await (await trips()).updateOne({ _id: id }, { $set: { expiresAt: expiry() } });
     },
   };
 }
 ```
 
-- [ ] **Step 4: Pick Redis in the store when credentials exist**
+- [ ] **Step 7: Run the test and confirm it passes**
+
+Run:
+
+```bash
+MONGODB_URI="$(grep '^MONGODB_URI=' .env.local | cut -d= -f2-)" npx vitest run src/lib/trip/mongo.test.ts
+```
+
+Expected: PASS, 1 test. If it times out, check Network Access (Step 1.4) and the password encoding (Step 1.6).
+
+- [ ] **Step 8: Use MongoDB in the store when `MONGODB_URI` is set**
 
 Replace `src/lib/trip/store.ts` with:
 
 ```ts
-import { Redis } from "@upstash/redis";
+import { getDb, hasMongo } from "@/lib/mongo";
 import { memoryBackend } from "./memory";
-import { redisBackend } from "./redis";
+import { mongoBackend } from "./mongo";
 import { createTripService, type TripService } from "./service";
 
 let service: TripService | null = null;
 
 export function getTripStore(): TripService {
   if (service) return service;
-  // Vercel's Upstash integration sets the KV_* names; a manual setup uses UPSTASH_*.
-  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
-  if (url && token) {
-    service = createTripService(redisBackend(new Redis({ url, token, automaticDeserialization: false })));
+  if (hasMongo()) {
+    service = createTripService(mongoBackend(getDb));
   } else {
-    if (process.env.NODE_ENV === "production") console.warn("[trips] No Upstash credentials: trips live in memory and vanish on restart.");
+    if (process.env.NODE_ENV === "production") console.warn("[trips] MONGODB_URI is not set: trips live in memory and vanish on restart.");
     service = createTripService(memoryBackend());
   }
   return service;
 }
 ```
 
-- [ ] **Step 5: Document the env vars**
+- [ ] **Step 9: Document the env vars**
 
 Append to `.env.example`:
 
 ```bash
 
-# Optional locally, required on Vercel. Stores "Plan with friends" group trips.
-# On Vercel: Project → Storage → add "Upstash for Redis" (free) and the variables
-# are set for you (as KV_REST_API_URL / KV_REST_API_TOKEN, which also work).
-# Without them, trips are kept in the dev server's memory and vanish on restart.
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
+# Stores "Plan with friends" group trips in MongoDB Atlas (free M0 cluster is plenty).
+# Atlas → Database → Connect → Drivers → Node.js, then paste the string with your
+# password filled in. Without it, trips live in the dev server's memory and vanish on restart.
+MONGODB_URI=
+# Optional. Database name; defaults to "roam".
+MONGODB_DB=
 ```
 
-- [ ] **Step 6: Run the full suite**
+- [ ] **Step 10: Run the full suite, and check the app against Atlas**
 
 Run: `npm test`
-Expected: all tests pass. The Redis test is reported as skipped when no credentials are set.
+Expected: all tests pass. The MongoDB test is reported as skipped, because `npm test` doesn't pass the URI.
 
-To run it against a real database, create a free Upstash database, then:
+Then restart `npm run dev`, which loads `.env.local`, and repeat the Task 7 two-browser check. In Atlas, open **Database → Browse Collections → roam → trips**. The trip should be there as one document, and its `votes` arrays should change as you vote.
 
-Run: `UPSTASH_REDIS_REST_URL=… UPSTASH_REDIS_REST_TOKEN=… npx vitest run src/lib/trip/redis.test.ts`
-Expected: PASS, 1 test.
-
-- [ ] **Step 7: Update the docs**
+- [ ] **Step 11: Update the docs**
 
 In `docs/architecture.md`, add these rows to the **API routes** table:
 
@@ -2043,48 +2164,49 @@ In `docs/architecture.md`, add these rows to the **API routes** table:
 | `POST /api/trips/[id]/join`, `/candidates`, `/vote`, `/lock` | Join, suggest a place, vote, organizer lock |
 ```
 
-Add this row to the **Code map** table:
+Add these rows to the **Code map** table:
 
 ```markdown
 | `src/lib/trip/`, `src/components/trip/` | Plan with friends: group voting, storage, trip page |
+| `src/lib/mongo.ts` | Shared MongoDB Atlas connection |
 ```
 
 Add this row to the **Data sources** table:
 
 ```markdown
-| Upstash Redis (optional locally) | Group trip storage for Plan with friends, 30-day expiry |
+| MongoDB Atlas | Group trip storage for Plan with friends (one document per trip, 30-day TTL) |
 ```
 
 In `README.md`, under **Run locally**, add after the sentence about API keys:
 
 ```markdown
-`UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` store "Plan with friends" group trips; without them trips live in the dev server's memory.
+`MONGODB_URI` (MongoDB Atlas) stores "Plan with friends" group trips; without it trips live in the dev server's memory.
 ```
 
-In `docs/superpowers/specs/2026-09-26-group-trip-voting-design.md`:
-- Change the lock row in the API table to the body `{ organizerKey }` with the rule "the server builds the code from its own vote state."
-- Change step 1 of the User flow to say the button links to `/trip/start?plan=…`, which asks the organizer's name.
-- Add `organizerId: string;` to the `Trip` interface.
-- Replace `src/lib/trip/store.ts` in the "New files" table with `backend.ts`, `service.ts`, `memory.ts`, `redis.ts` and `store.ts`.
-
-- [ ] **Step 8: Deploy check on Vercel**
-
-1. Push the branch: `git push`.
-2. In Vercel, open the project's preview deployment for `khyati`, then go to **Storage**, add **Upstash for Redis**, connect it to the project, and redeploy.
-3. On the preview URL, run the Task 7 two-browser check on a laptop and a phone.
-4. Expected: votes appear on the other device within about 4 seconds, and the trip still loads after redeploying.
-
-- [ ] **Step 9: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
-git add src/lib/trip/redis.ts src/lib/trip/redis.test.ts src/lib/trip/store.ts .env.example package.json package-lock.json README.md docs/architecture.md docs/superpowers/specs/2026-09-26-group-trip-voting-design.md
-git commit -m "Store group trips in Upstash Redis and document setup"
+git add src/lib/mongo.ts src/lib/trip/mongo.ts src/lib/trip/mongo.test.ts src/lib/trip/store.ts .env.example package.json package-lock.json README.md docs/architecture.md
+git commit -m "Store group trips in MongoDB Atlas and document setup"
 ```
+
+`.env.local` is gitignored and must never be committed. It contains the database password.
+
+- [ ] **Step 13: Manual setup (you do this). Deploy to Vercel with the database**
+
+1. Push the branch: `git push`.
+2. In Vercel, open the project, then go to **Settings → Environment Variables** and add `MONGODB_URI` with the same value as in `.env.local`, for **Preview** and **Production**. You can also use Vercel's **Marketplace → MongoDB Atlas** integration, which sets `MONGODB_URI` for you.
+3. Also add `GEMINI_API_KEY` and `GOOGLE_PLACES_API_KEY` there if they aren't set yet.
+4. Redeploy the `khyati` preview, then run the two-device check (laptop and phone) on the preview URL.
+5. Expected: votes appear on the other device within about 4 seconds, and the trip is still there after a redeploy.
 
 ---
 
-## Splitting the work between two people
+## Later: Atlas Search for Discover (not part of this plan)
 
-Everyone needs Task 1 (types) first. After that:
-- **Person A (backend):** Tasks 2 → 3 → 4, then 9.
-- **Person B (frontend):** Task 5 → 6 → 7 → 8. Task 6 needs Task 4's routes to test in the browser. Until they land, B can build against a local stub, or pull A's branch.
+Once group trips work, the next MongoDB step is a separate spec and plan:
+- Load `src/lib/discover/poi-data.json` (about 29.6k places) into a `places` collection on the same cluster through `getDb()`.
+- Create an Atlas Search index (name with autocomplete, category, a geo point).
+- Replace the Discover local search in `src/lib/discover/sources.ts` with an `$search` aggregation, and keep the bundled JSON as a fallback.
+
+Nothing in this plan needs to change for that. It only adds a collection and uses the same connection helper.

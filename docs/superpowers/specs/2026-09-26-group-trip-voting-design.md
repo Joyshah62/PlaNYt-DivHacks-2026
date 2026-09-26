@@ -1,6 +1,6 @@
 # Plan with Friends: group trip voting
 
-Status: design, awaiting team review
+Status: approved design; storage is MongoDB Atlas (hackathon MongoDB challenge)
 Owner: Khyati (branch `khyati`)
 Date: 2026-09-26
 
@@ -15,7 +15,7 @@ Why it fits Roam: the product's strength is turning a set of stops into a realis
 - Several people contribute to one trip from their own phones, with no accounts.
 - Votes decide which stops go in, and the optimizer schedules them.
 - The organizer has the final say and presses Lock.
-- Works when deployed on Vercel, and also with plain `npm run dev` without setting up any services.
+- Stores trips in MongoDB Atlas when deployed on Vercel. Plain `npm run dev` and the tests also work without a database.
 - Changes to existing code are minimal: `PlannerView.tsx` gets one button.
 
 ## Non-goals
@@ -27,7 +27,7 @@ Why it fits Roam: the product's strength is turning a set of stops into a realis
 
 ## User flow
 
-1. **Start.** In the planner, the organizer presses **Plan with friends** next to Share. The app creates a trip from the current stops and settings (date, times, mode, crowd preference, origin, profile, meals). Each current stop becomes a candidate with the organizer's vote on it. The browser goes to `/trip/{id}`.
+1. **Start.** In the planner, the organizer presses **Plan with friends** next to Copy link. It opens `/trip/start?plan={code}`, which asks the organizer's name. The app then creates a trip from the plan's stops and settings (date, times, mode, crowd preference, origin, profile, meals). Each stop becomes a candidate with the organizer's vote on it. The browser goes to `/trip/{id}`.
 2. **Invite.** The organizer copies the trip link, using the same clipboard method as Share.
 3. **Join.** A friend opens the link and enters a display name, which is remembered in their browser.
 4. **Suggest and vote.** Anyone can add a place. Adding one also counts as a vote from the person who added it. Anyone can vote for or remove their vote from any candidate. The candidate list is sorted by vote count.
@@ -53,8 +53,15 @@ The trip page is separate from the planner. `PlannerView.tsx` is about 60 KB and
 |---|---|
 | `src/lib/trip/types.ts` | `Trip`, `Candidate`, `Member` types |
 | `src/lib/trip/rank.ts` | `topStops(trip)`: the 10 most-voted stops, ties broken by who added first |
-| `src/lib/trip/store.ts` | `TripStore` interface, plus `redisStore` (Upstash) and `memoryStore` (dev) |
+| `src/lib/trip/backend.ts` | `TripBackend` storage interface (small operations that are each atomic) |
+| `src/lib/trip/service.ts` | All the trip rules (join, suggest, vote, lock), written once on top of `TripBackend` |
+| `src/lib/trip/memory.ts` | In-memory backend for tests and for dev without a database |
+| `src/lib/trip/mongo.ts` | MongoDB backend: one document per trip in the `trips` collection |
+| `src/lib/mongo.ts` | Shared, cached MongoDB connection (`getDb()`), reused later by Atlas Search |
+| `src/lib/trip/store.ts` | `getTripStore()`: MongoDB when `MONGODB_URI` is set, otherwise memory |
 | `src/lib/trip/schema.ts` | Zod schemas for request bodies (reuses `StopSchema`, `PlanRequestSchema`) |
+| `src/lib/trip/http.ts`, `local.ts`, `client.ts` | Route helpers, browser identity storage, fetch wrapper |
+| `src/app/trip/start/page.tsx`, `src/components/trip/TripStart.tsx` | Organizer's name form that creates the trip |
 | `src/app/api/trips/route.ts` | `POST`: create trip |
 | `src/app/api/trips/[id]/route.ts` | `GET`: trip state |
 | `src/app/api/trips/[id]/join/route.ts` | `POST`: add member |
@@ -63,14 +70,16 @@ The trip page is separate from the planner. `PlannerView.tsx` is about 60 KB and
 | `src/app/api/trips/[id]/lock/route.ts` | `POST`: lock (organizer only) |
 | `src/app/trip/[id]/page.tsx` | Server page; reads `params` and renders `TripView` |
 | `src/components/trip/TripView.tsx` | Client UI: join, candidate list, draft day, lock |
+| `src/components/trip/CandidateList.tsx`, `DraftDay.tsx`, `useDraftPlan.ts` | Ranked places, compact draft day, re-planning only on change |
 
 ### Changed files
 
 | Path | Change |
 |---|---|
-| `src/components/plan/PlannerView.tsx` | One **Plan with friends** button and its handler, next to Share |
-| `.env.example` | Documents `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` |
-| `package.json` | Adds `@upstash/redis` |
+| `src/components/plan/Itinerary.tsx` | Optional `friendsHref` prop: a **Plan with friends** link next to Copy link |
+| `src/components/plan/PlannerView.tsx` | Passes `friendsHref` (one prop) |
+| `.env.example` | Documents `MONGODB_URI` and `MONGODB_DB` |
+| `package.json` | Adds `mongodb` (official Node.js driver) |
 
 The optimizer, `/api/plan`, `share.ts` and the other planner components don't change.
 
@@ -98,33 +107,45 @@ interface Trip {
   settings: TripSettings;
   members: Record<string, string>; // member id -> display name
   candidates: Candidate[];
+  organizerId: string;             // member id of the organizer
   lockedCode: string | null;       // encodePlan() output once locked
 }
 ```
 
 The organizer key is never returned by the API. The server stores only its SHA-256 hash.
 
-### Redis layout (Upstash)
+### MongoDB layout (Atlas)
 
-Using one key per piece of state means two people acting at the same moment never overwrite each other, so no locking is needed.
+Each trip is **one document** in the `trips` collection:
 
-| Key | Type | Contents |
-|---|---|---|
-| `trip:{id}` | string (JSON) | title, createdAt, settings, organizerKeyHash, lockedCode |
-| `trip:{id}:members` | hash | member id → display name |
-| `trip:{id}:cands` | hash | stop key → JSON `{ stop, addedBy, addedAt }` |
-| `trip:{id}:votes:{stopKey}` | set | member ids |
+```ts
+interface TripDoc {
+  _id: string;                     // trip id
+  meta: { id, title, createdAt, organizerId, organizerKeyHash, settings, lockedCode };
+  members: Record<string, string>; // member id -> display name
+  candidates: { stop: StopInput; addedBy: string; addedAt: number; votes: string[] }[];
+  expiresAt: Date;                 // TTL index deletes the trip 30 days after the last write
+}
+```
 
-- Adding and removing votes uses `SADD` / `SREM`, which Redis applies as single steps.
-- Each write refreshes a 30-day expiry on all of the trip's keys.
-- `GET` reads the meta, both hashes and every vote set in one pipeline.
+Every change is one `updateOne` with an atomic operator, so two people acting at once never overwrite each other and no locking is needed:
+
+| Action | Update |
+|---|---|
+| Add member | `$set: { "members.<id>": name }` |
+| Add candidate | filter `"candidates.stop.key": { $ne: key }` + `$push`, so a duplicate is never added twice |
+| Vote / remove vote | filter `"candidates.stop.key": key` + `$addToSet` / `$pull` on `"candidates.$.votes"` |
+| Keep alive | `$set: { expiresAt }`, with a TTL index on `expiresAt` (`expireAfterSeconds: 0`) |
+
+Member IDs are base64url (`A–Z a–z 0–9 _ -`), so they're safe as field names.
 
 ### Store selection
 
 `store.ts` exports `getTripStore()`:
 
-- It uses `redisStore` when both `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set. It also accepts `KV_REST_API_URL` and `KV_REST_API_TOKEN`, the names Vercel's Upstash integration sets.
-- Otherwise it uses `memoryStore`, a `Map` held in memory. That works for `npm run dev`, but trips disappear when the server restarts. In production without credentials, the server logs a warning.
+- It uses the MongoDB backend when `MONGODB_URI` is set. The database name comes from `MONGODB_DB`, default `roam`.
+- Otherwise it uses the in-memory backend. That's fine for `npm run dev` and tests, but trips disappear on restart. In production without `MONGODB_URI`, the server logs a warning.
+- The connection is cached on `globalThis`, so dev hot reloads and warm Vercel functions reuse one connection pool.
 
 ## API
 
@@ -132,12 +153,12 @@ All bodies are validated with Zod. Every error returns `{ error: string }`, the 
 
 | Route | Body | Returns | Rules |
 |---|---|---|---|
-| `POST /api/trips` | `{ title?, settings, stops: StopInput[] (0–10), name }` | `{ id, memberId, organizerKey }` | The creator becomes the first member and votes for every seed stop |
+| `POST /api/trips` | `{ name, code }` (`code` is a Roam plan code) | `{ trip, memberId, organizerKey }` | The code must decode to a valid plan. The creator becomes the organizer and votes for every seed stop |
 | `GET /api/trips/[id]` | none | `Trip` | 404 if missing or expired |
-| `POST /api/trips/[id]/join` | `{ name }` (1–30 chars) | `{ memberId }` | |
+| `POST /api/trips/[id]/join` | `{ name }` (1–30 chars) | `{ trip, memberId }` | |
 | `POST /api/trips/[id]/candidates` | `{ memberId, stop }` | `Trip` | The member must exist. If the stop key is already a candidate, adding it counts as a vote instead. At most 30 candidates |
 | `POST /api/trips/[id]/vote` | `{ memberId, stopKey, on: boolean }` | `Trip` | The member and candidate must exist |
-| `POST /api/trips/[id]/lock` | `{ organizerKey, code }` | `Trip` | The key hash must match. `code` must decode with `decodePlan` |
+| `POST /api/trips/[id]/lock` | `{ organizerKey }` | `Trip` | The key hash must match. The server builds the plan code from its own vote state, so a client can't lock a different plan |
 
 After a lock, `join`, `candidates` and `vote` return 409 with the message "This plan is locked."
 
@@ -181,7 +202,7 @@ Tailwind classes and the `ui/` components (`button`, `card`, `badge`, `input`) m
 | `/api/plan` fails for the draft | Keep the previous draft and show "Couldn't update the draft day." The candidate list still works |
 | Draft has 0 voted stops | "Vote for a place to start the day" |
 | More than 30 candidates | 400, "This trip has enough ideas. Vote on the ones already here." |
-| Redis is down | 503, "Trips are unavailable right now." The existing planner is unaffected |
+| MongoDB is unreachable | 503, "Trips are unavailable right now." The existing planner is unaffected |
 | The browser has a stored member ID the server doesn't know | Clear the stored ID and show the Join card again |
 
 ## Testing
@@ -193,26 +214,32 @@ These use Vitest, which the project already uses. Test files sit next to the cod
 - `schema.test.ts`: rejects names that are too long, unknown `memberId` shapes, and more than 10 seed stops.
 - Manual end-to-end test: two browsers (one of them private), with the organizer creating, the friend joining, votes changing the draft within about 4 seconds, locking, and opening in the planner.
 
-The Redis store is tested by hand against a free Upstash database, not in CI.
+`mongo.test.ts` runs the same flow against a real Atlas cluster (in a throwaway `roam_test` database) when `MONGODB_URI` is passed in. Otherwise it's skipped, so `npm test` needs no database.
 
-## Setup for the team
+## Setup
 
-1. `npm install @upstash/redis`
-2. Local dev: nothing extra, because the memory store is used automatically.
-3. Vercel: Project → Storage → add **Upstash for Redis** (free tier). Vercel adds the env vars itself. Redeploy.
-4. To use Upstash locally as well, copy the two variables into `.env.local`.
+1. `npm install mongodb`
+2. Local dev without a database: nothing extra, because the memory store is used automatically.
+3. Real storage: create a free **M0** cluster on MongoDB Atlas, add a database user, allow network access from `0.0.0.0/0` (Vercel's servers don't have fixed IPs), and put the Node.js connection string in `.env.local` as `MONGODB_URI`.
+4. Vercel: add `MONGODB_URI` under Project → Settings → Environment Variables, or use the Vercel Marketplace MongoDB Atlas integration. Redeploy.
+
+Step-by-step clicks are in the implementation plan, Task 9.
 
 ## Build order
 
-1. `types.ts`, `rank.ts` and tests
-2. `store.ts` (memory store first) and tests
-3. API routes and schemas
-4. `/trip/[id]` page and `TripView`
-5. The **Plan with friends** button in `PlannerView`
-6. `redisStore` and a Vercel deploy check
-7. Demo run with two phones
+1. Types and ranking, with tests
+2. Trip service on the memory backend, with tests
+3. Request schemas and route helpers
+4. API routes, with an HTTP test
+5. Browser identity and client
+6. `/trip/start` and `/trip/[id]` pages: join, suggest, vote
+7. Draft day and organizer lock
+8. The **Plan with friends** link in the itinerary
+9. MongoDB Atlas backend, env docs and a Vercel deploy check
 
-Steps 1–3 and step 4 can be split between two people once `types.ts` is agreed on.
+## Later: Atlas Search
+
+After group trips work, load the ~29.6k Discover places into a `places` collection on the same cluster, add an Atlas Search index, and use `$search` in Discover. That's a separate spec. It reuses `getDb()` and changes nothing here.
 
 ## Demo script (60 seconds)
 
