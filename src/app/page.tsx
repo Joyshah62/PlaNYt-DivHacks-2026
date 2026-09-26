@@ -231,7 +231,7 @@ export default function Home() {
               className="font-display text-[clamp(3.1rem,6.4vw,5.85rem)] leading-[1.02] font-normal tracking-[-0.03em]"
             >
               Your day.<br />
-              <span className="italic font-normal bg-gradient-to-r from-teal-400 via-emerald-300 to-cyan-300 dark:from-teal-300 dark:via-emerald-300 dark:to-cyan-200 bg-clip-text text-transparent drop-shadow-xs">
+              <span className="italic font-normal bg-gradient-to-r from-teal-700 via-emerald-600 to-cyan-700 dark:from-teal-300 dark:via-emerald-300 dark:to-cyan-200 bg-clip-text text-transparent drop-shadow-xs">
                 Your New York.
               </span>
             </h1>
@@ -254,7 +254,7 @@ export default function Home() {
               </div>
 
               <div className="neo-raised rounded-2xl p-3.5 border">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-amber-500">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
                   <Flame weight="duotone" className="size-4" aria-hidden /> Crowd Flow
                 </span>
                 <p className="mt-1 text-[11px] text-muted-foreground leading-tight">
@@ -263,7 +263,7 @@ export default function Home() {
               </div>
 
               <div className="neo-raised rounded-2xl p-3.5 border">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                   <Lightning weight="duotone" className="size-4" aria-hidden /> Adaptive
                 </span>
                 <p className="mt-1 text-[11px] text-muted-foreground leading-tight">

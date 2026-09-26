@@ -71,24 +71,26 @@
 }
 
 :root {
-  --background: oklch(0.978 0.008 85);
-  --foreground: oklch(0.20 0.015 65);
-  --card: oklch(0.995 0.003 85);
-  --card-foreground: oklch(0.20 0.015 65);
-  --popover: oklch(0.995 0.003 85);
-  --popover-foreground: oklch(0.20 0.015 65);
-  --primary: oklch(0.20 0.015 65);
-  --primary-foreground: oklch(0.985 0.005 85);
-  --secondary: oklch(0.942 0.010 85);
-  --secondary-foreground: oklch(0.22 0.015 65);
-  --muted: oklch(0.940 0.010 85);
-  --muted-foreground: oklch(0.50 0.018 65);
-  --accent: oklch(0.935 0.012 80);
-  --accent-foreground: oklch(0.22 0.015 65);
+  /* Softer, warm architectural parchment / oat palette - glare-free and relaxing on the eyes */
+  --background: oklch(0.954 0.011 82);        /* Warm, gentle oat canvas - eliminates stark white glare */
+  --foreground: oklch(0.24 0.018 60);         /* Warm deep charcoal-espresso - softer than pure pitch black */
+  --card: oklch(0.972 0.009 82);              /* Elevated warm linen card surface */
+  --card-foreground: oklch(0.24 0.018 60);
+  --popover: oklch(0.975 0.009 82);
+  --popover-foreground: oklch(0.24 0.018 60);
+  --primary: oklch(0.24 0.018 60);
+  --primary-foreground: oklch(0.985 0.005 82);
+  --secondary: oklch(0.922 0.012 80);
+  --secondary-foreground: oklch(0.24 0.018 60);
+  --muted: oklch(0.920 0.012 80);
+  --muted-foreground: oklch(0.46 0.020 65);   /* Softer warm slate with great contrast without eye strain */
+  --accent: oklch(0.915 0.014 78);
+  --accent-foreground: oklch(0.24 0.018 60);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.89 0.012 85);
-  --input: oklch(0.89 0.012 85);
-  --ring: oklch(0.64 0.15 178);
+  --border: oklch(0.865 0.012 80);
+  --input: oklch(0.865 0.012 80);
+  --ring: oklch(0.48 0.12 178);
+
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -96,19 +98,19 @@
   --chart-5: oklch(0.269 0 0);
   --radius: 0.875rem;
 
-  /* NYC Statue of Liberty Verdigris / Mint Copper Patina Brand Core */
-  --brand: oklch(0.64 0.15 178);
-  --brand-soft: oklch(0.95 0.035 178);
+  /* NYC Statue of Liberty Verdigris / Mint Copper Patina Brand Core (Grounded & Softer in Light Mode) */
+  --brand: oklch(0.48 0.12 178);
+  --brand-soft: oklch(0.935 0.025 178);
   --on-color: oklch(0.99 0 0);
 
   /* NYC Iconic & Sitcom Palette Tokens (Light Mode - Harmonious Warm NYC Tones) */
-  --nyc-taxi: oklch(0.76 0.18 78);          /* NYC Yellow Cab & HIMYM Yellow Umbrella */
-  --friends-orange: oklch(0.66 0.18 45);    /* Friends Central Perk Velvet Couch */
-  --friends-purple: oklch(0.56 0.16 310);   /* Friends Monica's Iconic Purple Door */
-  --friends-green: oklch(0.50 0.13 160);    /* Friends Central Perk Sign & Sage Green */
-  --seinfeld-blue: oklch(0.58 0.17 235);    /* Seinfeld Monk's Diner Neon Blue */
-  --seinfeld-red: oklch(0.58 0.21 26);      /* Seinfeld Neon Sign Crimson */
-  --himym-amber: oklch(0.62 0.16 65);       /* HIMYM MacLaren's Pub Warm Ale & Wood */
+  --nyc-taxi: oklch(0.72 0.14 78);          /* NYC Yellow Cab & HIMYM Yellow Umbrella - warm amber */
+  --friends-orange: oklch(0.62 0.15 45);    /* Friends Central Perk Velvet Couch */
+  --friends-purple: oklch(0.52 0.13 310);   /* Friends Monica's Iconic Purple Door */
+  --friends-green: oklch(0.46 0.11 160);    /* Friends Central Perk Sign & Sage Green */
+  --seinfeld-blue: oklch(0.52 0.13 235);    /* Seinfeld Monk's Diner Neon Blue */
+  --seinfeld-red: oklch(0.54 0.17 26);      /* Seinfeld Neon Sign Crimson */
+  --himym-amber: oklch(0.58 0.13 65);       /* HIMYM MacLaren's Pub Warm Ale & Wood */
 
   --sev-c: oklch(0.52 0.17 22);
   --sev-c-soft: oklch(0.96 0.025 22);
@@ -587,15 +589,15 @@
    ========================================================================== */
 :root {
   --neo-surface: var(--background);
-  --neo-glass-bg: color-mix(in oklch, var(--background) 72%, transparent);
-  --neo-glass-card: color-mix(in oklch, var(--background) 78%, transparent);
-  --neo-glass-inset: color-mix(in oklch, var(--background) 52%, transparent);
-  --neo-light: rgba(255, 255, 255, 0.95);
-  --neo-light-subtle: rgba(255, 255, 255, 0.72);
-  --neo-dark: rgba(160, 148, 132, 0.28);
-  --neo-dark-subtle: rgba(160, 148, 132, 0.16);
-  --neo-border: rgba(255, 255, 255, 0.85);
-  --neo-glass-rim: rgba(255, 255, 255, 0.95);
+  --neo-glass-bg: color-mix(in oklch, var(--background) 78%, transparent);
+  --neo-glass-card: color-mix(in oklch, var(--card) 85%, transparent);
+  --neo-glass-inset: color-mix(in oklch, var(--background) 62%, transparent);
+  --neo-light: rgba(255, 255, 255, 0.65);
+  --neo-light-subtle: rgba(255, 255, 255, 0.38);
+  --neo-dark: rgba(140, 126, 110, 0.18);
+  --neo-dark-subtle: rgba(140, 126, 110, 0.10);
+  --neo-border: rgba(255, 255, 255, 0.65);
+  --neo-glass-rim: rgba(255, 255, 255, 0.75);
 }
 
 .dark {
