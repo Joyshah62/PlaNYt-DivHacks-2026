@@ -3,7 +3,6 @@ import "./home.css";
 import { Colophon } from "@/components/home/Colophon";
 import { edFonts } from "@/components/home/fonts";
 import { HeroStage } from "@/components/home/HeroStage";
-import { Journeys } from "@/components/home/Journeys";
 import { NeighborhoodStory } from "@/components/home/NeighborhoodStory";
 import { PlanDemo } from "@/components/home/PlanDemo";
 
@@ -24,7 +23,6 @@ export default function Home() {
       <HeroStage />
       <PlanDemo />
       <NeighborhoodStory />
-      <Journeys />
       <Colophon />
     </main>
   );

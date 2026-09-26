@@ -68,35 +68,3 @@ export const NEIGHBORHOODS: Neighborhood[] = [
     camera: { lat: 40.7484, lng: -73.9857, alt: 200, range: 1100, tilt: 68, heading: 35 },
   },
 ];
-
-export interface Journey {
-  id: string;
-  show: string;
-  title: string;
-  duration: string;
-  query: string;
-  stops: string[];
-}
-
-export const JOURNEYS: Journey[] = [
-  {
-    id: "friends", show: "Friends", title: "The Greenwich Village walk", duration: "4.5 hrs",
-    query: HERO_LINKS[0].query,
-    stops: ["Village coffee on Bedford", "Monica's apartment, 90 Bedford St", "Washington Square fountain", "A West 4th St bistro"],
-  },
-  {
-    id: "seinfeld", show: "Seinfeld", title: "The Upper West Side tour", duration: "5 hrs",
-    query: HERO_LINKS[1].query,
-    stops: ["Monk's Diner (Tom's Restaurant)", "Central Park West reservoir", "Jerry's 81st Street block", "An evening comedy show"],
-  },
-  {
-    id: "himym", show: "How I Met Your Mother", title: "The Midtown trail", duration: "5.5 hrs",
-    query: "How I Met Your Mother route: MacLaren's Pub booth at McGee's, Yellow Umbrella at Central Park South, Empire State Building deck, and Corner Bistro burger.",
-    stops: ["MacLaren's (McGee's, 55th St)", "The yellow umbrella, Central Park South", "Empire State Building deck", "Corner Bistro burger"],
-  },
-  {
-    id: "skyline", show: "New York classic", title: "High Line & skyline", duration: "6 hrs",
-    query: "Plan a Saturday with Central Park, the Met, Top of the Rock and Chelsea Market. Subway and walking, 9am to 6pm.",
-    stops: ["The High Line", "Chelsea Market", "Little Island at Pier 55", "Top of the Rock at sunset"],
-  },
-];

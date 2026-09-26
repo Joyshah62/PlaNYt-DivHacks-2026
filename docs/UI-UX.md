@@ -20,11 +20,10 @@ The UX hierarchy:
 **Design:** Editorial New York: cream paper and ink (charcoal "evening edition" in dark mode), Instrument Serif headlines, Newsreader text, IBM Plex Mono labels, one red accent, numbered route bullets. Styles live in `src/app/home.css`, scoped under `.ed`.
 
 **Sections:**
-1. **Hero:** "New York" is printed in ink; Google's photorealistic 3D Manhattan fades in inside the letters, the page dives through a letter, and the camera lands orbiting the Empire State Building. The deck holds the prompt (submits to `/plan?q=…`) and three journey links. Plays once per session; reduced motion and lite devices start landed.
+1. **Hero:** "New York" rises with Google's photorealistic 3D Manhattan inside the letters, the page dives through a letter, and the camera lands orbiting the Empire State Building. The deck holds the prompt (submits to `/plan?q=…`) and three journey links. Plays once per session; reduced motion and lite devices start landed.
 2. **Watch it plan:** a self-typing prompt builds an example itinerary while the route draws on a 3D map.
 3. **Neighborhoods:** scrollytelling; a pinned 3D map flies to each neighborhood.
-4. **Journeys:** a contents list of four ready-made days.
-5. **Colophon:** data sources.
+4. **Colophon:** data sources.
 
 **Performance:** copy is server-rendered; each map is created only near the viewport and idles off screen; Google failures fall back to MapLibre.
 

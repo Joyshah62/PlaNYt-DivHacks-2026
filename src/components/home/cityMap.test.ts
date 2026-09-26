@@ -50,6 +50,14 @@ describe("chooseEngine", () => {
   it("renders no map at all without WebGL", () => {
     expect(chooseEngine({ ...good, webgl: false }, "hero")).toBe("none");
   });
+  it("uses MapLibre everywhere when NEXT_PUBLIC_MAP_ENGINE=maplibre (local development)", () => {
+    const dev = { ...good, forced: "maplibre" as const };
+    expect(chooseEngine(dev, "hero")).toBe("maplibre");
+    expect(chooseEngine(dev, "secondary")).toBe("maplibre");
+  });
+  it("still renders nothing without WebGL, even when forced", () => {
+    expect(chooseEngine({ ...good, webgl: false, forced: "maplibre" }, "hero")).toBe("none");
+  });
   it("keeps Google for the hero but not secondary maps on lite devices", () => {
     const saver = { ...good, saveData: true };
     expect(chooseEngine(saver, "hero")).toBe("google");

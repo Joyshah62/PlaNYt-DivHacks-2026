@@ -11,7 +11,7 @@ export function NeighborhoodStory() {
   const hostRef = useRef<HTMLDivElement>(null);
   const chaptersRef = useRef<HTMLDivElement>(null);
 
-  const near = useInView(sectionRef, { rootMargin: "100% 0px", once: true });
+  const near = useInView(sectionRef, { rootMargin: "50% 0px", once: true });
   const inView = useInView(sectionRef);
   const pageVisible = usePageVisible();
   const reduced = usePrefersReducedMotion();
@@ -32,9 +32,15 @@ export function NeighborhoodStory() {
   // Fly to the active chapter, then orbit it; idle when off screen.
   useEffect(() => {
     if (!map) return;
-    if (!inView || !pageVisible) return map.stop();
+    if (!inView || !pageVisible) {
+      map.stop();
+      return;
+    }
     const cam = NEIGHBORHOODS[active].camera;
-    if (reduced) return map.jumpTo(cam);
+    if (reduced) {
+      map.jumpTo(cam);
+      return;
+    }
     let live = true;
     void map.flyTo(cam, 3200).then(() => live && map.orbit(cam, 70));
     return () => {

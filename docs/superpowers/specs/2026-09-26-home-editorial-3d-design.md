@@ -63,10 +63,7 @@ The existing `ThemeToggle` and `roam_theme` localStorage key are kept; `.dark` s
    Side, DUMBO, Midtown); a sticky 3D map on the right flies to each one and orbits slowly.
    Each chapter ends with a "Plan a day here →" link to `/plan?q=…` (reusing the current
    `NEIGHBORHOODS` queries).
-4. **Journeys**: an editorial "Contents" list of the four featured journeys (show,
-   title, duration, stops as bullets), each linking to `/plan?q=…` (reusing
-   `FEATURED_JOURNEYS`).
-5. **Colophon** (footer): wordmark, one-line pitch, data sources (Google Maps, OSM, MTA,
+4. **Colophon** (footer): wordmark, one-line pitch, data sources (Google Maps, OSM, MTA,
    Open-Meteo), links.
 
 The old "Engineered for the real NYC" features block is removed; section 2 shows it instead.
@@ -74,12 +71,12 @@ The old "Engineered for the real NYC" features block is removed; section 2 shows
 ## The intro, precisely
 
 1. The hero map mounts at `{ center: 40.738,-73.990, range: 9000, tilt: 0, heading: -30 }`.
-2. "New York" is server-rendered and visible from the first paint as ink on paper (it is
-   the LCP element, so it must not start hidden). The map sits behind it at opacity 0.
-3. When the map's first `gmp-steadychange` reports `isSteady` (timeout 8s), the map fades in
-   over 0.9s: the ink letters fill with the city ("ink becomes city"). The map orbits the
-   high view (`flyCameraAround`, 240s per turn). `document.fonts.ready` gates measurement.
-4. 2.3s after the city appears, the dive:
+2. Until the city has painted (first `gmp-steadychange` with `isSteady`, or 8s of *visible*
+   time), the hero is blank paper: the letters are hidden. This matches the approved
+   prototype (`reel-3d.html`) and trades a later LCP for the effect.
+3. The letters of "New York" rise (stagger 60ms from 0.1s, 1.1s each) with the city already
+   inside them. The map orbits the high view (`flyCameraAround`, 240s per turn).
+4. 2.3s after the letters start rising, the dive:
    - Find the zoom origin: rasterise the word at 25% scale on a canvas, run a two-pass
      chamfer distance transform, pick the deepest stroke pixel (weighted towards the
      horizontal centre). Precomputed while the letters rise; recomputed only on resize.
@@ -108,9 +105,11 @@ orbits and the demo animation (the demo shows its final state).
   (`setOptions({ key, v: "beta" })` + `importLibrary("maps3d")`), started from the hero island
   after hydration. `beta`, not `alpha`: in alpha every overlay constructor throws (checked
   2026-09-26). Add `preconnect` to `maps.googleapis.com` and `maps.gstatic.com`.
-- **Lazy maps.** The demo and neighborhood maps are created only when their section comes
-  within one viewport (`IntersectionObserver`, `rootMargin: "100% 0px"`), and never on the
-  server. A visitor who stays in the hero pays for one map load.
+- **Lazy maps.** The demo map is created once its section is 15% into view (it starts at the
+  fold, so any look-ahead margin would load it on page load); the neighborhood map half a
+  viewport ahead. Never on the server.
+- **Engine switch.** `NEXT_PUBLIC_MAP_ENGINE=maplibre` (in `.env.local`) forces the free
+  MapLibre map everywhere for local development; unset for demos and hosting. A visitor who stays in the hero pays for one map load.
 - **Offscreen = idle.** A map whose section leaves the viewport stops its camera animation
   (`stopCameraAnimation`); the orbit resumes on re-entry. All orbits stop on
   `document.visibilitychange` → hidden. Maps are not destroyed on scroll-out (re-creating
@@ -147,7 +146,7 @@ src/components/home/
   HomePrompt.tsx         client     editorial prompt → router.push(/plan?q=…)
   PlanDemo.tsx           client     typing prompt, itinerary rows, route + pins
   NeighborhoodStory.tsx  client     sticky map + chapter observer
-  Journeys.tsx, Colophon.tsx        server sections
+  Colophon.tsx                      server section
 src/app/home.css                    `.ed` tokens + section styles (imported by page)
 ```
 

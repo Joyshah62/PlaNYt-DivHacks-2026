@@ -13,9 +13,9 @@ import { useInView, usePageVisible, usePrefersReducedMotion } from "./visibility
 
 const WORD = "New York";
 const INTRO_KEY = "roam_intro";
-const glyphs = (stagger: number) =>
+const glyphs = (stagger: number, offset = 0) =>
   [...WORD].map((c, i) => (
-    <i key={i} style={stagger ? { animationDelay: `${i * stagger}s` } : undefined}>{c === " " ? " " : c}</i>
+    <i key={i} style={{ animationDelay: `${offset + i * stagger}s` }}>{c === " " ? " " : c}</i>
   ));
 
 /** Same rule as the inline script in page.tsx; also covers soft navigations, where that script doesn't run. */
@@ -68,13 +68,14 @@ export function HeroStage() {
     const timers: number[] = [];
     const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
 
-    hero.classList.add("city"); // the city fades in inside the ink letters
+    // The city has painted: the letters rise with Manhattan already inside them, turning slowly.
     map.orbit(HERO.high, 240);
-
     document.fonts.ready.then(() => {
       if (cancelled) return;
-      const origin = measureDiveOrigin(word) ?? centreOf(word);
+      hero.classList.add("go");
       at(2300, () => {
+        // Measured now, once the letters have finished rising (their transforms move the glyphs).
+        const origin = measureDiveOrigin(word) ?? centreOf(word);
         const k = knock.getBoundingClientRect();
         knock.style.transformOrigin = `${origin.x - k.left}px ${origin.y - k.top}px`;
         const cover = Math.hypot(innerWidth, innerHeight) / Math.max(origin.radius, 1);
@@ -141,7 +142,7 @@ export function HeroStage() {
     <section ref={heroRef} id="top" className="ed-hero" aria-labelledby="hero-title">
       <div ref={hostRef} className="ed-hero-map" />
       <div ref={knockRef} className="ed-knock" aria-hidden>
-        <span ref={wordRef} className="ed-knock-word">{glyphs(0)}</span>
+        <span ref={wordRef} className="ed-knock-word">{glyphs(0.06, 0.1)}</span>
       </div>
       <div className="ed-scrim" aria-hidden />
       <header className="ed-header ed-chrome">
@@ -149,7 +150,6 @@ export function HeroStage() {
         <nav className="ed-mono" aria-label="Sections">
           <a href="#watch" className="ed-navlink">How it works</a>
           <a href="#neighborhoods" className="ed-navlink">Neighborhoods</a>
-          <a href="#journeys" className="ed-navlink">Journeys</a>
           <ThemeToggle className="ed-theme" />
           <Link href="/plan" className="ed-btn">Open planner →</Link>
         </nav>

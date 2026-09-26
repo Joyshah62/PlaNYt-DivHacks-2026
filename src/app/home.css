@@ -47,7 +47,7 @@
   background: var(--ink); color: var(--paper); padding: 10px 16px;
   font: 500 11px/1 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase;
 }
-.ed-btn:focus-visible, .ed-navlink:focus-visible, .ed-entry:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+.ed-btn:focus-visible, .ed-navlink:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
 .ed-btn:disabled { opacity: 0.6; cursor: default; }
 .ed-btn--ghost { background: none; color: var(--ink); border: 1.5px solid var(--ink); }
 
@@ -82,8 +82,7 @@
 /* Dark theme: the knockout uses `darken`, so what shows through the letters before the map
    paints must be light. */
 .dark .ed-hero { background: var(--ink); }
-.ed-hero-map { position: absolute; inset: 0; opacity: 0; transition: opacity 0.9s ease; }
-.ed-hero.city .ed-hero-map, [data-intro="skip"] .ed-hero-map { opacity: 1; }
+.ed-hero-map { position: absolute; inset: 0; }
 
 .ed-knock {
   position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -96,7 +95,9 @@
   font-size: 25vw; line-height: 0.8; letter-spacing: -0.035em; white-space: nowrap;
 }
 .dark .ed-knock-word { color: #fff; }
-.ed-knock-word i { display: inline-block; font-style: inherit; }
+/* Hidden until the city has painted behind them, then each letter rises with the city inside. */
+.ed-knock-word i { display: inline-block; font-style: inherit; opacity: 0; transform: translateY(40%); }
+.ed-hero.go .ed-knock-word i { animation: ed-rise 1.1s cubic-bezier(0.2, 0.7, 0.1, 1) forwards; }
 .ed-hero.dive .ed-knock { will-change: transform, opacity; }
 .ed-hero.landed .ed-knock, [data-intro="skip"] .ed-knock { display: none; }
 
@@ -190,21 +191,6 @@
 .ed-sticky { position: sticky; top: 0; height: 100dvh; overflow: hidden; background: var(--night); border-left: 1px solid var(--rule); }
 .ed-sticky-label { position: absolute; z-index: 3; top: 20px; right: 20px; padding: 8px 12px; background: #15120e; color: #f3ede1; }
 
-/* ── Journeys ─────────────────────────────────────────── */
-.ed-journeys { padding-block: 72px; border-top: 3px double var(--rule); }
-.ed-contents { margin: 24px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
-.ed-entry {
-  display: grid; grid-template-columns: 80px 1fr auto; gap: 24px; align-items: baseline;
-  padding: 24px 0; border-bottom: 1px solid var(--rule); text-decoration: none;
-}
-.ed-entry-no { font-size: 48px; line-height: 1; color: var(--red); }
-.ed-entry h3 { font-family: var(--f-display); font-weight: 400; font-size: clamp(28px, 3vw, 44px); line-height: 1; margin: 6px 0 10px; }
-.ed-entry-stops { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0; list-style: none; color: var(--muted); font-style: italic; }
-.ed-entry-stops li { display: inline-flex; align-items: center; gap: 8px; }
-.ed-entry-stops .ed-bullet { width: 20px; height: 20px; font-size: 10px; font-style: normal; }
-.ed-entry-go { transition: transform 0.2s; }
-.ed-entry:hover .ed-entry-go { transform: translateX(4px); color: var(--red); }
-
 /* ── Colophon ─────────────────────────────────────────── */
 .ed-colophon { padding-block: 48px 32px; border-top: 3px double var(--rule); display: grid; gap: 12px; }
 .ed-colophon-mark { font-size: 44px; line-height: 1; }
@@ -218,8 +204,6 @@
   .ed-demo-map { min-height: 60vh; border-left: 0; border-top: 1px solid var(--rule); }
   .ed-sticky { height: 50vh; order: -1; z-index: 5; border-left: 0; }
   .ed-chapter { min-height: 70vh; }
-  .ed-entry { grid-template-columns: 48px 1fr; }
-  .ed-entry-go { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

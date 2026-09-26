@@ -82,7 +82,9 @@ export async function createGoogleMap(host: HTMLElement, cam: Camera, signal?: A
       map.stopCameraAnimation();
       map.flyCameraAround({ camera: toCam(c), durationMillis: secondsPerTurn * 1000, repeatCount: Infinity });
     },
-    stop: () => map.stopCameraAnimation(),
+    stop() {
+      void map.stopCameraAnimation(); // returns a Promise; callers treat stop() as fire-and-forget
+    },
     onMove(cb) {
       const f = () => {
         const c = map.center;

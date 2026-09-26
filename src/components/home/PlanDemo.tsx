@@ -15,7 +15,9 @@ export function PlanDemo() {
   const runRef = useRef<AbortController | null>(null);
   const started = useRef(false);
 
-  const near = useInView(sectionRef, { rootMargin: "100% 0px", once: true });
+  // This section starts right at the fold, so a look-ahead margin would load its map on page
+  // load. Load it once the visitor has actually scrolled it into view.
+  const near = useInView(sectionRef, { rootMargin: "0px 0px -15% 0px", once: true });
   // A band in the middle of the screen, so a section taller than the viewport still triggers.
   const visible = useInView(sectionRef, { rootMargin: "-30% 0px -30% 0px" });
   const pageVisible = usePageVisible();

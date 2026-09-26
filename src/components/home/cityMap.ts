@@ -22,13 +22,15 @@ export interface EngineEnv {
   webgl: boolean;
   saveData: boolean;
   deviceMemory: number | undefined;
+  /** NEXT_PUBLIC_MAP_ENGINE=maplibre: use the free map everywhere (local development). */
+  forced?: "maplibre";
 }
 
 export const isLite = (env: EngineEnv) => env.saveData || (env.deviceMemory !== undefined && env.deviceMemory <= 2);
 
 export function chooseEngine(env: EngineEnv, role: MapRole): "google" | "maplibre" | "none" {
   if (!env.webgl) return "none";
-  if (!env.hasKey) return "maplibre";
+  if (env.forced === "maplibre" || !env.hasKey) return "maplibre";
   if (role === "secondary" && isLite(env)) return "maplibre";
   return "google";
 }
@@ -71,6 +73,7 @@ export function readEnv(): EngineEnv {
     webgl,
     saveData: !!nav.connection?.saveData,
     deviceMemory: nav.deviceMemory,
+    forced: process.env.NEXT_PUBLIC_MAP_ENGINE === "maplibre" ? "maplibre" : undefined,
   };
 }
 
