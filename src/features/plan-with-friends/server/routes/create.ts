@@ -3,6 +3,7 @@ import type { TripSettings } from "../../core/types";
 import { readBody, respond } from "../http";
 import { CreateTripBody } from "../schema";
 import { TripError } from "../service";
+import { resolveMember } from "../member";
 import { getTripStore } from "../store";
 
 function blankDay(date: string): TripSettings {
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
       if (!date || date < nycToday()) throw new TripError(400, "Pick today or a later date.");
       settings = blankDay(date);
     }
-    return getTripStore().create({ title: `${WEEKDAYS[weekdayOf(settings.date)]} in NYC`, settings, stops, name, avatar });
+    const { memberId, user } = await resolveMember(request, undefined);
+    return getTripStore().create({ title: `${WEEKDAYS[weekdayOf(settings.date)]} in NYC`, settings, stops, name: user?.name ?? name, avatar, memberId });
   });
 }
