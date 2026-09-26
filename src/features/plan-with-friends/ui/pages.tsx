@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
 import { BRAND } from "../bridge/index";
-import { TripStart } from "./TripStart";
-import { TripView } from "./TripView";
+import { StartRoom } from "./StartRoom";
+import { TripRoom } from "./TripRoom";
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
 
 export const tripStartMetadata: Metadata = { title: `Plan with friends · ${BRAND.name} ${BRAND.suffix}` };
-export const tripRoomMetadata: Metadata = { title: `Group trip · ${BRAND.name} ${BRAND.suffix}` };
+export const tripRoomMetadata: Metadata = { title: `Trip room · ${BRAND.name} ${BRAND.suffix}` };
 
-export async function TripStartPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const { plan } = await searchParams;
-  const code = (Array.isArray(plan) ? plan[0] : plan)?.slice(0, 4000) || null;
-  return <TripStart code={code} />;
+export async function TripStartPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  return <StartRoom code={first(params.plan)?.slice(0, 4000) || null} group={first(params.group)} />;
 }
 
 export async function TripRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <TripView id={id} />;
+  return <TripRoom id={id} />;
 }

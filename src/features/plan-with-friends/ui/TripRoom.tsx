@@ -1,0 +1,103 @@
+"use client";
+
+import { Link2 } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { Button, cn } from "../bridge/ui";
+import { AvatarStack } from "./Avatar";
+import { ConsensusBar } from "./ConsensusBar";
+import { DraftDay } from "./DraftDay";
+import { JoinCard } from "./JoinCard";
+import { PlacesPanel } from "./PlacesPanel";
+import { useTripRoom } from "./useTripRoom";
+
+type Tab = "places" | "day";
+
+export function TripRoom({ id }: { id: string }) {
+  const room = useTripRoom(id);
+  const [tab, setTab] = useState<Tab>("places");
+  const { trip, me, draft, actions } = room;
+
+  if (room.status === "missing") {
+    return (
+      <main className="mx-auto max-w-md px-4 py-16 text-center">
+        <p className="text-sm text-muted-foreground">This trip has expired or the link is wrong.</p>
+        <Link href="/start" className="mt-3 inline-block text-sm font-medium text-brand hover:underline">
+          Start a new trip room
+        </Link>
+      </main>
+    );
+  }
+  if (!trip) return <main className="mx-auto max-w-md px-4 py-16 text-center text-sm text-muted-foreground">Loading trip…</main>;
+
+  const people = Object.entries(trip.members)
+    .sort((a, b) => a[1].joinedAt - b[1].joinedAt)
+    .map(([mid, m]) => ({ id: mid, ...m }));
+  const host = trip.members[trip.hostId]?.name ?? "A friend";
+  const dateLabel = new Date(`${trip.settings.date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
+
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-4 px-4 pt-6 pb-36">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">{dateLabel}</p>
+          <h1 className="font-display text-4xl leading-tight sm:text-5xl">{trip.title}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <AvatarStack people={people} size="md" />
+            <span>
+              {people.length} {people.length === 1 ? "person" : "people"} · hosted by {host}
+              {me && ` · you're ${me.avatar.emoji} ${me.name}`}
+            </span>
+          </div>
+        </div>
+        <Button size="sm" variant="outline" className="rounded-full" onClick={actions.copyInvite}>
+          <Link2 aria-hidden /> {room.copied ? "Link copied" : "Copy invite link"}
+        </Button>
+      </header>
+
+      {(room.offline || room.error || room.rememberWarning) && (
+        <div className="flex flex-col gap-1 text-xs">
+          {room.offline && <p className="text-muted-foreground">Reconnecting…</p>}
+          {room.rememberWarning && <p className="text-muted-foreground">You&apos;re in, but this browser won&apos;t remember you after you close it.</p>}
+          {room.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {room.error}
+            </p>
+          )}
+        </div>
+      )}
+
+      {!me && !room.locked && <JoinCard hostName={host} onJoin={actions.join} />}
+
+      <div className="flex gap-1 rounded-full border border-border bg-card p-1 lg:hidden" role="tablist" aria-label="Trip room sections">
+        {(["places", "day"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+            className={cn("flex-1 rounded-full py-1.5 text-sm font-medium transition", tab === t ? "bg-foreground text-background" : "text-muted-foreground")}
+          >
+            {t === "places" ? `Places · ${trip.candidates.length}` : "Day"}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start">
+        <div className={cn(tab !== "places" && "hidden lg:block")}>
+          <PlacesPanel trip={trip} memberId={me?.id ?? null} locked={room.locked} onVote={actions.vote} onSuggest={actions.suggest} />
+        </div>
+        <div className={cn("lg:sticky lg:top-4", tab !== "day" && "hidden lg:block")}>
+          <DraftDay plan={draft.plan} updating={draft.updating} error={draft.error} locked={room.locked} />
+        </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto max-w-6xl">
+          <ConsensusBar trip={trip} memberId={me?.id ?? null} hasDraft={!!trip.consensus.signature} busy={room.busy} onConfirm={actions.confirm} onDeadline={actions.setDeadline} />
+        </div>
+      </div>
+    </main>
+  );
+}

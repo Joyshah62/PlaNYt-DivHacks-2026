@@ -4,7 +4,7 @@ import type { DayPlan } from "../bridge/index";
 
 export function DraftDay({ plan, updating, error, locked }: { plan: DayPlan | null; updating: boolean; error: string | null; locked: boolean }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4" aria-busy={updating}>
+    <div className="rounded-2xl border border-border bg-card p-4" aria-busy={updating}>
       <h2 className="text-sm font-semibold">{locked ? "Final day" : "Draft day"}</h2>
       <p className="mb-3 text-xs text-muted-foreground">
         {locked ? "Locked. Open it in the planner to fine-tune, save or export." : updating ? "Updating…" : "Updates as votes change."}
