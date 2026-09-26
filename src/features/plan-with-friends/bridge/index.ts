@@ -1,6 +1,6 @@
 // The only way this feature reaches the rest of Roam. If app internals move, fix them here.
 export type { DayPlan, PlanRequest, Profile, StopInput } from "@/lib/plan/types";
-export { DEFAULT_PROFILE } from "@/lib/plan/profile";
+export { DEFAULT_PROFILE, isMealBreak } from "@/lib/plan/profile";
 export { PlanRequestSchema, StopSchema } from "@/lib/plan/schema";
 export { decodePlan, encodePlan, parseProfile, readProfileRaw, storeProfile } from "@/lib/plan/share";
 export { clock, duration, nycNowMin, nycToday, WEEKDAYS, weekdayOf } from "@/lib/plan/time";
@@ -10,3 +10,7 @@ export { ATTRACTIONS, type Attraction } from "@/lib/plan/attractions";
 export { CATEGORY } from "@/lib/discover/categories";
 export { parseOsmHours } from "@/lib/discover/hours";
 export { nearestStations } from "@/lib/plan/crowd";
+export type { AssistantResult } from "@/lib/plan/types";
+
+/** App endpoints this feature calls over HTTP. If the app moves one, change it here. */
+export const APP_API = { plan: "/api/plan", resolve: "/api/resolve", photo: "/api/photo", assistant: "/api/assistant" } as const;

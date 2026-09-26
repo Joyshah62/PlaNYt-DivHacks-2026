@@ -37,6 +37,7 @@ export interface TripBackend {
   getCandidates(id: string): Promise<Record<string, CandidateRecord>>;
   /** False when that stop key is already a candidate. */
   addCandidate(id: string, record: CandidateRecord): Promise<boolean>;
+  removeCandidate(id: string, stopKey: string): Promise<void>;
   getVotes(id: string, stopKeys: string[]): Promise<Record<string, string[]>>;
   setVote(id: string, stopKey: string, memberId: string, on: boolean): Promise<void>;
   touch(id: string, stopKeys: string[]): Promise<void>;

@@ -1,4 +1,4 @@
-import type { Collection, Db } from "mongodb";
+import type { Collection, Db, PullOperator } from "mongodb";
 import type { Member } from "../core/types";
 import { TRIP_TTL_SECONDS, type CandidateRecord, type StoredMember, type StoredMeta, type TripBackend } from "./backend";
 
@@ -69,6 +69,10 @@ export function mongoBackend(db: () => Promise<Db>): TripBackend {
         { $push: { candidates: { ...record, votes: [] } }, $set: { expiresAt: expiry() } },
       );
       return result.modifiedCount === 1;
+    },
+    async removeCandidate(id, stopKey) {
+      // The driver's types don't model a dotted path inside a $pull condition; MongoDB accepts it.
+      await (await trips()).updateOne({ _id: id }, { $pull: { candidates: { "stop.key": stopKey } } as unknown as PullOperator<TripDoc>, $set: { expiresAt: expiry() } });
     },
     async getVotes(id, stopKeys) {
       const doc = await load(id);

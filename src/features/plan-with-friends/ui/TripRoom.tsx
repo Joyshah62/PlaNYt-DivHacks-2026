@@ -4,6 +4,7 @@ import { Link2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button, cn } from "../bridge/ui";
+import { AskRoam } from "./AskRoam";
 import { AvatarStack } from "./Avatar";
 import { ConsensusBar } from "./ConsensusBar";
 import { DraftDay } from "./DraftDay";
@@ -85,8 +86,9 @@ export function TripRoom({ id }: { id: string }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start">
-        <div className={cn(tab !== "places" && "hidden lg:block")}>
-          <PlacesPanel trip={trip} memberId={me?.id ?? null} locked={room.locked} onVote={actions.vote} onSuggest={actions.suggest} />
+        <div className={cn("flex flex-col gap-4", tab !== "places" && "hidden lg:flex")}>
+          {me && !room.locked && <AskRoam onSuggest={actions.suggest} />}
+          <PlacesPanel trip={trip} memberId={me?.id ?? null} locked={room.locked} onVote={actions.vote} onSuggest={actions.suggest} onRemove={actions.remove} />
         </div>
         <div className={cn("lg:sticky lg:top-4", tab !== "day" && "hidden lg:block")}>
           <DraftDay plan={draft.plan} updating={draft.updating} error={draft.error} locked={room.locked} />

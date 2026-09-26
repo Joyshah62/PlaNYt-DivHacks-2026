@@ -1,4 +1,5 @@
-import { CROWD_COLOR, CROWD_LABEL, LEG_VERB } from "../bridge/index";
+import { CROWD_COLOR, CROWD_LABEL, isMealBreak, LEG_VERB } from "../bridge/index";
+import { PlaceThumb } from "./PlaceThumb";
 import { clock, duration } from "../bridge/index";
 import type { DayPlan } from "../bridge/index";
 
@@ -23,7 +24,10 @@ export function DraftDay({ plan, updating, error, locked }: { plan: DayPlan | nu
                     {duration(s.leg.minutes)} {LEG_VERB[s.leg.mode]}
                   </p>
                 )}
-                <p className="text-sm font-semibold">{s.name}</p>
+                <div className="flex items-center gap-2.5">
+                  {!isMealBreak(s) && <PlaceThumb stop={s} className="size-9 rounded-lg" />}
+                  <p className="text-sm font-semibold">{s.name}</p>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {duration(s.endMin - s.startMin)}
                   {s.crowd && (

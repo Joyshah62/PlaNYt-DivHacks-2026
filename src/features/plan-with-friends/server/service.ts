@@ -126,6 +126,15 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
       return saved(id);
     },
 
+    async removeCandidate(id: string, memberId: string, stopKey: string) {
+      const { trip } = await editable(id, memberId);
+      const candidate = trip.candidates.find((c) => c.stop.key === stopKey);
+      if (!candidate) throw new TripError(404, "That place isn't on this trip.");
+      if (candidate.addedBy !== memberId) throw new TripError(403, "Only the person who suggested it can remove it.");
+      await db.removeCandidate(id, stopKey);
+      return saved(id);
+    },
+
     async confirm(id: string, memberId: string, on: boolean) {
       const { trip } = await editable(id, memberId);
       if (on && !trip.consensus.signature) throw new TripError(400, "Vote for a place first.");

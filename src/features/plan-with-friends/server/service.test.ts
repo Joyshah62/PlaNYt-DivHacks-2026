@@ -109,6 +109,30 @@ describe("trip service: rooms and members", () => {
   });
 });
 
+describe("trip service: removing places", () => {
+  it("lets whoever suggested a place remove it, votes and all", async () => {
+    const { trip, memberId } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.vote(trip.id, rishi, "met", true);
+    const t = await svc.removeCandidate(trip.id, memberId, "met");
+    expect(t.candidates.map((c) => c.stop.key)).toEqual(["central-park"]);
+  });
+
+  it("doesn't let anyone else remove it", async () => {
+    const { trip } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    expect(await status(svc.removeCandidate(trip.id, rishi, "met"))).toBe(403);
+    expect(await status(svc.removeCandidate(trip.id, rishi, "nope"))).toBe(404);
+  });
+
+  it("lets a removed place be suggested again from scratch", async () => {
+    const { trip, memberId } = await start();
+    await svc.removeCandidate(trip.id, memberId, "met");
+    const t = await svc.addCandidate(trip.id, memberId, met);
+    expect(t.candidates.find((c) => c.stop.key === "met")?.votes).toEqual([memberId]);
+  });
+});
+
 describe("trip service: deciding together", () => {
   it("locks when everyone is in, and freezes the trip", async () => {
     const { trip, memberId } = await start();

@@ -127,6 +127,18 @@ Each phase gets its own implementation plan and works on its own.
    - Members optionally set when they're free, e.g. "free 2–11pm".
    - The day uses the time everyone shares. If there is none, it uses the time most people share and marks who misses which stop.
 
+## Added after P1 (from review)
+
+- **P1.5: Place search.** As-you-type search over Roam's catalog plus the ~30k bundled OSM places, via `GET /api/trips/places?q=`.
+  - Each result shows its kind and address, or the nearest subway station when there's no address.
+  - A chosen place keeps its opening hours.
+  - "Search the map" remains as a fallback.
+  - P2's "Where are you starting from?" reuses the same component.
+- **P1.6: Remove, photos, Ask Roam.**
+  - **Remove:** the person who suggested a place can remove it (`POST /api/trips/[id]/remove`), and must confirm when others have voted for it. Everyone else can only take back their own vote.
+  - **Photos:** every place and draft-day stop shows a photo from the app's `/api/photo`. That's Roam's own photos for catalog sights, and Google Places within its quota caps for everything else.
+  - **Ask Roam:** the landing page's "describe your day" box, inside the room. `/api/assistant` (Gemini) turns a sentence into places, which are added as that member's suggestions. Its "pick one" options for vague wishes can be tapped to add them.
+
 ## Error handling (all phases)
 
 Everything from v1 still applies. New cases:

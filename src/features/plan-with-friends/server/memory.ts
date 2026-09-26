@@ -60,6 +60,11 @@ export function memoryBackend(trips: Map<string, MemoryEntry> = shared()): TripB
       entry.cands.set(record.stop.key, structuredClone(record));
       return true;
     },
+    async removeCandidate(id, stopKey) {
+      const entry = trips.get(id);
+      entry?.cands.delete(stopKey);
+      entry?.votes.delete(stopKey);
+    },
     async getVotes(id, stopKeys) {
       const entry = trips.get(id);
       return Object.fromEntries(stopKeys.map((key) => [key, [...(entry?.votes.get(key) ?? [])]]));

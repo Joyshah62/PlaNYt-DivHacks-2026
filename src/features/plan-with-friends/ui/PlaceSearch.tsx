@@ -2,7 +2,7 @@
 
 import { Check, Loader2, MapPin, Search, Sparkles } from "lucide-react";
 import { useEffect, useId, useState } from "react";
-import { ATTRACTIONS, type StopInput } from "../bridge/index";
+import { APP_API, ATTRACTIONS, type StopInput } from "../bridge/index";
 import { cn, stopFromAttraction } from "../bridge/ui";
 
 interface Result {
@@ -60,7 +60,7 @@ export function PlaceSearch({ chosen, disabled, onPick }: { chosen: Set<string>;
     setLocating(true);
     setError(null);
     try {
-      const res = await fetch(`/api/resolve?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`${APP_API.resolve}?q=${encodeURIComponent(q)}`);
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Couldn't find that place.");
       pick({ key: `place-${slug(q)}`, name: q, lat: body.lat, lon: body.lon, visitMin: 60, attractionId: null });

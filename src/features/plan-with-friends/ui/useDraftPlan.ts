@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { DayPlan } from "../bridge/index";
+import { APP_API, type DayPlan } from "../bridge/index";
 import { draftRequest } from "../core/rank";
 import type { Trip } from "../core/types";
 
@@ -14,7 +14,7 @@ export function useDraftPlan(trip: Trip | null) {
   useEffect(() => {
     if (!signature) return;
     const controller = new AbortController();
-    fetch("/api/plan", { method: "POST", headers: { "content-type": "application/json" }, body: signature, signal: controller.signal })
+    fetch(APP_API.plan, { method: "POST", headers: { "content-type": "application/json" }, body: signature, signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error("plan failed");
         return (await res.json()) as DayPlan;

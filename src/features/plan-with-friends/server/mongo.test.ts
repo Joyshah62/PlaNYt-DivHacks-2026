@@ -34,6 +34,8 @@ describe.skipIf(!uri)("mongo backend (live Atlas)", () => {
       ["met", 2],
       ["brooklyn-bridge", 1],
     ]);
+    await svc.addCandidate(trip.id, host, { ...bridge, key: "temp", name: "Temp" });
+    expect((await svc.removeCandidate(trip.id, host, "temp")).candidates.map((c) => c.stop.key)).toEqual(["met", "brooklyn-bridge"]);
     await svc.setDeadline(trip.id, host, Date.now() + 3600_000);
     expect((await svc.confirm(trip.id, host, true)).lockedCode).toBeNull();
     const locked = await svc.confirm(trip.id, memberId, true);

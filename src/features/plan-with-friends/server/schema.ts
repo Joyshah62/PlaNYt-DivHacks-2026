@@ -18,5 +18,6 @@ export const CandidateBody = z.object({
   stop: StopSchema.refine(inNycArea, { message: "That place isn't in New York City." }),
 });
 export const VoteBody = z.object({ memberId: MemberId, stopKey: z.string().min(1).max(80), on: z.boolean() });
+export const RemoveBody = z.object({ memberId: MemberId, stopKey: z.string().min(1).max(80) });
 export const ConfirmBody = z.object({ memberId: MemberId, on: z.boolean() });
 export const DeadlineBody = z.object({ memberId: MemberId, at: z.number().int().nullable() });
