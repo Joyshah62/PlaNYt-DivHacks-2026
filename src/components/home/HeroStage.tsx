@@ -104,7 +104,7 @@ export function HeroStage() {
   // After landing: orbit the Empire State, but only while the hero is on screen and the tab is visible.
   useEffect(() => {
     if (!map || !settled || reduced) return;
-    if (onScreen && pageVisible) map.orbit(HERO.landed, 200);
+    if (onScreen && pageVisible) map.orbit(HERO.landed, 360); // seconds per full turn
     else map.stop();
   }, [map, settled, onScreen, pageVisible, reduced]);
 
