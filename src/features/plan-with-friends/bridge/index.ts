@@ -6,3 +6,7 @@ export { decodePlan, encodePlan, parseProfile, readProfileRaw, storeProfile } fr
 export { clock, duration, nycNowMin, nycToday, WEEKDAYS, weekdayOf } from "@/lib/plan/time";
 export { BRAND, CROWD_COLOR, CROWD_LABEL, LEG_VERB } from "@/lib/plan/display";
 export { inNycArea } from "@/lib/osm/geo";
+export { ATTRACTIONS, type Attraction } from "@/lib/plan/attractions";
+export { CATEGORY } from "@/lib/discover/categories";
+export { parseOsmHours } from "@/lib/discover/hours";
+export { nearestStations } from "@/lib/plan/crowd";

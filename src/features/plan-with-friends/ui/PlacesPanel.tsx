@@ -3,10 +3,11 @@
 import { ChevronUp, Plus } from "lucide-react";
 import { useState } from "react";
 import type { StopInput } from "../bridge/index";
-import { Button, cn, StopPicker, stopFromAttraction } from "../bridge/ui";
+import { Button, cn } from "../bridge/ui";
 import { rankCandidates } from "../core/rank";
 import { MAX_CANDIDATES, type Candidate, type Trip } from "../core/types";
 import { AvatarBubble } from "./Avatar";
+import { PlaceSearch } from "./PlaceSearch";
 
 export function PlacesPanel({
   trip,
@@ -99,14 +100,7 @@ export function PlacesPanel({
               Close
             </button>
           </div>
-          <StopPicker
-            stops={trip.candidates.map((c) => c.stop)}
-            suggestions={[]}
-            onAdd={suggest}
-            onToggle={(a) => suggest(stopFromAttraction(a))}
-            onInspect={(a) => suggest(stopFromAttraction(a))}
-            full={full}
-          />
+          <PlaceSearch chosen={new Set(trip.candidates.map((c) => c.stop.key))} disabled={full} onPick={suggest} />
         </div>
       )}
     </section>
