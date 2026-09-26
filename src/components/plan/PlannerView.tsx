@@ -843,6 +843,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                 onSave={savePlan}
                 onShare={sharePlan}
                 onCalendar={downloadCalendar}
+                friendsHref={planCode ? `/trip/start?plan=${planCode}` : undefined}
                 forecast={forecast}
                 photos={photos}
                 assistant={
