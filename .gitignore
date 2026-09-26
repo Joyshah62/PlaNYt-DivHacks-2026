@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Google photo usage counter (see src/lib/plan/photos.ts)
 /.data/
+
+# brainstorm mockups
+.superpowers/
