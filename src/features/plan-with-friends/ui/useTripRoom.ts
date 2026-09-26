@@ -94,6 +94,7 @@ export function useTripRoom(id: string) {
       await act(() => tripApi<Trip>(`/${id}/candidates`, { memberId, stop }));
       await act(() => tripApi<Trip>(`/${id}/ideas/link`, { memberId, ideaId, placeKey: stop.key }));
     },
+    setFree: (free: { from: number; to: number } | null) => memberId && act(() => tripApi<Trip>(`/${id}/free`, { memberId, free })),
     confirm: (on: boolean) => memberId && act(() => tripApi<Trip>(`/${id}/confirm`, { memberId, on })),
     setDeadline: (at: number | null) => memberId && act(() => tripApi<Trip>(`/${id}/deadline`, { memberId, at })),
     async copyInvite() {

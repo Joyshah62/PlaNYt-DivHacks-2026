@@ -70,6 +70,11 @@ Catalog photo metadata is built from Wikipedia/Wikimedia Commons with attributio
 | `GET /api/trips/[id]` | Trip room state: members with avatars, places, votes, consensus, lock |
 | `POST /api/trips/[id]/join`, `/candidates`, `/vote` | Join with an avatar, suggest a place, vote |
 | `POST /api/trips/[id]/confirm`, `/deadline` | "I'm in" on the current draft; optional deadline after which a majority locks |
+| `POST /api/trips/[id]/remove` | Remove a place you suggested |
+| `POST /api/trips/[id]/start`, `/free` | Your rounded starting point (others see only the area) and when you're free |
+| `GET /api/trips/[id]/home` | Everyone's ways home from the last stop: subway, e-bike, taxi, walk, with time and rough cost |
+| `POST /api/trips/[id]/ideas`, `/ideas/vote`, `/ideas/link` | Ideas and chat (`trip_ideas` collection), upvotes, turning an idea into a place |
+| `GET /api/trips/places?q=` | As-you-type place search over the catalog and bundled NYC places (stations too with `for=start`) |
 
 ## Code map
 

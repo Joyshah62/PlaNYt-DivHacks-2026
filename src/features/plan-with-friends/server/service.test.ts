@@ -215,6 +215,40 @@ describe("trip service: ideas and chat", () => {
   });
 });
 
+describe("trip service: availability", () => {
+  it("fits the day into the time everyone is free", async () => {
+    const { trip, memberId } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.setFree(trip.id, memberId, { from: 12 * 60, to: 23 * 60 });
+    const t = await svc.setFree(trip.id, rishi, { from: 15 * 60, to: 22 * 60 });
+    expect(t.window).toMatchObject({ from: 15 * 60, to: 22 * 60, everyone: true });
+    expect(t.draft).toMatchObject({ startMin: 15 * 60, endMin: 22 * 60 });
+  });
+
+  it("uses the majority window and names who misses it", async () => {
+    const { trip, memberId } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    const { memberId: joy } = await svc.join(trip.id, "Joy", fox);
+    await svc.setFree(trip.id, memberId, { from: 10 * 60, to: 13 * 60 });
+    await svc.setFree(trip.id, rishi, { from: 15 * 60, to: 22 * 60 });
+    const t = await svc.setFree(trip.id, joy, { from: 16 * 60, to: 23 * 60 });
+    expect(t.window).toMatchObject({ everyone: false, missing: [memberId] });
+  });
+
+  it("resets I'm in when someone's hours change the day", async () => {
+    const { trip, memberId } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.confirm(trip.id, memberId, true);
+    const t = await svc.setFree(trip.id, rishi, { from: 14 * 60, to: 20 * 60 });
+    expect(t.consensus.stale).toEqual([memberId]);
+  });
+
+  it("rejects windows shorter than an hour", async () => {
+    const { FreeBody } = await import("./schema");
+    expect(FreeBody.safeParse({ memberId: "member123", free: { from: 600, to: 630 } }).success).toBe(false);
+  });
+});
+
 describe("trip service: deciding together", () => {
   it("locks when everyone is in, and freezes the trip", async () => {
     const { trip, memberId } = await start();

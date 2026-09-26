@@ -25,5 +25,9 @@ const IdeaId = z.string().regex(/^[A-Za-z0-9_-]{4,16}$/, "That idea isn't here a
 export const IdeaBody = z.object({ memberId: MemberId, text: z.string().trim().min(1, "Write something first.").max(280, "Keep it under 280 characters.") });
 export const IdeaVoteBody = z.object({ memberId: MemberId, ideaId: IdeaId, on: z.boolean() });
 export const IdeaLinkBody = z.object({ memberId: MemberId, ideaId: IdeaId, placeKey: z.string().min(1).max(80) });
+const Free = z
+  .object({ from: z.number().int().min(5 * 60), to: z.number().int().max(27 * 60) })
+  .refine((w) => w.to - w.from >= 60, { message: "Pick at least an hour." });
+export const FreeBody = z.object({ memberId: MemberId, free: Free.nullable() });
 export const ConfirmBody = z.object({ memberId: MemberId, on: z.boolean() });
 export const DeadlineBody = z.object({ memberId: MemberId, at: z.number().int().nullable() });

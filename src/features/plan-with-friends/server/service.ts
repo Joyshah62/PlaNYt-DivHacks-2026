@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { encodePlan, type StopInput } from "../bridge/index";
 import { defaultAvatar, type Avatar } from "../core/avatars";
 import { consensus } from "../core/consensus";
+import { applyWindow, sharedWindow, type FreeWindow } from "../core/availability";
 import { fairestPoint, MEETUP_PREFIX, roundPoint, withGroupStart, type Point } from "../core/fairness";
 import { draftRequest } from "../core/rank";
 import { IDEAS_SHOWN, MAX_CANDIDATES, MAX_IDEAS, MAX_MEMBERS, type Fairness, type Member, type Trip, type TripSettings } from "../core/types";
@@ -59,7 +60,10 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
       .sort((a, b) => a.addedAt - b.addedAt)
       .map((r) => ({ ...r, votes: votes[r.stop.key] ?? [] }));
     const partial = { id: meta.id, title: meta.title, createdAt: meta.createdAt, hostId: meta.hostId, settings: meta.settings, members, candidates };
-    const base = draftRequest(partial);
+    const free: Record<string, FreeWindow> = {};
+    for (const [mid, m] of Object.entries(members)) if (m.free) free[mid] = m.free;
+    const window = sharedWindow(free);
+    const base = draftRequest({ ...partial, settings: applyWindow(partial.settings, window) });
     const starts: Record<string, Point> = {};
     for (const [mid, m] of Object.entries(members)) if (m.start) starts[mid] = { lat: m.start.lat, lon: m.start.lon };
     const fairness: Fairness | null = Object.keys(starts).length
@@ -78,7 +82,7 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
       const code = encodePlan(draft);
       lockedCode = (await db.lock(id, code)) ? code : ((await db.getMeta(id))?.lockedCode ?? code);
     }
-    const trip: Trip = { ...partial, ideas: ideaList.ideas, deadline: meta.deadline, confirmations, consensus: c, draft, fairness, lockedCode };
+    const trip: Trip = { ...partial, ideas: ideaList.ideas, deadline: meta.deadline, confirmations, consensus: c, draft, fairness, window, lockedCode };
     return { meta, trip };
   }
 
@@ -173,6 +177,12 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
       const { trip } = await editable(id, memberId);
       if (!trip.candidates.some((c) => c.stop.key === placeKey)) throw new TripError(404, "That place isn't on this trip.");
       if (!(await db.linkIdea(id, ideaId, placeKey))) throw new TripError(404, "That idea isn't here anymore.");
+      return saved(id);
+    },
+
+    async setFree(id: string, memberId: string, free: FreeWindow | null) {
+      const { trip } = await editable(id, memberId);
+      await db.setMember(id, memberId, { ...trip.members[memberId], free });
       return saved(id);
     },
 

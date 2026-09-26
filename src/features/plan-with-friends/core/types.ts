@@ -1,4 +1,5 @@
 import type { PlanRequest, StopInput } from "../bridge/index";
+import type { FreeWindow, GroupWindow } from "./availability";
 import type { Avatar } from "./avatars";
 import type { Consensus } from "./consensus";
 import type { FairPick } from "./fairness";
@@ -23,6 +24,7 @@ export interface Member {
   avatar: Avatar;
   joinedAt: number;
   start?: StartPoint | null;
+  free?: FreeWindow | null;
 }
 
 export interface Fairness {
@@ -65,5 +67,7 @@ export interface Trip {
   /** The day the group is deciding on, including where it starts. */
   draft: PlanRequest | null;
   fairness: Fairness | null;
+  /** When the group can meet, from everyone's free time. */
+  window: GroupWindow | null;
   lockedCode: string | null;
 }

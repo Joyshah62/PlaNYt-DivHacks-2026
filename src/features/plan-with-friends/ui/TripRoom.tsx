@@ -3,11 +3,14 @@
 import { Link2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { clock } from "../bridge/index";
 import { Button, cn } from "../bridge/ui";
 import { AskRoam } from "./AskRoam";
 import { AvatarStack } from "./Avatar";
 import { ConsensusBar } from "./ConsensusBar";
+import { missingFor, type FreeWindow } from "../core/availability";
 import { DraftDay } from "./DraftDay";
+import { FreeTimeCard } from "./FreeTimeCard";
 import { GettingHomePanel } from "./GettingHomePanel";
 import { GroupMapPanel } from "./GroupMapPanel";
 import { IdeasPanel } from "./IdeasPanel";
@@ -39,6 +42,8 @@ export function TripRoom({ id }: { id: string }) {
     .sort((a, b) => a[1].joinedAt - b[1].joinedAt)
     .map(([mid, m]) => ({ id: mid, ...m }));
   const host = trip.members[trip.hostId]?.name ?? "A friend";
+  const emoji = (mid: string) => trip.members[mid]?.avatar.emoji ?? "?";
+  const free: Record<string, FreeWindow> = Object.fromEntries(Object.entries(trip.members).flatMap(([mid, m]) => (m.free ? [[mid, m.free]] : [])));
   const dateLabel = new Date(`${trip.settings.date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 
   return (
@@ -51,6 +56,7 @@ export function TripRoom({ id }: { id: string }) {
             <AvatarStack people={people} size="md" />
             <span>
               {people.length} {people.length === 1 ? "person" : "people"} · hosted by {host}
+              {trip.window && ` · free ${clock(trip.window.from)}–${clock(trip.window.to)}${trip.window.everyone ? " together" : ""}`}
               {me && ` · you're ${me.avatar.emoji} ${me.name}`}
             </span>
           </div>
@@ -92,6 +98,7 @@ export function TripRoom({ id }: { id: string }) {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start lg:[grid-auto-rows:min-content]">
         <div className={cn("flex flex-col gap-4", tab !== "places" && "hidden lg:flex")}>
           {me && !room.locked && <StartPointCard start={me.start} onSet={actions.setStart} />}
+          {me && !room.locked && <FreeTimeCard free={me.free} group={trip.window} emoji={emoji} onSet={actions.setFree} />}
           {me && !room.locked && <AskRoam onSuggest={actions.suggest} />}
           <PlacesPanel trip={trip} memberId={me?.id ?? null} locked={room.locked} onVote={actions.vote} onSuggest={actions.suggest} onRemove={actions.remove} />
         </div>
@@ -100,7 +107,7 @@ export function TripRoom({ id }: { id: string }) {
         </div>
         <div className={cn("flex flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start", tab !== "day" && "hidden lg:flex")}>
           <GroupMapPanel trip={trip} plan={draft.plan} memberId={me?.id ?? null} onSuggest={actions.suggest} />
-          <DraftDay plan={draft.plan} updating={draft.updating} error={draft.error} locked={room.locked} />
+          <DraftDay plan={draft.plan} updating={draft.updating} error={draft.error} locked={room.locked} whoMisses={(s, e) => missingFor(free, s, e).map(emoji)} />
           <GettingHomePanel trip={trip} tripId={id} plan={draft.plan} />
         </div>
       </div>

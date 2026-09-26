@@ -3,7 +3,20 @@ import { PlaceThumb } from "./PlaceThumb";
 import { clock, duration } from "../bridge/index";
 import type { DayPlan } from "../bridge/index";
 
-export function DraftDay({ plan, updating, error, locked }: { plan: DayPlan | null; updating: boolean; error: string | null; locked: boolean }) {
+export function DraftDay({
+  plan,
+  updating,
+  error,
+  locked,
+  whoMisses,
+}: {
+  plan: DayPlan | null;
+  updating: boolean;
+  error: string | null;
+  locked: boolean;
+  /** Avatars of people who aren't free for a stop's time. */
+  whoMisses?: (start: number, end: number) => string[];
+}) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4" aria-busy={updating}>
       <h2 className="text-sm font-semibold">{locked ? "Final day" : "Draft day"}</h2>
@@ -29,6 +42,9 @@ export function DraftDay({ plan, updating, error, locked }: { plan: DayPlan | nu
                   <p className="text-sm font-semibold">{s.name}</p>
                 </div>
                 <p className="text-xs text-muted-foreground">
+                  {whoMisses && whoMisses(s.startMin, s.endMin).length > 0 && (
+                    <span className="mr-1.5 text-amber-600 dark:text-amber-400">{whoMisses(s.startMin, s.endMin).join(" ")} can&apos;t make this ·</span>
+                  )}
                   {duration(s.endMin - s.startMin)}
                   {s.crowd && (
                     <>
