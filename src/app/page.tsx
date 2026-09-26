@@ -2,13 +2,13 @@ import Link from "next/link";
 import {
   ArrowRight,
   ArrowUpRight,
-  Compass,
-  Flame,
+  ArrowsClockwise,
+  Buildings,
+  CompassRose,
   Footprints,
-  Lightning,
-  MapPin,
-  Television,
-  TrainSimple,
+  Sparkle,
+  Subway,
+  UsersThree,
 } from "@phosphor-icons/react/dist/ssr";
 import { AmbientMapLazy } from "@/components/map/LazyMaps";
 import { LandingPrompt } from "@/components/plan/LandingPrompt";
@@ -145,17 +145,17 @@ const NEIGHBORHOODS = [
 
 const INTELLIGENCE_FEATURES = [
   {
-    icon: TrainSimple,
+    icon: Subway,
     title: "MTA Subway Live Intelligence",
     desc: "Real-time frequency tracking and delay avoidance. Automatically suggests cross-town walking when the 1 or A train is held.",
   },
   {
-    icon: Flame,
+    icon: UsersThree,
     title: "Neighborhood Rhythm & Crowd Flow",
     desc: "Predictive crowd curves tell you when Central Park or the Met are calmest, versus when Chelsea Market is buzzing with lunch energy.",
   },
   {
-    icon: Lightning,
+    icon: ArrowsClockwise,
     title: "Adaptive Live Timeline",
     desc: "Linger 20 minutes longer at coffee or duck inside for sudden Hudson showers. Your schedule re-balances with a single tap.",
   },
@@ -190,7 +190,7 @@ export default function Home() {
           className="flex items-center gap-3 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
         >
           <span className="neo-raised grid size-11 place-items-center rounded-2xl shadow-sm">
-            <Compass weight="duotone" className="size-6 text-brand" aria-hidden />
+            <CompassRose weight="duotone" className="size-6 text-brand" aria-hidden />
           </span>
           <div>
             <span className="text-xl font-extrabold tracking-tight">
@@ -246,7 +246,7 @@ export default function Home() {
             <div className="grid grid-cols-3 gap-3 w-full pt-1">
               <div className="neo-raised rounded-2xl p-3.5 border">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-brand">
-                  <TrainSimple weight="duotone" className="size-4" aria-hidden /> Live MTA
+                  <Subway weight="duotone" className="size-4" aria-hidden /> Live MTA
                 </span>
                 <p className="mt-1 text-[11px] text-muted-foreground leading-tight">
                   Real subway frequencies & delay bypasses
@@ -255,7 +255,7 @@ export default function Home() {
 
               <div className="neo-raised rounded-2xl p-3.5 border">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
-                  <Flame weight="duotone" className="size-4" aria-hidden /> Crowd Flow
+                  <UsersThree weight="duotone" className="size-4" aria-hidden /> Crowd Flow
                 </span>
                 <p className="mt-1 text-[11px] text-muted-foreground leading-tight">
                   Avoid long lines with quiet-hour timing
@@ -264,7 +264,7 @@ export default function Home() {
 
               <div className="neo-raised rounded-2xl p-3.5 border">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                  <Lightning weight="duotone" className="size-4" aria-hidden /> Adaptive
+                  <ArrowsClockwise weight="duotone" className="size-4" aria-hidden /> Adaptive
                 </span>
                 <p className="mt-1 text-[11px] text-muted-foreground leading-tight">
                   Instant re-route for rain or extra coffee
@@ -301,7 +301,7 @@ export default function Home() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-8">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-brand uppercase">
-              <Television weight="duotone" className="size-4" aria-hidden />
+              <Sparkle weight="duotone" className="size-4" aria-hidden />
               <span>Curated Experiences</span>
             </div>
             <h2 className="mt-1 font-display text-2xl font-normal tracking-tight sm:text-3xl lg:text-4xl">
@@ -394,7 +394,7 @@ export default function Home() {
       >
         <div className="mb-6">
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-brand uppercase">
-            <MapPin weight="duotone" className="size-4" aria-hidden />
+            <Buildings weight="duotone" className="size-4" aria-hidden />
             <span>Boroughs & Neighborhoods</span>
           </div>
           <h2 className="mt-1 font-display text-2xl font-normal tracking-tight sm:text-3xl lg:text-4xl">
@@ -473,7 +473,7 @@ export default function Home() {
           <div>
             <div className="flex items-center gap-2">
               <span className="neo-inset grid size-8 place-items-center rounded-xl">
-                <Compass weight="duotone" className="size-5 text-brand" aria-hidden />
+                <CompassRose weight="duotone" className="size-5 text-brand" aria-hidden />
               </span>
               <span className="font-bold tracking-tight">
                 {BRAND.name} <span className="font-normal text-muted-foreground">{BRAND.suffix}</span>

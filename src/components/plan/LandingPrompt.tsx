@@ -4,15 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Armchair,
   ArrowRight,
+  Bridge,
+  Buildings,
   Check,
   CircleNotch,
-  Coffee,
-  Footprints,
-  ForkKnife,
   MapTrifold,
-  Sparkle,
-  Television,
+  Martini,
+  MicrophoneStage,
   Umbrella,
   X,
 } from "@phosphor-icons/react";
@@ -20,10 +20,11 @@ import { Button } from "@/components/ui/button";
 
 export interface PresetIdea {
   id: string;
-  icon: typeof Coffee;
+  icon: typeof Armchair;
   label: string;
   badge: string;
   badgeColor: string;
+  hoverClass: string;
   shortDesc: string;
   text: string;
 }
@@ -31,20 +32,22 @@ export interface PresetIdea {
 export const PRESET_IDEAS: PresetIdea[] = [
   {
     id: "friends",
-    icon: Coffee,
+    icon: Armchair,
     label: "Friends Walk",
     badge: "Friends",
     badgeColor: "bg-(--friends-orange)/15 text-(--friends-orange) border-(--friends-orange)/35",
-    shortDesc: "Central Perk & Bedford St",
+    hoverClass: "hover:border-(--friends-orange)/45 hover:bg-(--friends-orange)/8 hover:shadow-[0_4px_16px_rgba(234,136,54,0.12)]",
+    shortDesc: "Central Perk Couch & Bedford St",
     text: "A Friends-themed Saturday: coffee in Greenwich Village, visit Monica's apartment on Bedford St, and an afternoon at Washington Square Park.",
   },
   {
     id: "seinfeld",
-    icon: Television,
+    icon: MicrophoneStage,
     label: "Seinfeld Day",
     badge: "Seinfeld",
     badgeColor: "bg-(--seinfeld-blue)/15 text-(--seinfeld-blue) border-(--seinfeld-blue)/35",
-    shortDesc: "Monk's Diner & UWS",
+    hoverClass: "hover:border-(--seinfeld-blue)/45 hover:bg-(--seinfeld-blue)/8 hover:shadow-[0_4px_16px_rgba(40,116,240,0.12)]",
+    shortDesc: "Monk's Diner & Stand-Up Comedy",
     text: "Classic Seinfeld NYC: breakfast at Monk's Diner (Tom's Restaurant) on the Upper West Side, Central Park stroll, and stand-up comedy.",
   },
   {
@@ -52,35 +55,39 @@ export const PRESET_IDEAS: PresetIdea[] = [
     icon: Umbrella,
     label: "HIMYM Trail",
     badge: "HIMYM",
-    badgeColor: "bg-brand/20 text-brand border-brand/35",
-    shortDesc: "MacLaren's & Umbrella",
+    badgeColor: "bg-(--himym-amber)/15 text-(--himym-amber) border-(--himym-amber)/35",
+    hoverClass: "hover:border-(--himym-amber)/45 hover:bg-(--himym-amber)/8 hover:shadow-[0_4px_16px_rgba(214,142,40,0.12)]",
+    shortDesc: "MacLaren's Pub & Yellow Umbrella",
     text: "How I Met Your Mother adventure: Empire State Building, Museum of Natural History, yellow cab ride down Broadway, and evening drinks at MacLaren's.",
   },
   {
     id: "skyline",
-    icon: Sparkle,
+    icon: Buildings,
     label: "Skyline & High Line",
     badge: "Classic",
     badgeColor: "bg-brand/15 text-brand border-brand/35",
-    shortDesc: "Top of the Rock & Views",
+    hoverClass: "hover:border-brand/45 hover:bg-brand/8 hover:shadow-[0_4px_16px_rgba(50,160,140,0.12)]",
+    shortDesc: "Top of the Rock & Hudson Views",
     text: "A slow Saturday: the Met, skyline view from Top of the Rock, coffee nearby and dinner in the Village.",
   },
   {
     id: "brooklyn",
-    icon: Footprints,
+    icon: Bridge,
     label: "DUMBO & Bridges",
     badge: "Brooklyn",
-    badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/35",
-    shortDesc: "Bridge Walk & Pizza",
+    badgeColor: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/35",
+    hoverClass: "hover:border-emerald-500/45 hover:bg-emerald-500/8 hover:shadow-[0_4px_16px_rgba(16,185,129,0.12)]",
+    shortDesc: "Brooklyn Bridge & Waterfront Pizza",
     text: "Walk the Brooklyn Bridge into DUMBO, photo on Washington St, pizza at Grimaldi's, Jane's Carousel, and skyline sunset at Brooklyn Bridge Park.",
   },
   {
     id: "broadway",
-    icon: ForkKnife,
+    icon: Martini,
     label: "Midtown & Speakeasies",
     badge: "Nightlife",
-    badgeColor: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/35",
-    shortDesc: "Broadway & Cocktails",
+    badgeColor: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border-indigo-500/35",
+    hoverClass: "hover:border-indigo-500/45 hover:bg-indigo-500/8 hover:shadow-[0_4px_16px_rgba(99,102,241,0.12)]",
+    shortDesc: "Broadway Theatre & Cocktails",
     text: "Evening in Midtown: Broadway theater show, walk through Times Square neon, hidden speakeasy cocktails in Hell's Kitchen, and late-night diner pie.",
   },
 ];
@@ -103,7 +110,7 @@ export function LandingPrompt() {
   }, [isFocused, text]);
 
   function go(customQuery?: string) {
-    const q = (customQuery ?? text).trim();
+    const q = (customQuery ?? (text.trim() || PRESET_IDEAS[activeIdeaIndex].text)).trim();
     if (!q || going) return;
     setGoing(true);
     router.push(`/plan?q=${encodeURIComponent(q)}`);
@@ -159,13 +166,13 @@ export function LandingPrompt() {
                 className={`group flex flex-col items-start rounded-2xl p-2.5 text-left transition-all duration-200 border ${
                   isSelected
                     ? "neo-inset border-brand/60 bg-brand/5 shadow-inner"
-                    : "neo-control border-transparent hover:border-border/60"
+                    : `neo-control border-transparent ${idea.hoverClass}`
                 }`}
               >
                 <div className="flex w-full items-center justify-between gap-1.5">
                   <Icon
                     weight={isSelected ? "bold" : "duotone"}
-                    className={`size-4 shrink-0 ${isSelected ? "text-brand" : "text-muted-foreground group-hover:text-brand"}`}
+                    className={`size-4.5 shrink-0 transition-transform duration-200 group-hover:scale-110 ${isSelected ? "text-brand" : "text-muted-foreground group-hover:text-brand"}`}
                     aria-hidden
                   />
                   <span className={`rounded-md border px-1.5 py-0.2 text-[9px] font-bold ${idea.badgeColor}`}>
@@ -222,11 +229,11 @@ export function LandingPrompt() {
         </p>
         <Button
           type="submit"
-          disabled={going || !text.trim()}
-          className="neo-primary group h-11 w-full justify-between gap-4 rounded-xl px-5 text-sm font-bold text-on-color focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-50 sm:w-auto shadow-md"
+          disabled={going}
+          className="neo-primary group h-11 w-full justify-between gap-4 rounded-xl px-5 text-sm font-bold text-on-color focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:w-auto shadow-md"
         >
           {going ? <CircleNotch weight="bold" className="size-4 animate-spin" aria-hidden /> : null}
-          <span>{going ? "Routing your day…" : "Plan my day"}</span>
+          <span>{going ? "Routing your day…" : text.trim() ? "Plan my day" : "Plan this day"}</span>
           {!going && (
             <span className="grid size-7 place-items-center rounded-lg bg-background/20">
               <ArrowRight weight="bold" className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden />
