@@ -24,14 +24,13 @@ export function TripView({ id }: { id: string }) {
   const [picking, setPicking] = useState(false);
   const [sessionIdentity, setSessionIdentity] = useState<TripIdentity | null>(null);
   const [copied, setCopied] = useState(false);
-  const [confirming, setConfirming] = useState(false);
 
   const raw = useSyncExternalStore(subscribeIdentity, () => readIdentityRaw(id), () => "");
   const identity = parseIdentity(raw) ?? sessionIdentity;
   const memberId = identity && trip && identity.memberId in trip.members ? identity.memberId : null;
   const locked = !!trip?.lockedCode;
   const draft = useDraftPlan(trip);
-  const isOrganizer = !!identity?.organizerKey && memberId === trip?.organizerId;
+  const mine = !!memberId && !!trip?.consensus.confirmed.includes(memberId);
 
   const refresh = useCallback(
     () =>
@@ -70,7 +69,7 @@ export function TripView({ id }: { id: string }) {
     e.preventDefault();
     setError(null);
     try {
-      const result = await tripApi<{ trip: Trip; memberId: string }>(`/${id}/join`, { name });
+      const result = await tripApi<{ trip: Trip; memberId: string }>(`/${id}/join`, { name, avatar: { emoji: "🐙", color: "violet" } });
       setTrip(result.trip);
       if (!storeIdentity(id, { memberId: result.memberId })) setSessionIdentity({ memberId: result.memberId });
     } catch (err) {
@@ -106,7 +105,7 @@ export function TripView({ id }: { id: string }) {
   }
   if (!trip) return <main className="mx-auto max-w-md px-4 py-16 text-center text-sm text-muted-foreground">Loading trip…</main>;
 
-  const organizer = trip.members[trip.organizerId] ?? "the organizer";
+  const organizer = trip.members[trip.hostId]?.name ?? "the host";
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 lg:grid lg:grid-cols-2 lg:items-start">
@@ -120,8 +119,8 @@ export function TripView({ id }: { id: string }) {
         <div className="flex flex-wrap gap-1.5">
           {Object.entries(trip.members).map(([mid, n]) => (
             <span key={mid} className="rounded-full border border-border bg-card px-2.5 py-0.5 text-xs">
-              {n}
-              {mid === trip.organizerId && " · organizer"}
+              {n.avatar.emoji} {n.name}
+              {mid === trip.hostId && " · host"}
             </span>
           ))}
         </div>
@@ -176,7 +175,7 @@ export function TripView({ id }: { id: string }) {
         {locked && (
           <div className="rounded-xl border border-brand/35 bg-brand-soft p-4 text-sm">
             <p>
-              <strong className="text-brand">Locked by {organizer}.</strong> This is the final day.
+              <strong className="text-brand">Everyone&apos;s in.</strong> This is the final day.
             </p>
             <Link
               href={`/plan?plan=${trip.lockedCode}`}
@@ -187,32 +186,11 @@ export function TripView({ id }: { id: string }) {
           </div>
         )}
         <DraftDay plan={draft.plan} updating={draft.updating} error={draft.error} locked={locked} />
-        {isOrganizer &&
-          !locked &&
-          (confirming ? (
-            <div className="rounded-xl border border-destructive/50 bg-card p-4">
-              <p className="mb-3 text-sm">
-                <strong>Lock the plan?</strong> Friends can&apos;t vote after this.
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => {
-                    setConfirming(false);
-                    act(() => tripApi<Trip>(`/${id}/lock`, { organizerKey: identity?.organizerKey }));
-                  }}
-                >
-                  Lock plan
-                </Button>
-                <Button variant="outline" onClick={() => setConfirming(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <Button className="w-full" onClick={() => setConfirming(true)} disabled={!draft.plan}>
-              Lock plan
-            </Button>
-          ))}
+        {memberId && !locked && (
+          <Button className="w-full" disabled={!draft.plan} onClick={() => act(() => tripApi<Trip>(`/${id}/confirm`, { memberId, on: !mine }))}>
+            {mine ? "I'm out" : "I'm in"} · {trip.consensus.confirmed.length} of {trip.consensus.total}
+          </Button>
+        )}
       </section>
     </main>
   );

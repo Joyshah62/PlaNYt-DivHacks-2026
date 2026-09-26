@@ -44,7 +44,8 @@ describe("readBody", () => {
   });
 
   it("returns parsed, trimmed data", async () => {
-    expect(await readBody(post(JSON.stringify({ name: "  Rishi " })), JoinBody)).toEqual({ name: "Rishi" });
+    const avatar = { emoji: "🐙", color: "violet" };
+    expect(await readBody(post(JSON.stringify({ name: "  Rishi ", avatar })), JoinBody)).toEqual({ name: "Rishi", avatar });
   });
 });
 

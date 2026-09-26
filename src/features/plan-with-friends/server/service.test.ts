@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { DEFAULT_PROFILE } from "../bridge/index";
-import { decodePlan } from "../bridge/index";
-import type { StopInput } from "../bridge/index";
-import { memoryBackend } from "./memory";
-import { createTripService, TripError, type TripService } from "./service";
+import { decodePlan, DEFAULT_PROFILE, type StopInput } from "../bridge/index";
+import type { Avatar } from "../core/avatars";
 import type { TripSettings } from "../core/types";
+import { memoryBackend, type MemoryEntry } from "./memory";
+import { createTripService, TripError, type TripService } from "./service";
 
 const met: StopInput = { key: "met", name: "The Met", lat: 40.7794, lon: -73.9632, visitMin: 150, attractionId: "met" };
 const park: StopInput = { key: "central-park", name: "Central Park", lat: 40.774, lon: -73.971, visitMin: 90, attractionId: "central-park" };
 const bridge: StopInput = { key: "brooklyn-bridge", name: "Brooklyn Bridge walk", lat: 40.7118, lon: -74.0035, visitMin: 45, attractionId: "brooklyn-bridge" };
+const fox: Avatar = { emoji: "🦊", color: "orange" };
+const octo: Avatar = { emoji: "🐙", color: "violet" };
 
 const settings: TripSettings = {
   date: "2026-10-03",
@@ -22,39 +23,47 @@ const settings: TripSettings = {
   meals: { lunch: false, dinner: false },
 };
 
+let store: Map<string, MemoryEntry>;
 let svc: TripService;
-let tick = 1000;
+let clock = 1_000_000;
 
 beforeEach(() => {
-  tick = 1000;
-  svc = createTripService(memoryBackend(new Map()), () => tick++);
+  clock = 1_000_000;
+  store = new Map();
+  svc = createTripService(memoryBackend(store), () => clock++);
 });
 
-const start = (stops: StopInput[] = [met, park]) => svc.create({ title: "Saturday in NYC", settings, stops, name: "Khyati" });
+const start = (stops: StopInput[] = [met, park]) => svc.create({ title: "Saturday in NYC", settings, stops, name: "Khyati", avatar: fox });
 const status = (p: Promise<unknown>) => p.then(() => 0, (e) => (e instanceof TripError ? e.status : -1));
 const votesFor = (trip: { candidates: { stop: StopInput; votes: string[] }[] }, key: string) => trip.candidates.find((c) => c.stop.key === key)?.votes;
 
-describe("trip service", () => {
-  it("creates a trip where the organizer has voted for every seed stop", async () => {
-    const { trip, memberId, organizerKey } = await start();
+describe("trip service: rooms and members", () => {
+  it("creates a room where the host has an avatar and has voted for every seed stop", async () => {
+    const { trip, memberId } = await start();
     expect(trip.id).toMatch(/^[A-Za-z0-9_-]{10}$/);
-    expect(trip.organizerId).toBe(memberId);
-    expect(trip.members).toEqual({ [memberId]: "Khyati" });
+    expect(trip.hostId).toBe(memberId);
+    expect(trip.members[memberId]).toMatchObject({ name: "Khyati", avatar: fox });
     expect(trip.candidates.map((c) => [c.stop.key, c.votes])).toEqual([
       ["met", [memberId]],
       ["central-park", [memberId]],
     ]);
-    expect(organizerKey.length).toBeGreaterThan(20);
-    expect(JSON.stringify(trip)).not.toContain(organizerKey);
+    expect(trip.consensus).toMatchObject({ total: 1, confirmed: [], reason: "waiting" });
+  });
+
+  it("can start empty", async () => {
+    const { trip } = await start([]);
+    expect(trip.candidates).toEqual([]);
+    expect(trip.consensus.reason).toBe("no-draft");
   });
 
   it("returns 404 for an unknown trip", async () => {
     expect(await status(svc.get("nope123456"))).toBe(404);
   });
 
-  it("lets a friend join, suggest and vote", async () => {
+  it("lets a friend join with an avatar, suggest and vote", async () => {
     const { trip } = await start();
-    const { memberId: rishi } = await svc.join(trip.id, "Rishi");
+    const { memberId: rishi, trip: joined } = await svc.join(trip.id, "Rishi", octo);
+    expect(joined.members[rishi]).toMatchObject({ name: "Rishi", avatar: octo });
     let t = await svc.addCandidate(trip.id, rishi, bridge);
     expect(t.candidates.find((c) => c.stop.key === "brooklyn-bridge")).toMatchObject({ addedBy: rishi, votes: [rishi] });
     t = await svc.vote(trip.id, rishi, "met", true);
@@ -65,49 +74,99 @@ describe("trip service", () => {
 
   it("counts suggesting a place that's already there as a vote", async () => {
     const { trip, memberId } = await start();
-    const { memberId: rishi } = await svc.join(trip.id, "Rishi");
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
     const t = await svc.addCandidate(trip.id, rishi, met);
     expect(t.candidates).toHaveLength(2);
     expect(t.candidates[0]).toMatchObject({ addedBy: memberId });
     expect(votesFor(t, "met")).toHaveLength(2);
   });
 
-  it("rejects edits from people who haven't joined", async () => {
-    const { trip } = await start();
-    expect(await status(svc.vote(trip.id, "stranger1234", "met", true))).toBe(403);
-    expect(await status(svc.addCandidate(trip.id, "stranger1234", bridge))).toBe(403);
-  });
-
-  it("rejects votes for places not on the trip", async () => {
+  it("rejects edits from people who haven't joined, and votes for unknown places", async () => {
     const { trip, memberId } = await start();
+    expect(await status(svc.vote(trip.id, "stranger1234", "met", true))).toBe(403);
+    expect(await status(svc.confirm(trip.id, "stranger1234", true))).toBe(403);
     expect(await status(svc.vote(trip.id, memberId, "moma", true))).toBe(404);
   });
 
-  it("caps a trip at 30 candidates", async () => {
+  it("caps a trip at 30 candidates and 12 members", async () => {
     const { trip, memberId } = await start();
-    for (let i = 0; i < 28; i++) {
-      await svc.addCandidate(trip.id, memberId, { ...bridge, key: `p${i}`, name: `Place ${i}` });
-    }
-    expect((await svc.get(trip.id)).candidates).toHaveLength(30);
+    for (let i = 0; i < 28; i++) await svc.addCandidate(trip.id, memberId, { ...bridge, key: `p${i}`, name: `Place ${i}` });
     expect(await status(svc.addCandidate(trip.id, memberId, bridge))).toBe(400);
+    for (let i = 0; i < 11; i++) await svc.join(trip.id, `Friend ${i}`, octo);
+    expect(await status(svc.join(trip.id, "One too many", octo))).toBe(400);
   });
 
-  it("only the organizer key can lock, and locking freezes the trip", async () => {
-    const { trip, organizerKey } = await start();
-    const { memberId: rishi } = await svc.join(trip.id, "Rishi");
-    expect(await status(svc.lock(trip.id, "wrong-key-wrong-key"))).toBe(403);
+  it("upgrades trips saved before avatars and hosts existed", async () => {
+    const { trip, memberId } = await start();
+    const entry = store.get(trip.id)!;
+    (entry.members as Map<string, unknown>).set(memberId, "Khyati");
+    const { hostId, ...rest } = entry.meta;
+    entry.meta = { ...rest, organizerId: hostId } as never;
+    const t = await svc.get(trip.id);
+    expect(t.hostId).toBe(memberId);
+    expect(t.members[memberId].name).toBe("Khyati");
+    expect(t.members[memberId].avatar.emoji).toBeTruthy();
+  });
+});
 
-    const locked = await svc.lock(trip.id, organizerKey);
-    expect(decodePlan(locked.lockedCode ?? "")?.stops.map((s) => s.key)).toEqual(["met", "central-park"]);
+describe("trip service: deciding together", () => {
+  it("locks when everyone is in, and freezes the trip", async () => {
+    const { trip, memberId } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    let t = await svc.confirm(trip.id, memberId, true);
+    expect(t.lockedCode).toBeNull();
+    expect(t.consensus).toMatchObject({ confirmed: [memberId], pending: [rishi] });
+
+    t = await svc.confirm(trip.id, rishi, true);
+    expect(t.consensus.reason).toBe("unanimous");
+    expect(decodePlan(t.lockedCode ?? "")?.stops.map((s) => s.key)).toEqual(["met", "central-park"]);
 
     expect(await status(svc.vote(trip.id, rishi, "met", false))).toBe(409);
     expect(await status(svc.addCandidate(trip.id, rishi, bridge))).toBe(409);
-    expect(await status(svc.join(trip.id, "Joy"))).toBe(409);
-    expect((await svc.lock(trip.id, organizerKey)).lockedCode).toBe(locked.lockedCode);
+    expect(await status(svc.confirm(trip.id, rishi, false))).toBe(409);
+    expect(await status(svc.join(trip.id, "Joy", octo))).toBe(409);
   });
 
-  it("refuses to lock when no place has a vote", async () => {
-    const { trip, organizerKey } = await start([]);
-    expect(await status(svc.lock(trip.id, organizerKey))).toBe(400);
+  it("stops counting a confirmation once the day changes", async () => {
+    const { trip, memberId } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.confirm(trip.id, memberId, true);
+    const t = await svc.addCandidate(trip.id, rishi, bridge);
+    expect(t.consensus.confirmed).toEqual([]);
+    expect(t.consensus.stale).toEqual([memberId]);
+  });
+
+  it("can take back an I'm in", async () => {
+    const { trip, memberId } = await start();
+    await svc.join(trip.id, "Rishi", octo);
+    await svc.confirm(trip.id, memberId, true);
+    const t = await svc.confirm(trip.id, memberId, false);
+    expect(t.consensus.confirmed).toEqual([]);
+  });
+
+  it("refuses I'm in when there's no day yet", async () => {
+    const { trip, memberId } = await start([]);
+    expect(await status(svc.confirm(trip.id, memberId, true))).toBe(400);
+  });
+
+  it("lets a majority lock after the deadline", async () => {
+    const { trip, memberId } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.join(trip.id, "Joy", fox);
+    await svc.setDeadline(trip.id, rishi, clock + 1000);
+    await svc.confirm(trip.id, memberId, true);
+    let t = await svc.confirm(trip.id, rishi, true);
+    expect(t.lockedCode).toBeNull();
+    clock += 5000;
+    t = await svc.get(trip.id);
+    expect(t.consensus.reason).toBe("majority-after-deadline");
+    expect(t.lockedCode).toEqual(expect.any(String));
+  });
+
+  it("only accepts deadlines in the next two weeks", async () => {
+    const { trip, memberId } = await start();
+    expect(await status(svc.setDeadline(trip.id, memberId, clock - 1))).toBe(400);
+    expect(await status(svc.setDeadline(trip.id, memberId, clock + 15 * 24 * 3600 * 1000))).toBe(400);
+    expect((await svc.setDeadline(trip.id, memberId, null)).deadline).toBeNull();
   });
 });

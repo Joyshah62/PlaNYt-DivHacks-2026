@@ -1,5 +1,5 @@
 import type { StopInput } from "../bridge/index";
-import type { TripSettings } from "../core/types";
+import type { Member, TripSettings } from "../core/types";
 
 export const TRIP_TTL_SECONDS = 60 * 60 * 24 * 30;
 
@@ -7,9 +7,9 @@ export interface TripMeta {
   id: string;
   title: string;
   createdAt: number;
-  organizerId: string;
-  organizerKeyHash: string;
+  hostId: string;
   settings: TripSettings;
+  deadline: number | null;
   lockedCode: string | null;
 }
 
@@ -19,12 +19,21 @@ export interface CandidateRecord {
   addedAt: number;
 }
 
+/** Trips saved before v2 kept members as plain names and an organizer id; the service upgrades them on read. */
+export type StoredMember = Member | string;
+export type StoredMeta = Omit<TripMeta, "hostId" | "deadline"> & { hostId?: string; organizerId?: string; deadline?: number | null };
+
 /** Each call is atomic on its own; the rules that combine them live in service.ts. */
 export interface TripBackend {
-  getMeta(id: string): Promise<TripMeta | null>;
+  getMeta(id: string): Promise<StoredMeta | null>;
   setMeta(meta: TripMeta): Promise<void>;
-  getMembers(id: string): Promise<Record<string, string>>;
-  setMember(id: string, memberId: string, name: string): Promise<void>;
+  setDeadline(id: string, deadline: number | null): Promise<void>;
+  /** Sets lockedCode only if the trip isn't locked yet; false when someone else locked it first. */
+  lock(id: string, code: string): Promise<boolean>;
+  getMembers(id: string): Promise<Record<string, StoredMember>>;
+  setMember(id: string, memberId: string, member: Member): Promise<void>;
+  getConfirmations(id: string): Promise<Record<string, string>>;
+  setConfirmation(id: string, memberId: string, signature: string | null): Promise<void>;
   getCandidates(id: string): Promise<Record<string, CandidateRecord>>;
   /** False when that stop key is already a candidate. */
   addCandidate(id: string, record: CandidateRecord): Promise<boolean>;

@@ -1,16 +1,18 @@
+import type { Member } from "../core/types";
 import type { CandidateRecord, TripBackend, TripMeta } from "./backend";
 
 export interface MemoryEntry {
   meta: TripMeta;
-  members: Map<string, string>;
+  members: Map<string, Member>;
+  confirmations: Map<string, string>;
   cands: Map<string, CandidateRecord>;
   votes: Map<string, Set<string>>;
 }
 
 function shared(): Map<string, MemoryEntry> {
   // globalThis survives dev hot reloads; a server restart still clears it.
-  const g = globalThis as typeof globalThis & { __roamTrips?: Map<string, MemoryEntry> };
-  return (g.__roamTrips ??= new Map());
+  const g = globalThis as typeof globalThis & { __roamTripsV2?: Map<string, MemoryEntry> };
+  return (g.__roamTripsV2 ??= new Map());
 }
 
 export function memoryBackend(trips: Map<string, MemoryEntry> = shared()): TripBackend {
@@ -22,13 +24,32 @@ export function memoryBackend(trips: Map<string, MemoryEntry> = shared()): TripB
     async setMeta(meta) {
       const entry = trips.get(meta.id);
       if (entry) entry.meta = structuredClone(meta);
-      else trips.set(meta.id, { meta: structuredClone(meta), members: new Map(), cands: new Map(), votes: new Map() });
+      else trips.set(meta.id, { meta: structuredClone(meta), members: new Map(), confirmations: new Map(), cands: new Map(), votes: new Map() });
+    },
+    async setDeadline(id, deadline) {
+      const entry = trips.get(id);
+      if (entry) entry.meta.deadline = deadline;
+    },
+    async lock(id, code) {
+      const entry = trips.get(id);
+      if (!entry || entry.meta.lockedCode) return false;
+      entry.meta.lockedCode = code;
+      return true;
     },
     async getMembers(id) {
-      return Object.fromEntries(trips.get(id)?.members ?? []);
+      return structuredClone(Object.fromEntries(trips.get(id)?.members ?? []));
     },
-    async setMember(id, memberId, name) {
-      trips.get(id)?.members.set(memberId, name);
+    async setMember(id, memberId, member) {
+      trips.get(id)?.members.set(memberId, structuredClone(member));
+    },
+    async getConfirmations(id) {
+      return Object.fromEntries(trips.get(id)?.confirmations ?? []);
+    },
+    async setConfirmation(id, memberId, signature) {
+      const entry = trips.get(id);
+      if (!entry) return;
+      if (signature) entry.confirmations.set(memberId, signature);
+      else entry.confirmations.delete(memberId);
     },
     async getCandidates(id) {
       return structuredClone(Object.fromEntries(trips.get(id)?.cands ?? []));

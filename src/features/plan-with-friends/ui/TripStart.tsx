@@ -20,8 +20,8 @@ export function TripStart({ code }: { code: string | null }) {
     setBusy(true);
     setError(null);
     try {
-      const { trip, memberId, organizerKey } = await tripApi<{ trip: Trip; memberId: string; organizerKey: string }>("", { name, code });
-      if (!storeIdentity(trip.id, { memberId, organizerKey })) {
+      const { trip, memberId } = await tripApi<{ trip: Trip; memberId: string }>("", { name, code, avatar: { emoji: "🦊", color: "orange" } });
+      if (!storeIdentity(trip.id, { memberId })) {
         setError("This browser can't save your organizer key. Open Roam in a normal (not private) window to organize a trip.");
         setBusy(false);
         return;
@@ -38,7 +38,7 @@ export function TripStart({ code }: { code: string | null }) {
       <h1 className="font-display text-4xl">Plan with friends</h1>
       {code ? (
         <form onSubmit={start} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Friends you invite can suggest places and vote. You lock the final day.</p>
+          <p className="text-sm text-muted-foreground">Friends you invite can suggest places and vote. The day locks when everyone is in.</p>
           <label className="text-sm font-medium" htmlFor="organizer-name">
             Your name
           </label>

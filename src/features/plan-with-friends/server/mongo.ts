@@ -1,10 +1,12 @@
 import type { Collection, Db } from "mongodb";
-import { TRIP_TTL_SECONDS, type CandidateRecord, type TripBackend, type TripMeta } from "./backend";
+import type { Member } from "../core/types";
+import { TRIP_TTL_SECONDS, type CandidateRecord, type StoredMember, type StoredMeta, type TripBackend } from "./backend";
 
 export interface TripDoc {
   _id: string;
-  meta: TripMeta;
-  members: Record<string, string>;
+  meta: StoredMeta;
+  members: Record<string, StoredMember>;
+  confirmations?: Record<string, string>;
   candidates: (CandidateRecord & { votes: string[] })[];
   expiresAt: Date;
 }
@@ -33,15 +35,29 @@ export function mongoBackend(db: () => Promise<Db>): TripBackend {
     async setMeta(meta) {
       await (await trips()).updateOne(
         { _id: meta.id },
-        { $set: { meta, expiresAt: expiry() }, $setOnInsert: { members: {}, candidates: [] } },
+        { $set: { meta, expiresAt: expiry() }, $setOnInsert: { members: {}, confirmations: {}, candidates: [] } },
         { upsert: true },
       );
+    },
+    async setDeadline(id, deadline) {
+      await (await trips()).updateOne({ _id: id }, { $set: { "meta.deadline": deadline, expiresAt: expiry() } });
+    },
+    async lock(id, code) {
+      const result = await (await trips()).updateOne({ _id: id, "meta.lockedCode": null }, { $set: { "meta.lockedCode": code, expiresAt: expiry() } });
+      return result.modifiedCount === 1;
     },
     async getMembers(id) {
       return (await load(id))?.members ?? {};
     },
-    async setMember(id, memberId, name) {
-      await (await trips()).updateOne({ _id: id }, { $set: { [`members.${memberId}`]: name, expiresAt: expiry() } });
+    async setMember(id, memberId, member: Member) {
+      await (await trips()).updateOne({ _id: id }, { $set: { [`members.${memberId}`]: member, expiresAt: expiry() } });
+    },
+    async getConfirmations(id) {
+      return (await load(id))?.confirmations ?? {};
+    },
+    async setConfirmation(id, memberId, signature) {
+      const field = `confirmations.${memberId}`;
+      await (await trips()).updateOne({ _id: id }, signature ? { $set: { [field]: signature } } : { $unset: { [field]: "" } });
     },
     async getCandidates(id) {
       const doc = await load(id);

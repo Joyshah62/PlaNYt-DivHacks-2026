@@ -19,8 +19,8 @@ function cand(key: string, votes: string[], addedAt: number): Candidate {
   return { stop: { key, name: key, lat: 40.75, lon: -73.98, visitMin: 60, attractionId: null }, addedBy: "m1", addedAt, votes };
 }
 
-function trip(candidates: Candidate[]): Trip {
-  return { id: "abcdefghij", title: "Saturday in NYC", createdAt: 0, organizerId: "m1", settings, members: { m1: "Khyati" }, candidates, lockedCode: null };
+function trip(candidates: Candidate[]): Pick<Trip, "candidates" | "settings"> {
+  return { settings, candidates };
 }
 
 const keys = (list: Candidate[]) => list.map((c) => c.stop.key);

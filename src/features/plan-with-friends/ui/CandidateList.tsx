@@ -25,8 +25,8 @@ export function CandidateList({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{c.stop.name}</p>
           <p className="text-xs text-muted-foreground">
-            Added by {trip.members[c.addedBy] ?? "someone"}
-            {c.votes.length > 0 && ` · ${c.votes.map((v) => trip.members[v] ?? "?").join(", ")}`}
+            Added by {trip.members[c.addedBy]?.name ?? "someone"}
+            {c.votes.length > 0 && ` · ${c.votes.map((v) => trip.members[v]?.avatar.emoji ?? "?").join(", ")}`}
           </p>
         </div>
         <button
