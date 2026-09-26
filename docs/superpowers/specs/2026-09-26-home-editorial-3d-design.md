@@ -92,8 +92,8 @@ The old "Engineered for the real NYC" features block is removed; section 2 shows
    layer is removed from the DOM, and "New York" re-sets letter by letter as the headline.
    +750ms later: the tagline, prompt and links rise in.
 
-Once per browser session (`sessionStorage["roam_intro"]`); later loads and
-`prefers-reduced-motion: reduce` start in the landed state. Reduced motion also disables all
+On every page load (a refresh starts at the top: `history.scrollRestoration = "manual"`).
+`prefers-reduced-motion: reduce` and lite devices start in the landed state. Reduced motion also disables all
 orbits and the demo animation (the demo shows its final state).
 
 ## Performance
@@ -163,7 +163,7 @@ not the locked MapLibre satellite view) and the Landing Page section of `docs/UI
 - Unit (vitest): `diveOrigin` (returns a point inside a stroke with radius > 0 for a known
   glyph box; handles a zero-size box); `cityMap.chooseEngine` (no key or no WebGL → fallback;
   saveData / low memory → fallback for secondary maps only); `camera` helpers.
-- Manual, in the browser: intro once per session; replay; reduced motion; dark mode; the
+- Manual, in the browser: intro on every load; replay; reduced motion; dark mode; the
   fallback forced by an invalid key; 375px and 1440px widths; prompt submit lands on
   `/plan?q=`.
 - Performance: Lighthouse desktop on `next build && next start`; Chrome Performance

@@ -12,7 +12,6 @@ import { useCityMap } from "./useCityMap";
 import { useInView, usePageVisible, usePrefersReducedMotion } from "./visibility";
 
 const WORD = "New York";
-const INTRO_KEY = "roam_intro";
 const glyphs = (stagger: number, offset = 0) =>
   [...WORD].map((c, i) => (
     <i key={i} style={{ animationDelay: `${offset + i * stagger}s` }}>{c === " " ? " " : c}</i>
@@ -22,11 +21,7 @@ const glyphs = (stagger: number, offset = 0) =>
 function introSkipped(): boolean {
   const html = document.documentElement;
   if (html.dataset.intro === "skip") return true;
-  let seen = false;
-  try {
-    seen = !!sessionStorage.getItem(INTRO_KEY);
-  } catch {}
-  const skip = seen || matchMedia("(prefers-reduced-motion: reduce)").matches || isLite(readEnv());
+  const skip = matchMedia("(prefers-reduced-motion: reduce)").matches || isLite(readEnv());
   if (skip) html.dataset.intro = "skip";
   return skip;
 }
@@ -95,12 +90,7 @@ export function HeroStage() {
         const { pre, dive } = DIVE_TIMING;
         at(pre + dive * 0.7, () => hero.classList.add("revealed"));
         at(pre + dive + 250, () => hero.classList.add("zoomed"));
-        at(pre + dive + 1000, () => {
-          hero.classList.add("landed");
-          try {
-            sessionStorage.setItem(INTRO_KEY, "1");
-          } catch {}
-        });
+        at(pre + dive + 1000, () => hero.classList.add("landed"));
       });
     });
 
@@ -131,10 +121,7 @@ export function HeroStage() {
   }, [map]);
 
   function replay() {
-    try {
-      sessionStorage.removeItem(INTRO_KEY);
-    } catch {}
-    delete document.documentElement.dataset.intro;
+    scrollTo(0, 0);
     location.reload();
   }
 

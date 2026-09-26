@@ -6,9 +6,10 @@ import { HeroStage } from "@/components/home/HeroStage";
 import { NeighborhoodStory } from "@/components/home/NeighborhoodStory";
 import { PlanDemo } from "@/components/home/PlanDemo";
 
-// Runs while the HTML is parsed, before first paint: repeat visits in this session, reduced
-// motion and lite devices start with the intro already finished (no flash of the cover).
-const SKIP_INTRO = `try{var n=navigator,c=n.connection;if(sessionStorage.getItem('roam_intro')||matchMedia('(prefers-reduced-motion: reduce)').matches||(c&&c.saveData)||(n.deviceMemory&&n.deviceMemory<=2))document.documentElement.dataset.intro='skip'}catch(e){}`;
+// Runs while the HTML is parsed, before first paint. Every load starts at the top so the intro
+// is seen (no scroll restoration on refresh); reduced motion and lite devices start with the
+// intro already finished (no flash of the cover).
+const SKIP_INTRO = `try{history.scrollRestoration='manual';var n=navigator,c=n.connection;if(matchMedia('(prefers-reduced-motion: reduce)').matches||(c&&c.saveData)||(n.deviceMemory&&n.deviceMemory<=2))document.documentElement.dataset.intro='skip'}catch(e){}`;
 
 export default function Home() {
   preconnect("https://maps.googleapis.com");
