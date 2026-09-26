@@ -66,9 +66,10 @@ Catalog photo metadata is built from Wikipedia/Wikimedia Commons with attributio
 | `GET /api/resolve` | Resolve an NYC place/address to coordinates |
 | `GET /api/route` | Route geometry for a leg |
 | `GET /api/weather` | Forecast used by the day picker |
-| `POST /api/trips` | Start a group trip from a plan code |
-| `GET /api/trips/[id]` | Group trip state (members, places, votes, lock) |
-| `POST /api/trips/[id]/join`, `/candidates`, `/vote`, `/lock` | Join, suggest a place, vote, organizer lock |
+| `POST /api/trips` | Start a trip room, empty for a date or seeded from a plan code |
+| `GET /api/trips/[id]` | Trip room state: members with avatars, places, votes, consensus, lock |
+| `POST /api/trips/[id]/join`, `/candidates`, `/vote` | Join with an avatar, suggest a place, vote |
+| `POST /api/trips/[id]/confirm`, `/deadline` | "I'm in" on the current draft; optional deadline after which a majority locks |
 
 ## Code map
 
@@ -86,7 +87,7 @@ Catalog photo metadata is built from Wikipedia/Wikimedia Commons with attributio
 | `src/lib/discover/` | Place discovery and ranking |
 | `src/lib/osm/` | Geocoding, routing, and OSM queries |
 | `scripts/` | Dataset builders and MapLibre worker setup |
-| `src/lib/trip/`, `src/components/trip/` | Plan with friends: group voting, storage, trip page |
+| `src/features/plan-with-friends/` | Trip room feature (self-contained): `core/` logic, `server/` storage and routes, `ui/` components, `bridge/` (the only imports from the app), `identity.ts` (login adapter). `src/app/start`, `src/app/trip/**` and `src/app/api/trips/**` only re-export it |
 | `src/lib/mongo.ts` | Shared MongoDB Atlas connection |
 
 ## Data sources
