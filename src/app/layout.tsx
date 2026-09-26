@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Outfit, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Playfair_Display, Outfit, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -10,10 +10,17 @@ const sans = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-const display = Outfit({
+const display = Playfair_Display({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
+  weight: ["500", "600", "700", "800", "900"],
+  display: "swap",
+});
+
+const accentFont = Outfit({
+  variable: "--font-accent",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
   display: "swap",
 });
 
@@ -36,7 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${sans.variable} ${geistMono.variable} ${display.variable} min-h-dvh w-full antialiased`}
+      className={`${sans.variable} ${geistMono.variable} ${display.variable} ${accentFont.variable} min-h-dvh w-full antialiased`}
     >
       <head>
         <script

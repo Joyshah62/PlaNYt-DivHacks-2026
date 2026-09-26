@@ -6,16 +6,16 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Check,
+  CircleNotch,
   Coffee,
   Footprints,
-  Loader2,
-  Map,
-  Sparkles,
-  Tv,
+  ForkKnife,
+  MapTrifold,
+  Sparkle,
+  Television,
   Umbrella,
-  UtensilsCrossed,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 
 export interface PresetIdea {
@@ -40,7 +40,7 @@ export const PRESET_IDEAS: PresetIdea[] = [
   },
   {
     id: "seinfeld",
-    icon: Tv,
+    icon: Television,
     label: "Seinfeld Day",
     badge: "Seinfeld",
     badgeColor: "bg-(--seinfeld-blue)/15 text-(--seinfeld-blue) border-(--seinfeld-blue)/35",
@@ -52,13 +52,13 @@ export const PRESET_IDEAS: PresetIdea[] = [
     icon: Umbrella,
     label: "HIMYM Trail",
     badge: "HIMYM",
-    badgeColor: "bg-(--nyc-taxi)/20 text-amber-700 dark:text-amber-300 border-amber-500/35",
+    badgeColor: "bg-brand/20 text-brand border-brand/35",
     shortDesc: "MacLaren's & Umbrella",
     text: "How I Met Your Mother adventure: Empire State Building, Museum of Natural History, yellow cab ride down Broadway, and evening drinks at MacLaren's.",
   },
   {
     id: "skyline",
-    icon: Sparkles,
+    icon: Sparkle,
     label: "Skyline & High Line",
     badge: "Classic",
     badgeColor: "bg-brand/15 text-brand border-brand/35",
@@ -76,7 +76,7 @@ export const PRESET_IDEAS: PresetIdea[] = [
   },
   {
     id: "broadway",
-    icon: UtensilsCrossed,
+    icon: ForkKnife,
     label: "Midtown & Speakeasies",
     badge: "Nightlife",
     badgeColor: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/35",
@@ -125,7 +125,7 @@ export function LandingPrompt() {
       {/* Header with Preset Pills */}
       <div>
         <div className="flex items-center justify-between mb-2.5">
-          <label htmlFor="day-prompt" className="text-sm font-bold tracking-tight">
+          <label htmlFor="day-prompt" className="font-display text-sm font-semibold tracking-tight">
             Curated Presets & Custom Planner
           </label>
           {text && (
@@ -138,7 +138,7 @@ export function LandingPrompt() {
               }}
               className="neo-control flex items-center gap-1 rounded-xl px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
             >
-              <X className="size-3.5" aria-hidden />
+              <X weight="bold" className="size-3.5" aria-hidden />
               <span>Clear</span>
             </button>
           )}
@@ -164,7 +164,8 @@ export function LandingPrompt() {
               >
                 <div className="flex w-full items-center justify-between gap-1.5">
                   <Icon
-                    className={`size-3.5 shrink-0 ${isSelected ? "text-brand" : "text-muted-foreground group-hover:text-brand"}`}
+                    weight={isSelected ? "bold" : "duotone"}
+                    className={`size-4 shrink-0 ${isSelected ? "text-brand" : "text-muted-foreground group-hover:text-brand"}`}
                     aria-hidden
                   />
                   <span className={`rounded-md border px-1.5 py-0.2 text-[9px] font-bold ${idea.badgeColor}`}>
@@ -224,11 +225,11 @@ export function LandingPrompt() {
           disabled={going || !text.trim()}
           className="neo-primary group h-11 w-full justify-between gap-4 rounded-xl px-5 text-sm font-bold text-on-color focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-50 sm:w-auto shadow-md"
         >
-          {going ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+          {going ? <CircleNotch weight="bold" className="size-4 animate-spin" aria-hidden /> : null}
           <span>{going ? "Routing your day…" : "Plan my day"}</span>
           {!going && (
             <span className="grid size-7 place-items-center rounded-lg bg-background/20">
-              <ArrowRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden />
+              <ArrowRight weight="bold" className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden />
             </span>
           )}
         </Button>
@@ -240,10 +241,10 @@ export function LandingPrompt() {
         className="neo-raised neo-control group flex min-h-10 items-center justify-between rounded-xl px-4 text-xs font-semibold text-foreground transition-all hover:text-brand"
       >
         <div className="flex items-center gap-2">
-          <Map className="size-3.5 text-brand" aria-hidden />
+          <MapTrifold weight="duotone" className="size-4 text-brand" aria-hidden />
           <span>Or explore interactive map without a prompt</span>
         </div>
-        <ArrowRight className="size-3.5 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand" aria-hidden />
+        <ArrowRight weight="bold" className="size-3.5 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand" aria-hidden />
       </Link>
     </form>
   );

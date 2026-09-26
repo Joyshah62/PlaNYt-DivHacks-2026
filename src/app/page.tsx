@@ -5,11 +5,11 @@ import {
   Compass,
   Flame,
   Footprints,
+  Lightning,
   MapPin,
-  Train,
-  Tv,
-  Zap,
-} from "lucide-react";
+  Television,
+  TrainSimple,
+} from "@phosphor-icons/react/dist/ssr";
 import { AmbientMapLazy } from "@/components/map/LazyMaps";
 import { LandingPrompt } from "@/components/plan/LandingPrompt";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -61,9 +61,9 @@ const FEATURED_JOURNEYS = [
     title: "How I Met Your Mother Midtown Trail",
     show: "HIMYM",
     vibe: "Legendary Manhattan",
-    colorClass: "border-(--nyc-taxi)/40 text-amber-600 dark:text-amber-400",
-    accentBg: "bg-(--nyc-taxi)/10",
-    badgeBg: "bg-(--nyc-taxi)/20 text-amber-700 dark:text-amber-300 border-amber-500/35",
+    colorClass: "border-brand/40 text-brand",
+    accentBg: "bg-brand/10",
+    badgeBg: "bg-brand/20 text-brand border-brand/35",
     desc: "Track down the Yellow Umbrella at Central Park South, take in the Empire State view, and toast at MacLaren's booth.",
     duration: "5.5 hrs",
     transit: "Subway N/Q/R · 4 stops",
@@ -145,7 +145,7 @@ const NEIGHBORHOODS = [
 
 const INTELLIGENCE_FEATURES = [
   {
-    icon: Train,
+    icon: TrainSimple,
     title: "MTA Subway Live Intelligence",
     desc: "Real-time frequency tracking and delay avoidance. Automatically suggests cross-town walking when the 1 or A train is held.",
   },
@@ -155,7 +155,7 @@ const INTELLIGENCE_FEATURES = [
     desc: "Predictive crowd curves tell you when Central Park or the Met are calmest, versus when Chelsea Market is buzzing with lunch energy.",
   },
   {
-    icon: Zap,
+    icon: Lightning,
     title: "Adaptive Live Timeline",
     desc: "Linger 20 minutes longer at coffee or duck inside for sudden Hudson showers. Your schedule re-balances with a single tap.",
   },
@@ -190,7 +190,7 @@ export default function Home() {
           className="flex items-center gap-3 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
         >
           <span className="neo-raised grid size-11 place-items-center rounded-2xl shadow-sm">
-            <Compass className="size-5 text-brand" aria-hidden />
+            <Compass weight="duotone" className="size-6 text-brand" aria-hidden />
           </span>
           <div>
             <span className="text-xl font-extrabold tracking-tight">
@@ -212,7 +212,7 @@ export default function Home() {
             className="neo-primary inline-flex min-h-11 items-center gap-2 rounded-xl px-5 py-2 text-sm font-bold shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <span>Open Planner</span>
-            <ArrowUpRight className="size-4" aria-hidden />
+            <ArrowUpRight weight="bold" className="size-4" aria-hidden />
           </Link>
         </div>
       </header>
@@ -225,19 +225,19 @@ export default function Home() {
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 xl:gap-16 items-center">
           {/* Left Column: Rich Brand Information & Real-Time City Context */}
           <div className="lg:col-span-6 flex flex-col items-start text-left space-y-6">
-            {/* Striking Bold Headline with Display Typography */}
+            {/* Striking Bold Headline with Editorial Display Typography */}
             <h1
               id="home-title"
-              className="text-[clamp(2.9rem,5.8vw,5.25rem)] leading-[1.03] font-extrabold tracking-[-0.04em]"
+              className="font-display text-[clamp(3.1rem,6.4vw,5.85rem)] leading-[1.02] font-normal tracking-[-0.03em]"
             >
               Your day.<br />
-              <span className="bg-gradient-to-r from-brand via-amber-500 to-orange-500 bg-clip-text text-transparent">
+              <span className="italic font-normal bg-gradient-to-r from-teal-400 via-emerald-300 to-cyan-300 dark:from-teal-300 dark:via-emerald-300 dark:to-cyan-200 bg-clip-text text-transparent drop-shadow-xs">
                 Your New York.
               </span>
             </h1>
 
             {/* Expansive Narrative Text */}
-            <p className="text-base sm:text-lg leading-relaxed text-muted-foreground max-w-2xl font-normal">
+            <p className="text-base sm:text-lg leading-relaxed text-foreground/80 max-w-2xl font-normal">
               From Central Perk velvet couches in Greenwich Village to golden hour views from Top of the Rock.
               Roam turns your ideas into effortless New York itineraries with live MTA transit logic and crowd-flow intelligence.
             </p>
@@ -246,7 +246,7 @@ export default function Home() {
             <div className="grid grid-cols-3 gap-3 w-full pt-1">
               <div className="neo-raised rounded-2xl p-3.5 border">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-brand">
-                  <Train className="size-3.5" aria-hidden /> Live MTA
+                  <TrainSimple weight="duotone" className="size-4" aria-hidden /> Live MTA
                 </span>
                 <p className="mt-1 text-[11px] text-muted-foreground leading-tight">
                   Real subway frequencies & delay bypasses
@@ -255,7 +255,7 @@ export default function Home() {
 
               <div className="neo-raised rounded-2xl p-3.5 border">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-amber-500">
-                  <Flame className="size-3.5" aria-hidden /> Crowd Flow
+                  <Flame weight="duotone" className="size-4" aria-hidden /> Crowd Flow
                 </span>
                 <p className="mt-1 text-[11px] text-muted-foreground leading-tight">
                   Avoid long lines with quiet-hour timing
@@ -263,8 +263,8 @@ export default function Home() {
               </div>
 
               <div className="neo-raised rounded-2xl p-3.5 border">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-500">
-                  <Zap className="size-3.5" aria-hidden /> Adaptive
+                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                  <Lightning weight="duotone" className="size-4" aria-hidden /> Adaptive
                 </span>
                 <p className="mt-1 text-[11px] text-muted-foreground leading-tight">
                   Instant re-route for rain or extra coffee
@@ -301,10 +301,10 @@ export default function Home() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-8">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-brand uppercase">
-              <Tv className="size-3.5" aria-hidden />
+              <Television weight="duotone" className="size-4" aria-hidden />
               <span>Curated Experiences</span>
             </div>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+            <h2 className="mt-1 font-display text-2xl font-normal tracking-tight sm:text-3xl lg:text-4xl">
               Walk Through Iconic NYC Moments
             </h2>
             <p className="mt-1 text-sm text-muted-foreground max-w-xl">
@@ -317,7 +317,7 @@ export default function Home() {
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline"
           >
             <span>Custom route planner</span>
-            <ArrowRight className="size-3.5" aria-hidden />
+            <ArrowRight weight="bold" className="size-3.5" aria-hidden />
           </Link>
         </div>
 
@@ -344,7 +344,7 @@ export default function Home() {
                   </span>
                 </div>
 
-                <h3 className="mt-3.5 text-xl font-bold tracking-tight">{journey.title}</h3>
+                <h3 className="mt-3.5 font-display text-xl sm:text-2xl font-bold tracking-tight">{journey.title}</h3>
                 <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
                   {journey.desc}
                 </p>
@@ -370,7 +370,7 @@ export default function Home() {
               {/* Card Footer CTA */}
               <div className="mt-6 flex items-center justify-between pt-3 border-t border-border/40">
                 <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <Footprints className="size-3.5 text-brand" aria-hidden />
+                  <Footprints weight="duotone" className="size-4 text-brand" aria-hidden />
                   <span>{journey.transit}</span>
                 </span>
 
@@ -379,7 +379,7 @@ export default function Home() {
                   className="group inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-brand transition-all hover:bg-brand/10"
                 >
                   <span>Explore this Day</span>
-                  <ArrowRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
+                  <ArrowRight weight="bold" className="size-3.5 transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
                 </Link>
               </div>
             </article>
@@ -394,10 +394,10 @@ export default function Home() {
       >
         <div className="mb-6">
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-brand uppercase">
-            <MapPin className="size-3.5" aria-hidden />
+            <MapPin weight="duotone" className="size-4" aria-hidden />
             <span>Boroughs & Neighborhoods</span>
           </div>
-          <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+          <h2 className="mt-1 font-display text-2xl font-normal tracking-tight sm:text-3xl lg:text-4xl">
             Choose Your Corner of the City
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -415,9 +415,9 @@ export default function Home() {
               <div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-brand">{hood.vibe}</span>
-                  <ArrowUpRight className="size-4 text-muted-foreground transition-transform duration-200 group-hover:text-brand group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
+                  <ArrowUpRight weight="bold" className="size-4 text-muted-foreground transition-transform duration-200 group-hover:text-brand group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
                 </div>
-                <h3 className="mt-2 text-base font-bold tracking-tight">{hood.name}</h3>
+                <h3 className="mt-2 font-display text-lg font-bold tracking-tight">{hood.name}</h3>
                 <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                   {hood.tagline}
                 </p>
@@ -439,7 +439,7 @@ export default function Home() {
       >
         <div className="neo-raised rounded-3xl p-6 sm:p-10 border">
           <div className="max-w-2xl">
-            <h2 id="features-title" className="text-2xl font-bold tracking-tight sm:text-3xl">
+            <h2 id="features-title" className="font-display text-2xl font-normal tracking-tight sm:text-3xl lg:text-4xl">
               Engineered for the Real NYC
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -454,7 +454,7 @@ export default function Home() {
               return (
                 <div key={feat.title} className="flex flex-col gap-3">
                   <span className="neo-inset grid size-10 place-items-center rounded-xl text-brand">
-                    <Icon className="size-5" aria-hidden />
+                    <Icon weight="duotone" className="size-5" aria-hidden />
                   </span>
                   <h3 className="text-base font-semibold">{feat.title}</h3>
                   <p className="text-xs leading-relaxed text-muted-foreground">
@@ -473,7 +473,7 @@ export default function Home() {
           <div>
             <div className="flex items-center gap-2">
               <span className="neo-inset grid size-8 place-items-center rounded-xl">
-                <Compass className="size-4 text-brand" aria-hidden />
+                <Compass weight="duotone" className="size-5 text-brand" aria-hidden />
               </span>
               <span className="font-bold tracking-tight">
                 {BRAND.name} <span className="font-normal text-muted-foreground">{BRAND.suffix}</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Globe, Layers, Moon, Sun, Train, X } from "lucide-react";
+import { GlobeSimple, Moon, Stack, Sun, Subway, X } from "@phosphor-icons/react";
 import { type MapTheme, useMapTheme } from "./mapStyle";
 import { cn } from "@/lib/utils";
 
@@ -32,14 +32,14 @@ export const MAP_THEMES: MapThemeOption[] = [
     id: "satellite",
     label: "Satellite",
     tagline: "High-resolution photorealistic orbital photography",
-    icon: Globe,
+    icon: GlobeSimple,
     previewBg: "linear-gradient(135deg, #1d3326 0%, #304838 50%, #203c50 100%)",
   },
   {
     id: "transit",
     label: "Transit",
     tagline: "Subway lines, rail corridors, ferry routes & stations",
-    icon: Train,
+    icon: Subway,
     previewBg: "linear-gradient(135deg, #d88938 0%, #1e5a9c 50%, #902672 100%)",
   },
 ];
@@ -78,7 +78,7 @@ export function MapThemeSwitcher({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className="size-3.5" aria-hidden />
+              <Icon weight="duotone" className="size-3.5" aria-hidden />
               <span>{theme.label}</span>
             </button>
           );
@@ -94,7 +94,7 @@ export function MapThemeSwitcher({
             className="neo-control ml-0.5 inline-flex size-7 items-center justify-center rounded-xl text-muted-foreground hover:text-brand"
             title="Open Map Layers"
           >
-            <Layers className="size-3.5" aria-hidden />
+            <Stack weight="duotone" className="size-3.5" aria-hidden />
           </button>
         )}
       </div>
@@ -109,7 +109,7 @@ export function MapThemeSwitcher({
           <div className="neo-raised absolute top-full left-0 z-50 mt-2 w-72 rounded-3xl p-4 shadow-xl border animate-rise backdrop-blur-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-border/50">
               <div className="flex items-center gap-2">
-                <Layers className="size-4 text-brand" aria-hidden />
+                <Stack weight="duotone" className="size-4 text-brand" aria-hidden />
                 <span className="text-sm font-bold tracking-tight">Map Layers</span>
               </div>
               <button
@@ -144,7 +144,7 @@ export function MapThemeSwitcher({
                       className="size-11 shrink-0 rounded-xl grid place-items-center shadow-xs border border-white/20"
                       style={{ background: theme.previewBg }}
                     >
-                      <Icon className="size-5 text-white drop-shadow-md" aria-hidden />
+                      <Icon weight="duotone" className="size-5 text-white drop-shadow-md" aria-hidden />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">

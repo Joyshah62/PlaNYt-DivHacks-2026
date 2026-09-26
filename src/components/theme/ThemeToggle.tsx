@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "@phosphor-icons/react";
 
 const themeListeners = new Set<() => void>();
 
@@ -79,9 +79,9 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       className={`neo-control grid size-10 place-items-center rounded-xl transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${className}`}
     >
       {dark ? (
-        <Sun className="size-4.5 text-amber-400 transition-transform duration-300 hover:rotate-45" aria-hidden />
+        <Sun weight="duotone" className="size-4.5 text-amber-400 transition-transform duration-300 hover:rotate-45" aria-hidden />
       ) : (
-        <Moon className="size-4.5 text-slate-700 transition-transform duration-300 hover:-rotate-12" aria-hidden />
+        <Moon weight="duotone" className="size-4.5 text-slate-700 transition-transform duration-300 hover:-rotate-12" aria-hidden />
       )}
     </button>
   );

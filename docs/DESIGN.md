@@ -11,8 +11,9 @@ Roam features a signature **Hybrid of Glassmorphism and Neumorphism** ("Neo-Glas
   - **Soft Tactile Elevation**: Elevated elements (`.neo-raised`, `.neo-card`, `.neo-control`) push outward with paired directional drop shadows (specular light top-left, soft ambient shadow bottom-right).
   - **Specular Glass Rims**: Polished inset highlights (`inset 0 1px 1px 0 var(--neo-glass-rim)`) simulate physical beveled glass borders.
   - **Clean Inset Debossing**: Recessed elements (`.neo-inset`, text inputs, textareas) are debossed cleanly into the frosted plane without jarring selection rings or double-borders when focused.
-- **NYC Sitcom & City Color Identity**:
-  - **NYC Taxi Amber & HIMYM Yellow Umbrella** (`--nyc-taxi`): Glowing golden hour taxi yellow.
+- **NYC & Sitcom Color Identity**:
+  - **Statue of Liberty Verdigris & Mint Copper Patina** (`--brand`): Rich oxidized copper teal-mint patina (`oklch(0.64 0.15 178)` light, `oklch(0.79 0.16 176)` dark). Inspired by Lady Liberty standing in New York Harbor, Tiffany & Co. heritage, and Central Park copper roofs.
+  - **NYC Taxi Amber & HIMYM Yellow Umbrella** (`--nyc-taxi`): Golden hour taxi yellow accent.
   - **Friends (Greenwich Village & Central Perk)**:
     - Central Perk Velvet Couch Orange (`--friends-orange`): Warm terracotta amber.
     - Monica's Apartment Purple Door (`--friends-purple`): Classic village bohemian purple.
@@ -22,41 +23,18 @@ Roam features a signature **Hybrid of Glassmorphism and Neumorphism** ("Neo-Glas
     - Diner Neon Sign Crimson (`--seinfeld-red`): Radiant neon red.
   - **How I Met Your Mother (MacLaren's Pub)**:
     - MacLaren's Irish Pub Warm Ale & Wood (`--himym-amber`): Rich roasted tavern amber.
-- **Dual Mode Palette Refinements (Light & Dark)**:
-  - **Light Mode ("Manhattan Linen & Limestone")**:
-    - Warm architectural limestone ivory canvas (`oklch(0.978 0.008 85)`), frosted alabaster glass cards (`oklch(0.995 0.003 85)`), and warm architectural taupe drop shadows (`rgba(160, 148, 132, 0.32)`).
-    - Evokes daytime Manhattan sunshine, Central Perk warmth, and yellow cabs on the avenues.
-  - **Dark Mode ("Gotham Midnight Slate")**:
-    - Replaces pitch-black void with deep NYC twilight midnight slate (`oklch(0.215 0.032 258)` / `#131a2b`), rich midnight glass cards (`oklch(0.265 0.038 256)` / `#1a2339`), and navy-tinted shadow troughs (`rgba(8, 12, 24, 0.70)`).
-    - Evokes NYC neon nightlights, Monk's diner glows, and late-night tavern warmth without harsh eye strain.
-  - **Silky Smooth Theme Cross-Fade**:
-    - Smooth 340ms transitions (`cubic-bezier(0.4, 0, 0.2, 1)`) for background color, border color, and box shadow prevent jarring flashes when toggling between themes.
-  - **Vibrant Google Maps-Style Multi-View Maps**:
-    - **Day**: Google Maps-style vibrant daytime vector streets, green parks, blue rivers, and colored subway transit lines.
-    - **Night**: Gotham nighttime dark map with illuminated avenue corridors and neon bridges.
-    - **Satellite**: Photorealistic high-resolution orbital imagery via ESRI / NASA World Imagery tiles.
-    - **Transit**: Dedicated MTA subway & rail transport layer with highlighted lines, stations, and ferry crossings.
-    - Switched seamlessly via `<MapThemeSwitcher />` with both direct tactile pills and an expandable **Map Layers** preview drawer.
-  - **Full Viewport Canvas Designing (Viewport Height & Width Always)**:
-    - Design and style using full viewport height and width (`100dvh`, `100vw`, `w-full`, uniform edge padding `px-6 sm:px-10 lg:px-14 xl:px-16 2xl:px-20`).
-    - Equal left and right margins across the entire layout; no narrow `max-w` containers trapping content.
-    - Never confine the hero or primary views into small centered boxes that waste screen real estate. Use generous 2-column and multi-card canvas proportions across all screens.
-    - **Home Page Ambient Map**: Permanently locked to the slow-rotating 3D Satellite view with terrain DEM (unobstructed high-resolution satellite imagery free of artificial grey vector polygon blocks). No map switcher on the home page.
-    - **Planner Map**: Supports full Google Maps-style layers (Day, Night, Satellite, Transit) and real-time user geolocation ("Locate Me").
-
----
-
-## 2. Core Tokens & Utility Classes
-
-The system is defined globally in [`src/app/globals.css`](file:///Users/rishi/Desktop/CLG/divhacks-2026/src/app/globals.css):
-
-### Typography
-- Primary Sans: `Plus_Jakarta_Sans` (crisp, modern geometric grotesque).
-- Display Heading: `Outfit` (punchy, high-energy editorial face).
-- Monospace: `Geist_Mono` (tabular timestamps and coordinates).
-
-### CSS Variables
-- `--brand`: Primary NYC Taxi & Central Perk amber core (`oklch(0.68 0.19 55)` light, `oklch(0.80 0.18 75)` dark).
+- **Translucent Neo-Glass System (Glassmorphism + Neumorphism)**:
+  - **Deep Frosted Translucency**: Surfaces utilize high-performance backdrop blurs (`backdrop-filter: blur(28px-32px) saturate(190%-200%)`) with tuned opacity (~70% in dark mode, ~78% in light mode). This lets the rotating 3D satellite view and Manhattan skyline drift subtly behind cards without compromising WCAG AAA text contrast or readability.
+  - **Soft Tactile Elevation**: Elevated elements (`.neo-raised`, `.neo-card`, `.neo-control`) push outward with paired directional drop shadows (specular light top-left, soft ambient shadow bottom-right).
+  - **Specular Glass Rims**: Polished inset highlights (`inset 0 1px 1px 0 var(--neo-glass-rim)`) simulate physical beveled glass borders.
+  - **Clean Inset Debossing**: Recessed elements (`.neo-inset`, text inputs, textareas) are debossed cleanly into the frosted plane without jarring selection rings or double-borders when focused.
+- **Phosphor Duotone Iconography (`@phosphor-icons/react`)**:
+  - Selected for its dual-tone rendering (`weight="duotone"`), providing a subtle 20% opacity primary fill behind crisp perimeter strokes. This layered depth mirrors the glassmorphism of the UI surfaces.
+- **Editorial Typography System**:
+  - **Display Serif**: `Playfair_Display` (`--font-display`), creating the high-end editorial feel of a luxury Manhattan publication.
+  - **Primary Sans**: `Plus_Jakarta_Sans` (`--font-sans`), crisp, modern geometric grotesque for readability.
+  - **Accent**: `Outfit` (`--font-accent`) for punchy badges and statistics.
+  - **Monospace**: `Geist_Mono` for tabular timestamps and coordinates.
 - `--nyc-taxi`: Iconic NYC Cab Yellow / HIMYM Yellow Umbrella.
 - `--friends-orange`: Central Perk velvet couch orange.
 - `--friends-purple`: Monica's apartment door purple.
