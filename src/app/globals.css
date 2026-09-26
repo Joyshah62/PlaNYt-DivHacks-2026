@@ -71,25 +71,25 @@
 }
 
 :root {
-  /* Softer, warm architectural parchment / oat palette - glare-free and relaxing on the eyes */
-  --background: oklch(0.954 0.011 82);        /* Warm, gentle oat canvas - eliminates stark white glare */
-  --foreground: oklch(0.24 0.018 60);         /* Warm deep charcoal-espresso - softer than pure pitch black */
-  --card: oklch(0.972 0.009 82);              /* Elevated warm linen card surface */
-  --card-foreground: oklch(0.24 0.018 60);
-  --popover: oklch(0.975 0.009 82);
-  --popover-foreground: oklch(0.24 0.018 60);
-  --primary: oklch(0.24 0.018 60);
-  --primary-foreground: oklch(0.985 0.005 82);
-  --secondary: oklch(0.922 0.012 80);
-  --secondary-foreground: oklch(0.24 0.018 60);
-  --muted: oklch(0.920 0.012 80);
-  --muted-foreground: oklch(0.46 0.020 65);   /* Softer warm slate with great contrast without eye strain */
-  --accent: oklch(0.915 0.014 78);
-  --accent-foreground: oklch(0.24 0.018 60);
+  /* Toned-down architectural stone & subtle off-white palette - soothing and glare-free */
+  --background: oklch(0.898 0.012 80);        /* Warm Manhattan limestone / light travertine canvas */
+  --foreground: oklch(0.235 0.020 55);        /* Deep espresso-slate - rich, soft, non-glaring */
+  --card: oklch(0.935 0.009 80);              /* Elevated subtle off-white / pale alabaster stone card */
+  --card-foreground: oklch(0.235 0.020 55);
+  --popover: oklch(0.938 0.009 80);
+  --popover-foreground: oklch(0.235 0.020 55);
+  --primary: oklch(0.235 0.020 55);
+  --primary-foreground: oklch(0.965 0.006 80);
+  --secondary: oklch(0.860 0.014 78);         /* Soft warm stone recessed tone */
+  --secondary-foreground: oklch(0.235 0.020 55);
+  --muted: oklch(0.858 0.014 78);
+  --muted-foreground: oklch(0.44 0.022 60);   /* Warm granite text tone with strong contrast */
+  --accent: oklch(0.855 0.016 76);
+  --accent-foreground: oklch(0.235 0.020 55);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.865 0.012 80);
-  --input: oklch(0.865 0.012 80);
-  --ring: oklch(0.48 0.12 178);
+  --border: oklch(0.805 0.015 78);            /* Chiseled stone border */
+  --input: oklch(0.825 0.014 78);
+  --ring: oklch(0.45 0.125 174);
 
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -98,19 +98,19 @@
   --chart-5: oklch(0.269 0 0);
   --radius: 0.875rem;
 
-  /* NYC Statue of Liberty Verdigris / Mint Copper Patina Brand Core (Grounded & Softer in Light Mode) */
-  --brand: oklch(0.48 0.12 178);
-  --brand-soft: oklch(0.935 0.025 178);
-  --on-color: oklch(0.99 0 0);
+  /* NYC Statue of Liberty Verdigris / Antique Copper Patina (Rich & Grounded) */
+  --brand: oklch(0.45 0.125 174);
+  --brand-soft: oklch(0.865 0.035 174);
+  --on-color: oklch(0.985 0.005 80);
 
-  /* NYC Iconic & Sitcom Palette Tokens (Light Mode - Harmonious Warm NYC Tones) */
-  --nyc-taxi: oklch(0.72 0.14 78);          /* NYC Yellow Cab & HIMYM Yellow Umbrella - warm amber */
-  --friends-orange: oklch(0.62 0.15 45);    /* Friends Central Perk Velvet Couch */
-  --friends-purple: oklch(0.52 0.13 310);   /* Friends Monica's Iconic Purple Door */
-  --friends-green: oklch(0.46 0.11 160);    /* Friends Central Perk Sign & Sage Green */
-  --seinfeld-blue: oklch(0.52 0.13 235);    /* Seinfeld Monk's Diner Neon Blue */
-  --seinfeld-red: oklch(0.54 0.17 26);      /* Seinfeld Neon Sign Crimson */
-  --himym-amber: oklch(0.58 0.13 65);       /* HIMYM MacLaren's Pub Warm Ale & Wood */
+  /* NYC Iconic & Sitcom Palette Tokens (Warm Muted Stone Harmonization) */
+  --nyc-taxi: oklch(0.68 0.14 78);          /* NYC Yellow Cab & HIMYM Yellow Umbrella - warm amber */
+  --friends-orange: oklch(0.58 0.14 45);    /* Friends Central Perk Velvet Couch - warm terracotta */
+  --friends-purple: oklch(0.48 0.13 310);   /* Friends Monica's Iconic Purple Door */
+  --friends-green: oklch(0.44 0.10 160);    /* Friends Central Perk Sign & Sage Green */
+  --seinfeld-blue: oklch(0.48 0.13 235);    /* Seinfeld Monk's Diner Neon Blue */
+  --seinfeld-red: oklch(0.50 0.16 26);      /* Seinfeld Neon Sign Crimson */
+  --himym-amber: oklch(0.54 0.13 65);       /* HIMYM MacLaren's Pub Warm Ale & Wood */
 
   --sev-c: oklch(0.52 0.17 22);
   --sev-c-soft: oklch(0.96 0.025 22);
@@ -591,13 +591,13 @@
   --neo-surface: var(--background);
   --neo-glass-bg: color-mix(in oklch, var(--background) 78%, transparent);
   --neo-glass-card: color-mix(in oklch, var(--card) 85%, transparent);
-  --neo-glass-inset: color-mix(in oklch, var(--background) 62%, transparent);
-  --neo-light: rgba(255, 255, 255, 0.65);
-  --neo-light-subtle: rgba(255, 255, 255, 0.38);
-  --neo-dark: rgba(140, 126, 110, 0.18);
-  --neo-dark-subtle: rgba(140, 126, 110, 0.10);
-  --neo-border: rgba(255, 255, 255, 0.65);
-  --neo-glass-rim: rgba(255, 255, 255, 0.75);
+  --neo-glass-inset: color-mix(in oklch, var(--background) 60%, transparent);
+  --neo-light: rgba(255, 255, 255, 0.40);
+  --neo-light-subtle: rgba(255, 255, 255, 0.22);
+  --neo-dark: rgba(100, 90, 78, 0.16);
+  --neo-dark-subtle: rgba(100, 90, 78, 0.09);
+  --neo-border: rgba(255, 255, 255, 0.40);
+  --neo-glass-rim: rgba(255, 255, 255, 0.50);
 }
 
 .dark {
@@ -645,17 +645,17 @@ section {
   background:
     linear-gradient(
       180deg,
-      color-mix(in oklch, var(--background) 92%, transparent) 0%,
-      color-mix(in oklch, var(--background) 82%, transparent) 22%,
-      color-mix(in oklch, var(--background) 70%, transparent) 45%,
-      color-mix(in oklch, var(--background) 75%, transparent) 75%,
-      color-mix(in oklch, var(--background) 94%, transparent) 100%
+      color-mix(in oklch, var(--background) 88%, transparent) 0%,
+      color-mix(in oklch, var(--background) 78%, transparent) 22%,
+      color-mix(in oklch, var(--background) 66%, transparent) 45%,
+      color-mix(in oklch, var(--background) 72%, transparent) 75%,
+      color-mix(in oklch, var(--background) 90%, transparent) 100%
     ),
     radial-gradient(
       ellipse 85% 70% at 50% 38%,
-      color-mix(in oklch, var(--background) 84%, transparent) 0%,
-      color-mix(in oklch, var(--background) 64%, transparent) 50%,
-      color-mix(in oklch, var(--background) 24%, transparent) 100%
+      color-mix(in oklch, var(--background) 80%, transparent) 0%,
+      color-mix(in oklch, var(--background) 58%, transparent) 50%,
+      color-mix(in oklch, var(--background) 22%, transparent) 100%
     );
   backdrop-filter: blur(1.5px);
   -webkit-backdrop-filter: blur(1.5px);
