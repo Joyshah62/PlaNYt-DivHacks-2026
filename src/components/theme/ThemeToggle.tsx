@@ -1,6 +1,7 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, type MouseEvent } from "react";
+import { flushSync } from "react-dom";
 import { Moon, Sun } from "@phosphor-icons/react";
 
 const themeListeners = new Set<() => void>();
@@ -45,7 +46,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   const mounted = useSyncExternalStore(subscribeMounted, getMountedSnapshot, getServerMountedSnapshot);
   const dark = useSyncExternalStore(subscribeTheme, getThemeSnapshot, getServerThemeSnapshot);
 
-  function toggle() {
+  function applyTheme() {
     const isDark = document.documentElement.classList.contains("dark");
     if (isDark) {
       document.documentElement.classList.remove("dark");
@@ -56,7 +57,30 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       document.documentElement.classList.add("dark");
       localStorage.setItem("roam_theme", "dark");
     }
-    notifyThemeListeners();
+    flushSync(notifyThemeListeners); // the new icon must be in the "after" snapshot
+  }
+
+  // The new theme spreads out as a circle from the button (View Transitions). Browsers
+  // without it, and reduced motion, switch instantly.
+  function toggle(event: MouseEvent<HTMLButtonElement>) {
+    const html = document.documentElement;
+    if (!document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      applyTheme();
+      return;
+    }
+    const box = event.currentTarget.getBoundingClientRect();
+    const x = box.left + box.width / 2, y = box.top + box.height / 2;
+    const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    // Colour transitions would still be mid-way when the "after" snapshot is taken.
+    html.classList.add("theme-switching");
+    const transition = document.startViewTransition(applyTheme);
+    transition.ready.then(() =>
+      html.animate(
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+        { duration: 750, easing: "cubic-bezier(0.65, 0, 0.35, 1)", pseudoElement: "::view-transition-new(root)" },
+      ),
+    );
+    transition.finished.finally(() => html.classList.remove("theme-switching"));
   }
 
   if (!mounted) {

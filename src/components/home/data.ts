@@ -1,5 +1,8 @@
 import type { Camera, LatLng } from "./camera";
 
+/** Seconds per full turn for every map that orbits a landmark (about 1° a second). */
+export const ORBIT_SECONDS = 360;
+
 export const HERO: { high: Camera; landed: Camera } = {
   high: { lat: 40.738, lng: -73.99, alt: 0, range: 9000, tilt: 0, heading: -30 },
   landed: { lat: 40.7484, lng: -73.9857, alt: 180, range: 1500, tilt: 64, heading: 30 },

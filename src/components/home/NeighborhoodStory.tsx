@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { NEIGHBORHOODS } from "./data";
+import { NEIGHBORHOODS, ORBIT_SECONDS } from "./data";
 import { useCityMap } from "./useCityMap";
 import { useInView, usePageVisible, usePrefersReducedMotion } from "./visibility";
 
@@ -42,7 +42,7 @@ export function NeighborhoodStory() {
       return;
     }
     let live = true;
-    void map.flyTo(cam, 3200).then(() => live && map.orbit(cam, 70));
+    void map.flyTo(cam, 3200).then(() => live && map.orbit(cam, ORBIT_SECONDS));
     return () => {
       live = false;
     };

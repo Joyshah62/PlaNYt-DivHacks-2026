@@ -855,3 +855,17 @@ section {
   box-shadow: none !important;
 }
 
+
+/* Theme switch (ThemeToggle): the new theme spreads out as a circle, so no default cross-fade,
+   and colour transitions pause so the "after" snapshot has the final colours. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+.theme-switching,
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
+}

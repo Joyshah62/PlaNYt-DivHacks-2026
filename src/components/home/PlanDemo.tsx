@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { interpolate, routePath, type LatLng } from "./camera";
-import { DEMO } from "./data";
+import { DEMO, ORBIT_SECONDS } from "./data";
 import { useCityMap } from "./useCityMap";
 import { useInView, usePageVisible, usePrefersReducedMotion } from "./visibility";
 
@@ -93,7 +93,7 @@ export function PlanDemo() {
   // Idle when off screen.
   useEffect(() => {
     if (!map || !done || reduced) return;
-    if (visible && pageVisible) map.orbit(DEMO.route, 90);
+    if (visible && pageVisible) map.orbit(DEMO.route, ORBIT_SECONDS);
     else map.stop();
   }, [map, done, visible, pageVisible, reduced]);
 

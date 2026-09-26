@@ -6,10 +6,13 @@ import { SATELLITE_3D_STYLE, ensureWorker, resolveMissingStyleImages } from "@/c
 import { rangeToZoom, type Camera, type LatLng } from "./camera";
 import { visibleTimeout, type CityMap } from "./cityMap";
 
+// Above ~50° the flat satellite raster runs out of tiles and shows a jagged black horizon.
+const MAX_PITCH = 50;
+
 const view = (c: Camera) => ({
   center: [c.lng, c.lat] as [number, number],
   zoom: rangeToZoom(c.range),
-  pitch: Math.min(c.tilt, 60),
+  pitch: Math.min(c.tilt, MAX_PITCH),
   bearing: c.heading,
 });
 
@@ -22,7 +25,7 @@ export async function createLibreMap(host: HTMLElement, cam: Camera, signal?: Ab
   el.style.cssText = "position:absolute;inset:0";
   host.append(el);
   const map = new MapLibre({
-    container: el, style: SATELLITE_3D_STYLE, ...view(cam), maxPitch: 60,
+    container: el, style: SATELLITE_3D_STYLE, ...view(cam), maxPitch: MAX_PITCH,
     interactive: false, attributionControl: { compact: true }, fadeDuration: 0,
   });
   resolveMissingStyleImages(map);

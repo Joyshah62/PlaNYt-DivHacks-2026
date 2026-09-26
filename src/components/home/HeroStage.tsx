@@ -5,19 +5,25 @@ import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { formatTicker } from "./camera";
 import { isLite, readEnv } from "./cityMap";
-import { HERO, HERO_LINKS } from "./data";
+import { HERO, HERO_LINKS, ORBIT_SECONDS } from "./data";
 import { DIVE_TIMING, diveFrame, measureDiveOrigin, type DiveOrigin } from "./diveOrigin";
 import { HomePrompt } from "./HomePrompt";
+import { InlineScript } from "./InlineScript";
 import { useCityMap } from "./useCityMap";
 import { useInView, usePageVisible, usePrefersReducedMotion } from "./visibility";
 
 const WORD = "New York";
+// Runs while the HTML is parsed, before first paint. Every load starts at the top so the intro
+// is seen (no scroll restoration on refresh); reduced motion and lite devices start with the
+// intro already finished (no flash of the cover).
+const SKIP_INTRO = `try{history.scrollRestoration='manual';var n=navigator,c=n.connection;if(matchMedia('(prefers-reduced-motion: reduce)').matches||(c&&c.saveData)||(n.deviceMemory&&n.deviceMemory<=2))document.documentElement.dataset.intro='skip'}catch(e){}`;
+
 const glyphs = (stagger: number, offset = 0) =>
   [...WORD].map((c, i) => (
     <i key={i} style={{ animationDelay: `${offset + i * stagger}s` }}>{c === " " ? " " : c}</i>
   ));
 
-/** Same rule as the inline script in page.tsx; also covers soft navigations, where that script doesn't run. */
+/** Same rule as SKIP_INTRO; also covers soft navigations, where that script doesn't run. */
 function introSkipped(): boolean {
   const html = document.documentElement;
   if (html.dataset.intro === "skip") return true;
@@ -46,6 +52,12 @@ export function HeroStage() {
   const pageVisible = usePageVisible();
   const reduced = usePrefersReducedMotion();
 
+  // Scroll restoration is per history entry: entries made by client-side navigation never ran
+  // SKIP_INTRO, so a refresh there would land mid-page instead of on the intro.
+  useEffect(() => {
+    history.scrollRestoration = "manual";
+  }, []);
+
   // No map at all (no WebGL): show the finished page.
   useEffect(() => {
     if (failed) document.documentElement.dataset.intro = "skip";
@@ -59,6 +71,7 @@ export function HeroStage() {
       return;
     }
     const hero = heroRef.current!, knock = knockRef.current!, word = wordRef.current!;
+    const layers = hero.querySelectorAll<HTMLElement>(".ed-knock"); // cut + paper, moved together
     let raf = 0, cancelled = false;
     const timers: number[] = [];
     const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
@@ -72,7 +85,8 @@ export function HeroStage() {
         // Measured now, once the letters have finished rising (their transforms move the glyphs).
         const origin = measureDiveOrigin(word) ?? centreOf(word);
         const k = knock.getBoundingClientRect();
-        knock.style.transformOrigin = `${origin.x - k.left}px ${origin.y - k.top}px`;
+        const transformOrigin = `${origin.x - k.left}px ${origin.y - k.top}px`;
+        layers.forEach((l) => (l.style.transformOrigin = transformOrigin));
         const cover = Math.hypot(innerWidth, innerHeight) / Math.max(origin.radius, 1);
         hero.classList.add("dive");
         void map.flyTo(HERO.landed, 3600).then(() => !cancelled && setSettled(true));
@@ -80,8 +94,10 @@ export function HeroStage() {
         const t0 = performance.now();
         const frame = (now: number) => {
           const f = diveFrame(now - t0, cover);
-          knock.style.transform = `scale(${f.scale})`;
-          knock.style.opacity = String(f.opacity);
+          layers.forEach((l) => {
+            l.style.transform = `scale(${f.scale})`;
+            l.style.opacity = String(f.opacity);
+          });
           if (!f.done) raf = requestAnimationFrame(frame);
           else hero.classList.remove("dive");
         };
@@ -104,7 +120,7 @@ export function HeroStage() {
   // After landing: orbit the Empire State, but only while the hero is on screen and the tab is visible.
   useEffect(() => {
     if (!map || !settled || reduced) return;
-    if (onScreen && pageVisible) map.orbit(HERO.landed, 360); // seconds per full turn
+    if (onScreen && pageVisible) map.orbit(HERO.landed, ORBIT_SECONDS);
     else map.stop();
   }, [map, settled, onScreen, pageVisible, reduced]);
 
@@ -127,9 +143,15 @@ export function HeroStage() {
 
   return (
     <section ref={heroRef} id="top" className="ed-hero" aria-labelledby="hero-title">
+      <InlineScript html={SKIP_INTRO} />
       <div ref={hostRef} className="ed-hero-map" />
-      <div ref={knockRef} className="ed-knock" aria-hidden>
+      {/* Two layers make an exact knockout in either theme: "cut" whitens everything but the
+          letters (lighten), then "paper" multiplies the paper colour back in around them. */}
+      <div ref={knockRef} className="ed-knock ed-knock--cut" aria-hidden>
         <span ref={wordRef} className="ed-knock-word">{glyphs(0.06, 0.1)}</span>
+      </div>
+      <div className="ed-knock ed-knock--paper" aria-hidden>
+        <span className="ed-knock-word">{glyphs(0.06, 0.1)}</span>
       </div>
       <div className="ed-scrim" aria-hidden />
       <header className="ed-header ed-chrome">
