@@ -6,6 +6,7 @@ import { DEMO, ORBIT_SECONDS } from "./data";
 import { useCityMap } from "./useCityMap";
 import { useInView, usePageVisible, usePrefersReducedMotion } from "./visibility";
 
+const REPLAY_AFTER_MS = 60_000;
 const label = (i: number) => `${i + 1} · ${DEMO.stops[i].name}`;
 
 export function PlanDemo() {
@@ -89,6 +90,14 @@ export function PlanDemo() {
   }, [map, visible, play]);
 
   useEffect(() => () => runRef.current?.abort(), []);
+
+  // Keep it alive: after a minute of the finished demo sitting in view, play it again. Leaving
+  // the section (or hiding the tab) resets the minute; nothing replays off screen.
+  useEffect(() => {
+    if (!done || reduced || !visible || !pageVisible) return;
+    const timer = setTimeout(() => void play(), REPLAY_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [done, reduced, visible, pageVisible, play]);
 
   // Idle when off screen.
   useEffect(() => {

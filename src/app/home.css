@@ -1,7 +1,9 @@
 /* Home page, "Editorial × 3D Manhattan". Everything is scoped under .ed so the
-   planner's shared tokens in globals.css are untouched. */
+   planner's shared tokens in globals.css are untouched. Sizes are fluid: type and spacing come
+   from the clamp() scale below (min at phones, max at large monitors), never fixed pixels. */
 
 .ed {
+  /* colour */
   --paper: #f3ede1;
   --ink: #15120e;
   --muted: #6d6457;
@@ -12,16 +14,29 @@
   --shadow: #15120e;
   --field: #fffdf8;
   --field-ink: #15120e;
-  --gut: clamp(16px, 4vw, 64px);
+  /* type */
   --f-display: var(--ed-display), Georgia, serif;
   --f-text: var(--ed-text), Georgia, serif;
   --f-mono: var(--ed-mono), ui-monospace, monospace;
+  --t-mono: clamp(10px, 0.4vw + 5.5px, 14px);
+  --t-small: clamp(13px, 0.3vw + 10px, 17px);
+  --t-body: clamp(16px, 0.45vw + 12.5px, 22px);
+  --t-lead: clamp(16px, 0.55vw + 12.5px, 24px);
+  --t-wordmark: clamp(24px, 1vw + 15px, 44px);
+  /* space */
+  --gut: clamp(16px, 4vw, 80px);
+  --s-1: clamp(8px, 0.6vw + 3px, 14px);
+  --s-2: clamp(12px, 1vw + 4px, 26px);
+  --s-3: clamp(20px, 1.8vw + 6px, 48px);
+  --s-4: clamp(36px, 3.4vw + 10px, 96px);
+  --offset: clamp(4px, 0.35vw + 1px, 8px); /* hard offset shadow */
   width: 100%;
   min-height: 100dvh;
   overflow-x: clip;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--f-text);
+  font-size: var(--t-body);
 }
 .dark .ed {
   --paper: #1a1815;
@@ -46,35 +61,35 @@
 }
 
 .ed-display { font-family: var(--f-display); font-weight: 400; }
-.ed-mono { font: 500 11px/1.4 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; }
+.ed-mono { font: 500 var(--t-mono) / 1.4 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; }
 .ed-kicker { color: var(--red); }
 .ed-gut { padding-inline: var(--gut); }
-.ed a { color: inherit; }
-.ed-h2 { font-family: var(--f-display); font-weight: 400; font-size: clamp(40px, 4.6vw, 76px); line-height: 0.92; margin: 10px 0 18px; }
+:where(.ed) a { color: inherit; } /* zero specificity: a link styled as .ed-btn keeps its own colour */
+.ed-h2 { font-family: var(--f-display); font-weight: 400; font-size: clamp(40px, 4.6vw, 104px); line-height: 0.92; margin: var(--s-1) 0 var(--s-2); }
 
 .ed-btn {
-  display: inline-flex; align-items: center; gap: 6px; border: 0; cursor: pointer; text-decoration: none;
-  background: var(--ink); color: var(--paper); padding: 10px 16px;
-  font: 500 11px/1 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5em; border: 0; cursor: pointer;
+  text-decoration: none; white-space: nowrap; background: var(--ink); color: var(--paper); padding: 0.95em 1.45em;
+  font: 500 var(--t-mono) / 1 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase;
 }
-.ed-btn:focus-visible, .ed-navlink:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+.ed-btn:focus-visible, .ed-navlink:focus-visible, .ed-colophon a:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
 .ed-btn:disabled { opacity: 0.6; cursor: default; }
 .ed-btn--ghost { background: none; color: var(--ink); border: 1.5px solid var(--ink); }
 
 .ed-prompt {
-  display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 16px;
-  background: var(--field); color: var(--field-ink); border: 1.5px solid var(--field-ink); box-shadow: 6px 6px 0 var(--shadow);
+  display: flex; align-items: center; gap: var(--s-1); padding: 0.55em 0.55em 0.55em 0.9em; font-size: var(--t-lead);
+  background: var(--field); color: var(--field-ink); border: 1.5px solid var(--field-ink); box-shadow: var(--offset) var(--offset) 0 var(--shadow);
 }
-.ed-prompt input { flex: 1; min-width: 0; border: 0; outline: none; background: none; color: inherit; font: 18px var(--f-text); }
+.ed-prompt input { flex: 1; min-width: 0; border: 0; outline: none; background: none; color: inherit; font: inherit; font-family: var(--f-text); }
 .ed-prompt .ed-btn { background: var(--field-ink); color: var(--field); }
-.ed-prompt:focus-within { box-shadow: 6px 6px 0 var(--red); }
+.ed-prompt:focus-within { box-shadow: var(--offset) var(--offset) 0 var(--red); }
 
-.ed-chips { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 0; padding: 0; list-style: none; font-style: italic; font-size: 15px; }
+.ed-chips { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-2); margin: var(--s-2) 0 0; padding: 0; list-style: none; font-style: italic; font-size: var(--t-small); }
 .ed-chips a { text-decoration: none; border-bottom: 1px solid currentColor; }
 
 .ed-bullet {
-  display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
-  background: var(--red); color: #fff; font: 600 12px/1 var(--f-mono);
+  display: inline-grid; place-items: center; flex: none; width: 2.2em; height: 2.2em; border-radius: 50%;
+  background: var(--red); color: #fff; font: 600 var(--t-mono) / 1 var(--f-mono);
 }
 .ed-pin {
   width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
@@ -93,7 +108,7 @@
 
 /* ── Hero ─────────────────────────────────────────────── */
 .ed-hero {
-  position: relative; height: 100dvh; min-height: 620px; overflow: hidden;
+  position: relative; height: 100dvh; min-height: 560px; overflow: hidden;
   display: flex; flex-direction: column; background: var(--night);
 }
 .ed-hero-map { position: absolute; inset: 0; }
@@ -109,7 +124,8 @@
 .ed-knock--paper .ed-knock-word { color: #fff; }
 .ed-knock-word {
   font-family: var(--f-display); font-style: italic;
-  font-size: 25vw; line-height: 0.8; letter-spacing: -0.035em; white-space: nowrap;
+  /* width-led, but never taller than the screen allows (landscape phones, ultra-wide monitors) */
+  font-size: min(25vw, 62dvh); line-height: 0.8; letter-spacing: -0.035em; white-space: nowrap;
 }
 /* Hidden until the city has painted behind them, then each letter rises with the city inside. */
 .ed-knock-word i { display: inline-block; font-style: inherit; opacity: 0; transform: translateY(40%); }
@@ -128,80 +144,91 @@
 .ed-hero.revealed .ed-chrome .ed-kicker, [data-intro="skip"] .ed-chrome .ed-kicker { color: var(--on-map); }
 
 .ed-header {
-  display: flex; justify-content: space-between; align-items: end; gap: 16px;
-  margin: 0 var(--gut); padding: 18px 0 10px; border-bottom: 1px solid currentColor;
+  display: flex; justify-content: space-between; align-items: end; gap: var(--s-2);
+  margin: 0 var(--gut); padding: var(--s-2) 0 var(--s-1); border-bottom: 1px solid currentColor;
 }
-.ed-wordmark { font-size: 30px; line-height: 1; text-decoration: none; }
-.ed-header nav { display: flex; align-items: center; gap: 22px; }
+.ed-wordmark { font-size: var(--t-wordmark); line-height: 1; text-decoration: none; }
+.ed-header nav { display: flex; align-items: center; gap: var(--s-3); }
 .ed-navlink { text-decoration: none; }
 .ed-hero.revealed .ed-header .ed-btn, [data-intro="skip"] .ed-header .ed-btn { background: var(--on-map); color: #15120e; }
-.ed .ed-theme.neo-control { background: transparent; box-shadow: none; border: 1px solid currentColor; border-radius: 0; color: inherit; }
+/* The shared ThemeToggle ships planner colours (dark slate moon, amber sun) that vanish over the
+   map: here the icon takes the header's colour, like every other piece of chrome. */
+.ed .ed-theme.neo-control {
+  width: auto; height: auto; aspect-ratio: 1; align-self: stretch; padding: 0 0.7em;
+  background: transparent; box-shadow: none; border: 1px solid currentColor; border-radius: 0; color: inherit;
+}
+.ed .ed-theme svg { color: currentColor; width: 1.5em; height: 1.5em; }
+.ed .ed-theme:hover { background: currentColor; }
+.ed .ed-theme:hover svg { color: var(--paper); }
+.ed-hero.revealed .ed-theme:hover svg, [data-intro="skip"] .ed-theme:hover svg { color: #15120e; }
 
-.ed-eyebrow { display: flex; justify-content: space-between; margin-top: 10px; }
+.ed-eyebrow { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px var(--s-2); margin-top: var(--s-1); }
 .ed-ticker {
   position: absolute; z-index: 3; right: var(--gut); top: 50%; transform: translateY(-50%);
   writing-mode: vertical-rl; opacity: 0.8;
 }
 
 .ed-deck {
-  position: relative; z-index: 3; margin-top: auto; padding-bottom: 44px; /* keeps Google's logo clear */
-  display: grid; grid-template-columns: 1fr minmax(320px, 520px); gap: 32px; align-items: end;
+  position: relative; z-index: 3; margin-top: auto;
+  padding-bottom: max(44px, var(--s-4)); /* keeps Google's logo clear */
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(min(100%, 320px), clamp(400px, 34vw, 720px));
+  gap: var(--s-3); align-items: end;
 }
 .ed-hero-title { margin: 0; }
 .ed-solid {
-  display: block; margin: 0 0 6px; color: var(--on-map); white-space: nowrap;
-  font-size: clamp(64px, 11vw, 190px); line-height: 0.82; letter-spacing: -0.035em;
+  display: block; margin: 0 0 0.05em; color: var(--on-map); white-space: nowrap;
+  font-size: clamp(56px, min(11vw, 22dvh), 240px); line-height: 0.82; letter-spacing: -0.035em;
   text-shadow: 0 2px 30px rgba(0, 0, 0, 0.3);
 }
 .ed-solid i { display: inline-block; font-style: normal; opacity: 0; transform: translateY(45%); }
 .ed-hero.zoomed .ed-solid i { animation: ed-rise 1s cubic-bezier(0.2, 0.7, 0.1, 1) forwards; }
 [data-intro="skip"] .ed-solid i { opacity: 1; transform: none; }
-.ed-tagline { display: block; font-size: clamp(28px, 3.4vw, 52px); line-height: 1; color: var(--on-map); }
+.ed-tagline { display: block; font-size: clamp(26px, 3.4vw, 68px); line-height: 1; color: var(--on-map); }
 .ed-hero .ed-chips { color: var(--on-map); }
 
 .ed-late { opacity: 0; transform: translateY(14px); transition: opacity 0.9s, transform 0.9s cubic-bezier(0.2, 0.7, 0.1, 1); }
 .ed-late--2 { transition-delay: 0.15s; }
 .ed-hero.landed .ed-late, [data-intro="skip"] .ed-late { opacity: 1; transform: none; }
 
-.ed-caption { position: absolute; z-index: 3; left: 50%; bottom: 12px; transform: translateX(-50%); color: rgba(243, 237, 225, 0.7); }
-.ed-replay { position: absolute; z-index: 4; right: var(--gut); bottom: 10px; background: none; border: 0; color: var(--on-map); opacity: 0.7; cursor: pointer; }
+.ed-caption { position: absolute; z-index: 3; left: 50%; bottom: var(--s-1); transform: translateX(-50%); color: rgba(243, 237, 225, 0.7); }
+.ed-replay { position: absolute; z-index: 4; right: var(--gut); bottom: var(--s-1); background: none; border: 0; color: var(--on-map); opacity: 0.7; cursor: pointer; }
 
 /* ── Watch it plan ────────────────────────────────────── */
-.ed-demo { display: grid; grid-template-columns: minmax(340px, 0.8fr) 1.2fr; min-height: 100dvh; border-top: 3px double var(--rule); }
-.ed-demo-copy { padding-top: 56px; padding-bottom: 40px; display: flex; flex-direction: column; }
-.ed-typed { flex: 1; min-height: 1.4em; font-size: 18px; }
+.ed-demo { display: grid; grid-template-columns: minmax(min(100%, 340px), 0.8fr) 1.2fr; min-height: 100dvh; border-top: 3px double var(--rule); }
+.ed-demo-copy { padding-block: var(--s-4) var(--s-3); display: flex; flex-direction: column; }
+.ed-typed { flex: 1; min-height: 1.4em; }
 .ed-typed::after { content: "▍"; color: #c8321f; animation: ed-blink 1s steps(1) infinite; }
 @keyframes ed-blink { 50% { opacity: 0; } }
-.ed-itin { margin: 26px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.ed-itin { margin: var(--s-3) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
 .ed-row {
-  display: grid; grid-template-columns: 28px 64px 1fr auto; gap: 12px; align-items: center; padding: 12px 0;
+  display: grid; grid-template-columns: auto 4.2em minmax(0, 1fr) auto; gap: var(--s-1); align-items: center; padding: var(--s-1) 0;
   border-bottom: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
   opacity: 0; transform: translateX(-12px); transition: opacity 0.5s, transform 0.5s cubic-bezier(0.2, 0.7, 0.1, 1);
 }
 .ed-row.on { opacity: 1; transform: none; }
-.ed-row-time { font: 500 12px var(--f-mono); }
-.ed-row-name { font-size: 20px; }
-.ed-row-why { font-style: italic; color: var(--muted); font-size: 14px; }
-.ed-crowd { display: flex; align-items: end; gap: 2px; height: 18px; }
-.ed-crowd b { width: 4px; background: var(--ink); opacity: 0.25; }
+.ed-row-time { font: 500 var(--t-mono) var(--f-mono); }
+.ed-row-name { font-size: var(--t-lead); }
+.ed-row-why { font-style: italic; color: var(--muted); font-size: var(--t-small); }
+.ed-crowd { display: flex; align-items: end; gap: 2px; height: clamp(16px, 1.3vw, 26px); }
+.ed-crowd b { width: clamp(3px, 0.28vw, 5px); background: var(--ink); opacity: 0.25; }
 .ed-crowd b.on { background: var(--red); opacity: 1; }
-.ed-demo-replay { margin-top: 18px; align-self: start; }
-.ed-footnote { margin: auto 0 0; padding-top: 24px; max-width: 46ch; color: var(--muted); letter-spacing: 0.08em; line-height: 1.6; }
+.ed-demo-replay { margin-top: var(--s-2); align-self: start; }
+.ed-footnote { margin: auto 0 0; padding-top: var(--s-3); max-width: 46ch; color: var(--muted); letter-spacing: 0.08em; line-height: 1.6; }
 .ed-demo-map { position: relative; overflow: hidden; background: var(--night); border-left: 1px solid var(--rule); }
 .ed-callout {
-  position: absolute; z-index: 3; left: 20px; bottom: 44px; padding: 14px 18px; opacity: 0; transition: opacity 0.6s;
-  background: var(--paper); border: 1.5px solid var(--ink); box-shadow: 6px 6px 0 var(--shadow);
+  position: absolute; z-index: 3; left: var(--s-3); bottom: max(44px, var(--s-4)); padding: var(--s-2) var(--s-3); opacity: 0; transition: opacity 0.6s;
+  background: var(--paper); border: 1.5px solid var(--ink); box-shadow: var(--offset) var(--offset) 0 var(--shadow);
 }
 .ed-callout.on { opacity: 1; }
-.ed-callout strong { display: block; font: 400 34px/1 var(--f-display); }
-.ed-callout em { color: var(--muted); }
+.ed-callout strong { display: block; font: 400 clamp(26px, 2.4vw, 48px) / 1 var(--f-display); }
+.ed-callout em { color: var(--muted); font-size: var(--t-small); }
 
 /* ── Neighborhoods ────────────────────────────────────── */
-.ed-story { display: grid; grid-template-columns: minmax(340px, 0.8fr) 1.2fr; border-top: 3px double var(--rule); }
-.ed-chapters { position: relative; }
+.ed-story { display: grid; grid-template-columns: minmax(min(100%, 340px), 0.8fr) 1.2fr; border-top: 3px double var(--rule); }
+.ed-chapters { position: relative; min-width: 0; }
 .ed-story-index {
-  position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px 20px;
-  padding-block: 18px 12px; border-bottom: 1px solid var(--rule);
+  position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px var(--s-2);
+  padding-block: var(--s-2) var(--s-1); border-bottom: 1px solid var(--rule);
 }
 .ed-story-index a { text-decoration: none; opacity: 0.45; transition: opacity 0.3s; }
 .ed-story-index a span { color: var(--red); margin-right: 2px; }
@@ -209,37 +236,75 @@
 .ed-story-index a.on { text-decoration: underline; text-decoration-color: var(--red); text-underline-offset: 5px; }
 .ed-chapter {
   position: relative; overflow: hidden;
-  min-height: 75vh; display: flex; flex-direction: column; justify-content: center; padding-block: 40px;
+  min-height: 75vh; display: flex; flex-direction: column; justify-content: center; padding-block: var(--s-3);
   opacity: 0.25; transition: opacity 0.5s;
 }
 /* The chapter's numeral, set huge in outline behind it: a magazine device that fills the column. */
 .ed-chapter::before {
   content: attr(data-numeral); position: absolute; z-index: 0; right: var(--gut); top: 50%; transform: translateY(-50%);
-  font: 400 clamp(180px, 20vw, 340px) / 0.8 var(--f-display); color: transparent;
+  font: 400 clamp(160px, 20vw, 420px) / 0.8 var(--f-display); color: transparent;
   -webkit-text-stroke: 1px var(--ink); opacity: 0.16; pointer-events: none;
 }
 .ed-chapter.active::before { opacity: 0.3; }
 .ed-chapter > * { position: relative; z-index: 1; }
 .ed-chapter.active { opacity: 1; }
-.ed-chapter h3 { font-family: var(--f-display); font-weight: 400; font-size: clamp(44px, 5vw, 84px); line-height: 0.9; margin: 10px 0 14px; }
-.ed-chapter p { font-size: 19px; line-height: 1.45; max-width: 34ch; margin: 0 0 18px; }
+.ed-chapter h3 { font-family: var(--f-display); font-weight: 400; font-size: clamp(40px, 5vw, 110px); line-height: 0.9; margin: var(--s-1) 0 var(--s-2); }
+.ed-chapter p { font-size: var(--t-body); line-height: 1.45; max-width: 34ch; margin: 0 0 var(--s-2); }
 .ed-sticky { position: sticky; top: 0; height: 100dvh; overflow: hidden; background: var(--night); border-left: 1px solid var(--rule); }
-.ed-sticky-label { position: absolute; z-index: 3; top: 20px; right: 20px; padding: 8px 12px; background: #15120e; color: #f3ede1; }
+.ed-sticky-label { position: absolute; z-index: 3; top: var(--s-2); right: var(--s-2); padding: 0.7em 1em; background: #15120e; color: #f3ede1; }
 
 /* ── Colophon ─────────────────────────────────────────── */
-.ed-colophon { padding-block: 48px 32px; border-top: 3px double var(--rule); display: grid; gap: 12px; }
-.ed-colophon-mark { font-size: 44px; line-height: 1; }
-.ed-colophon p { margin: 0; max-width: 60ch; }
-.ed-colophon nav { display: flex; gap: 22px; }
+.ed-colophon {
+  display: flex; flex-direction: column; gap: var(--s-4);
+  padding-block: var(--s-4) var(--s-2); border-top: 3px double var(--rule); overflow: hidden;
+}
+.ed-colophon-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: var(--s-3); }
+.ed-colophon-lede { margin: 0; max-width: 24ch; font-size: clamp(30px, 3.6vw, 80px); line-height: 1; }
+.ed-colophon-grid {
+  display: grid; grid-template-columns: 1fr 1.4fr 1.2fr; gap: var(--s-3);
+  padding-top: var(--s-2); border-top: 1px solid var(--rule);
+}
+.ed-colophon-grid h2 { margin: 0 0 var(--s-2); }
+.ed-colophon-grid ul { display: grid; gap: var(--s-1); margin: 0; padding: 0; list-style: none; font-size: var(--t-lead); }
+.ed-colophon-grid ul a { text-decoration: none; background: linear-gradient(var(--red), var(--red)) 0 100% / 0 1px no-repeat; transition: background-size 0.3s; }
+.ed-colophon-grid ul a:hover { background-size: 100% 1px; }
+.ed-colophon-grid dl { display: grid; gap: var(--s-1); margin: 0; }
+.ed-colophon-grid dl div { display: grid; grid-template-columns: minmax(7em, 0.45fr) 1fr; gap: var(--s-1); align-items: baseline; }
+.ed-colophon-grid dt { color: var(--muted); }
+.ed-colophon-grid dd { margin: 0; font-size: var(--t-small); }
+.ed-colophon-grid p { margin: 0; font-size: var(--t-small); line-height: 1.6; color: var(--muted); max-width: 42ch; }
+/* The sign-off: the masthead again, spanning the page, cropped by the baseline rule. */
+.ed-colophon-mast {
+  /* "Roam" in Instrument Serif at -0.05em tracking measures ~1.8em wide: fill gutter to gutter. */
+  font-size: calc((100vw - 2 * var(--gut)) / 1.82); line-height: 0.72; letter-spacing: -0.05em; white-space: nowrap;
+  margin: 0 0 calc(var(--s-4) * -1 + 0.04em) -0.045em; color: var(--ink);
+}
+.ed-colophon-base {
+  position: relative; display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s-1);
+  padding-top: var(--s-2); border-top: 1px solid var(--rule); background: inherit;
+}
+.ed-colophon-base a { text-decoration: none; }
 
+/* ── Tablets and phones: one column ───────────────────── */
 @media (max-width: 900px) {
-  .ed-deck, .ed-demo, .ed-story { grid-template-columns: 1fr; }
-  .ed-knock-word { font-size: 30vw; }
+  .ed-deck, .ed-demo, .ed-story { grid-template-columns: minmax(0, 1fr); }
+  .ed-knock-word { font-size: min(30vw, 62dvh); }
   .ed-navlink, .ed-ticker, .ed-caption { display: none; }
   .ed-demo-map { min-height: 60vh; border-left: 0; border-top: 1px solid var(--rule); }
   .ed-sticky { height: 50vh; order: -1; z-index: 5; border-left: 0; }
   .ed-chapter { min-height: 70vh; }
   .ed-story-index { display: none; } /* the pinned map takes the top of the screen on phones */
+  .ed-colophon-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ed-colophon-grid > :last-child { grid-column: 1 / -1; }
+}
+
+/* ── Small phones ─────────────────────────────────────── */
+@media (max-width: 560px) {
+  .ed-eyebrow > :last-child { display: none; }
+  .ed-row { grid-template-columns: auto 3.6em minmax(0, 1fr); }
+  .ed-crowd { display: none; }
+  .ed-colophon-grid { grid-template-columns: minmax(0, 1fr); }
+  .ed-colophon-grid dl div { grid-template-columns: 1fr; gap: 2px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

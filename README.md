@@ -166,7 +166,8 @@ are within 400 m of the place.
 - [Next.js 16](https://nextjs.org) (App Router) + React 19 + TypeScript
 - Gemini (`gemini-3.5-flash-lite`) through Google's `@google/genai` SDK,
   using structured output with a JSON Schema generated from a Zod schema
-- MapLibre GL with OpenFreeMap tiles
+- MapLibre GL with OpenFreeMap tiles (planner); Google photorealistic 3D Maps on the home page, with a MapLibre satellite fallback
+- Editorial design system (paper and ink, Instrument Serif / Newsreader / IBM Plex Mono): see `docs/DESIGN.md`
 - Tailwind CSS 4, shadcn/ui on Base UI, lucide icons
 - Zod request validation, Vitest unit tests
 
