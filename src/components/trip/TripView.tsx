@@ -10,6 +10,8 @@ import { tripApi, TripApiError } from "@/lib/trip/client";
 import { clearIdentity, parseIdentity, readIdentityRaw, storeIdentity, subscribeIdentity, type TripIdentity } from "@/lib/trip/local";
 import { MAX_CANDIDATES, type Trip } from "@/lib/trip/types";
 import { CandidateList } from "./CandidateList";
+import { DraftDay } from "./DraftDay";
+import { useDraftPlan } from "./useDraftPlan";
 
 const POLL_MS = 4000;
 
@@ -22,11 +24,14 @@ export function TripView({ id }: { id: string }) {
   const [picking, setPicking] = useState(false);
   const [sessionIdentity, setSessionIdentity] = useState<TripIdentity | null>(null);
   const [copied, setCopied] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const raw = useSyncExternalStore(subscribeIdentity, () => readIdentityRaw(id), () => "");
   const identity = parseIdentity(raw) ?? sessionIdentity;
   const memberId = identity && trip && identity.memberId in trip.members ? identity.memberId : null;
   const locked = !!trip?.lockedCode;
+  const draft = useDraftPlan(trip);
+  const isOrganizer = !!identity?.organizerKey && memberId === trip?.organizerId;
 
   const refresh = useCallback(
     () =>
@@ -165,6 +170,49 @@ export function TripView({ id }: { id: string }) {
             </div>
           )}
         </div>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        {locked && (
+          <div className="rounded-xl border border-brand/35 bg-brand-soft p-4 text-sm">
+            <p>
+              <strong className="text-brand">Locked by {organizer}.</strong> This is the final day.
+            </p>
+            <Link
+              href={`/plan?plan=${trip.lockedCode}`}
+              className="mt-3 inline-flex h-8 w-full items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground"
+            >
+              Open in planner →
+            </Link>
+          </div>
+        )}
+        <DraftDay plan={draft.plan} updating={draft.updating} error={draft.error} locked={locked} />
+        {isOrganizer &&
+          !locked &&
+          (confirming ? (
+            <div className="rounded-xl border border-destructive/50 bg-card p-4">
+              <p className="mb-3 text-sm">
+                <strong>Lock the plan?</strong> Friends can&apos;t vote after this.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    setConfirming(false);
+                    act(() => tripApi<Trip>(`/${id}/lock`, { organizerKey: identity?.organizerKey }));
+                  }}
+                >
+                  Lock plan
+                </Button>
+                <Button variant="outline" onClick={() => setConfirming(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button className="w-full" onClick={() => setConfirming(true)} disabled={!draft.plan}>
+              Lock plan
+            </Button>
+          ))}
       </section>
     </main>
   );
