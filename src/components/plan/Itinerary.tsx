@@ -163,7 +163,7 @@ export function Itinerary({
   return (
     <div className="animate-rise">
       {/* The day at a glance, over its own photos. */}
-      <header className="relative -mx-5 -mt-5 h-64 overflow-hidden text-white sm:h-72">
+      <header className="relative -mx-5 -mt-5 h-[clamp(14rem,34dvh,18rem)] overflow-hidden text-white">
         <Mosaic photos={heroPhotos} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" aria-hidden />
         <Button variant="outline" size="sm" className="absolute top-4 right-4 rounded-full border-white/30 bg-black/30 text-white backdrop-blur-md hover:bg-black/50 hover:text-white" onClick={onEdit}>
@@ -197,14 +197,14 @@ export function Itinerary({
       </header>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={onSave} className={cn("rounded-full", isSaved ? "bg-brand-soft text-brand hover:bg-brand-soft" : "bg-foreground text-background hover:bg-foreground/85")}>
+        <Button size="sm" onClick={onSave} className={cn("neo-control rounded-full", isSaved ? "neo-inset text-brand font-semibold" : "")}>
           {isSaved ? <BookmarkCheck aria-hidden /> : <Bookmark aria-hidden />}
           {isSaved ? "Saved" : "Save plan"}
         </Button>
-        <Button size="sm" variant="outline" onClick={onCalendar} className="rounded-full">
+        <Button size="sm" variant="outline" onClick={onCalendar} className="neo-control rounded-full">
           <CalendarPlus aria-hidden /> Add to calendar
         </Button>
-        <Button size="sm" variant="outline" onClick={onShare} className="rounded-full">
+        <Button size="sm" variant="outline" onClick={onShare} className="neo-control rounded-full">
           <Link2 aria-hidden /> Copy link
         </Button>
         {dayRoute && (
@@ -212,7 +212,7 @@ export function Itinerary({
             href={dayRoute}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-7 items-center gap-1 rounded-full border border-border bg-background px-2.5 text-[0.8rem] font-medium transition hover:bg-muted"
+            className="neo-control inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8rem] font-medium"
           >
             <MapIcon className="size-3.5" aria-hidden /> Google Maps
           </a>
@@ -226,18 +226,18 @@ export function Itinerary({
 
       {dayPicker}
 
-      <dl className="mt-5 grid grid-cols-3 gap-2">
-        <div className="rounded-2xl bg-muted/60 p-3">
+      <dl className="mt-5 grid grid-cols-3 gap-2.5">
+        <div className="neo-raised rounded-2xl p-3">
           <dt className="text-xs text-muted-foreground">Travel</dt>
           <dd className="mt-0.5 font-display text-2xl leading-tight">{duration(summary.travelMin)}</dd>
           <dd className="text-[11px] text-muted-foreground">{MODE_LABEL[request.mode]}</dd>
         </div>
-        <div className="rounded-2xl bg-muted/60 p-3">
+        <div className="neo-raised rounded-2xl p-3">
           <dt className="text-xs text-muted-foreground">Saved</dt>
-          <dd className="mt-0.5 font-display text-2xl leading-tight">{savedMin > 0 ? duration(savedMin) : "—"}</dd>
+          <dd className="mt-0.5 font-display text-2xl leading-tight text-brand">{savedMin > 0 ? duration(savedMin) : "—"}</dd>
           <dd className="text-[11px] text-muted-foreground">vs. your order</dd>
         </div>
-        <div className="rounded-2xl bg-muted/60 p-3">
+        <div className="neo-raised rounded-2xl p-3">
           <dt className="text-xs text-muted-foreground">Crowds</dt>
           <dd className="mt-0.5 flex items-center gap-1.5 font-display text-2xl leading-tight">
             {band ? (
@@ -256,7 +256,7 @@ export function Itinerary({
       {choices}
 
       {plan.insights.length > 0 && (
-        <ul className="mt-5 space-y-2 rounded-2xl border border-border bg-card p-4 text-sm leading-relaxed">
+        <ul className="neo-raised mt-5 space-y-2 rounded-2xl p-4 text-sm leading-relaxed border-brand/20">
           {plan.insights.map((line) => (
             <li key={line} className="flex gap-2.5">
               <Lightbulb className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
@@ -280,9 +280,9 @@ export function Itinerary({
           if (isMealBreak(s)) {
             const food = s.nearbyFood ? ATTRACTION_BY_ID.get(s.nearbyFood.id) : undefined;
             return (
-              <li key={s.key} className="py-1.5">
-                <div className="flex items-start gap-3 rounded-2xl border border-dashed border-border px-4 py-3">
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-sev-b-soft text-sev-b">
+              <li key={s.key} className="py-2">
+                <div className="neo-inset flex items-start gap-3 rounded-2xl px-4 py-3.5">
+                  <span className="neo-control grid size-8 shrink-0 place-items-center rounded-full text-sev-b">
                     <UtensilsCrossed className="size-3.5" aria-hidden />
                   </span>
                   <div className="min-w-0 flex-1 text-sm">
@@ -302,7 +302,7 @@ export function Itinerary({
                       </p>
                     )}
                   </div>
-                  <a href={mapsFoodNearby(s)} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-brand transition hover:bg-brand-soft">
+                  <a href={mapsFoodNearby(s)} target="_blank" rel="noreferrer" className="neo-control inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold text-brand">
                     Find food <ExternalLink className="size-3" aria-hidden />
                   </a>
                 </div>
@@ -331,8 +331,8 @@ export function Itinerary({
                     }}
                     onMouseEnter={() => onActivate(s.key)}
                     className={cn(
-                      "group w-full cursor-pointer overflow-hidden rounded-3xl border bg-card text-left shadow-sm transition duration-300",
-                      active ? "border-brand shadow-lg ring-4 ring-brand/15" : "border-border hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-md",
+                      "group neo-raised w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-all duration-300",
+                      active ? "ring-2 ring-brand border-brand/50 shadow-lg scale-[1.01]" : "hover:-translate-y-0.5 hover:shadow-md",
                     )}
                   >
                     {photos[s.key] && (
@@ -352,7 +352,7 @@ export function Itinerary({
                       <span
                         className={cn(
                           "grid size-7 shrink-0 place-items-center rounded-full text-[13px] font-semibold tabular-nums transition",
-                          active ? "bg-brand text-on-color" : "bg-foreground text-background",
+                          active ? "neo-primary" : "neo-inset text-brand",
                         )}
                       >
                         {number}

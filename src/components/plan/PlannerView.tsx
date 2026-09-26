@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ArrowRight, Bookmark, CalendarDays, ChevronDown, Clock, Footprints, Home, Loader2, MapPin, RefreshCw, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowRight, Bookmark, CalendarDays, ChevronDown, Clock, Compass, Footprints, Home, Loader2, MapPin, MessageCircle, RefreshCw, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { haversine } from "@/lib/osm/geo";
 import { ATTRACTION_BY_ID, type Attraction } from "@/lib/plan/attractions";
 import { fillSlot } from "@/lib/plan/choices";
@@ -66,9 +67,11 @@ const PlanMap = dynamic(() => import("./PlanMap").then((m) => m.PlanMap), {
 const MAX_STOPS = 10;
 const VISIT_OPTIONS = [15, 30, 45, 60, 75, 90, 120, 150, 180, 240];
 const TRIP_STARTERS = [
+  { label: "The 'Friends' Walk", prompt: "A Friends-themed Saturday: coffee in Greenwich Village, visit Monica's apartment on Bedford St, and an afternoon at Washington Square Park." },
+  { label: "The 'Seinfeld' Day", prompt: "Classic Seinfeld NYC: breakfast at Monk's Diner (Tom's Restaurant) on the Upper West Side, Central Park stroll, and stand-up comedy." },
+  { label: "The 'HIMYM' Tour", prompt: "How I Met Your Mother adventure: Empire State Building, Museum of Natural History, yellow cab ride down Broadway, and evening drinks at MacLaren's." },
   { label: "First time in NYC", prompt: "First time in NYC this Saturday. I want to see a few iconic places, get a great skyline view and eat good pizza. Keep travel simple and avoid the biggest crowds." },
-  { label: "Downtown day", prompt: "Plan a day downtown with the 9/11 Memorial, Brooklyn Bridge and Chinatown for lunch. I have about 8 hours and prefer subway plus walking." },
-  { label: "A slower day", prompt: "Plan a relaxed Sunday in Brooklyn with parks, a neighborhood stroll and a great place to eat. Keep walking manageable and leave room for breaks." },
+  { label: "Downtown & Chinatown", prompt: "Plan a day downtown with the 9/11 Memorial, Brooklyn Bridge and Chinatown for lunch. I have about 8 hours and prefer subway plus walking." },
 ];
 
 const CROWD_SUMMARY: Record<CrowdPref, string> = { avoid: "Avoid crowds", balanced: "Some crowds okay", ignore: "Crowds okay" };
@@ -159,9 +162,11 @@ function subscribePhone(onChange: () => void) {
   const mq = window.matchMedia(PHONE_QUERY);
   mq.addEventListener("change", onChange);
   window.addEventListener("resize", onChange);
+  window.visualViewport?.addEventListener("resize", onChange);
   return () => {
     mq.removeEventListener("change", onChange);
     window.removeEventListener("resize", onChange);
+    window.visualViewport?.removeEventListener("resize", onChange);
   };
 }
 type SheetSnap = "peek" | "half" | "full";
@@ -183,11 +188,11 @@ interface Settings {
 
 function Logo() {
   return (
-    <Link href="/" className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
-      <span aria-hidden className="grid size-7 place-items-center rounded-lg bg-foreground font-display text-lg text-background">
-        {BRAND.name[0]}
+    <Link href="/" aria-label={`${BRAND.name} ${BRAND.suffix} home`} className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight rounded-lg focus-visible:outline-2 focus-visible:outline-brand">
+      <span aria-hidden className="neo-raised grid size-8 place-items-center rounded-lg">
+        <Compass className="size-4 text-brand" />
       </span>
-      {BRAND.name} <span className="-ml-1 font-display text-lg font-normal text-muted-foreground italic">{BRAND.suffix}</span>
+      <span className="font-bold">{BRAND.name}<span className="ml-1 font-normal text-muted-foreground">{BRAND.suffix}</span></span>
     </Link>
   );
 }
@@ -266,7 +271,10 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
   const [panelWidth, setPanelWidth] = useState(500);
   // Phone layout: the panel is a sheet over a full-screen map, dragged between three heights.
   const isPhone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE_QUERY).matches, () => false);
-  const viewportH = useSyncExternalStore(subscribePhone, () => window.innerHeight, () => 800);
+  const viewportH = useSyncExternalStore(subscribePhone, () => window.visualViewport?.height ?? window.innerHeight, () => 800);
+  const viewportW = useSyncExternalStore(subscribePhone, () => window.visualViewport?.width ?? window.innerWidth, () => 1280);
+  const maxPanelWidth = Math.max(360, Math.min(720, viewportW - 372));
+  const visiblePanelWidth = Math.min(panelWidth, maxPanelWidth);
   const [sheet, setSheet] = useState<SheetSnap>("half");
   const [dragH, setDragH] = useState<number | null>(null);
   const sheetDrag = useRef<{ y: number; h: number; moved: boolean } | null>(null);
@@ -770,8 +778,8 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
     >
       <aside
         ref={panelRef}
-        style={{ "--planner-panel-width": `${panelWidth}px` } as React.CSSProperties}
-        className={`order-2 flex flex-col border-border lg:order-1 lg:h-dvh lg:w-[var(--planner-panel-width)] lg:shrink-0 lg:overflow-y-auto lg:border-r max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:h-(--sheet-h) max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:rounded-t-[28px] max-lg:bg-background max-lg:shadow-[0_-16px_48px_-16px_oklch(0_0_0/0.4)] ${dragH === null ? "max-lg:transition-[height] max-lg:duration-300 max-lg:ease-out" : ""}`}
+        style={{ "--planner-panel-width": `${visiblePanelWidth}px` } as React.CSSProperties}
+        className={`neo-panel order-2 flex flex-col border-border/60 lg:order-1 lg:h-dvh lg:w-[var(--planner-panel-width)] lg:shrink-0 lg:overflow-y-auto lg:border-r max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:h-(--sheet-h) max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:rounded-t-[28px] max-lg:bg-background max-lg:shadow-[0_-16px_48px_-16px_oklch(0_0_0/0.4)] ${dragH === null ? "max-lg:transition-[height] max-lg:duration-300 max-lg:ease-out" : ""}`}
       >
         {/* On phones this bar is the sheet's handle: drag it, or tap the grip to cycle heights. */}
         <header
@@ -779,7 +787,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
           onPointerMove={sheetMove}
           onPointerUp={sheetUp}
           onPointerCancel={sheetUp}
-          className="sticky top-0 z-30 flex flex-col border-b border-border bg-background/85 px-5 backdrop-blur-xl max-lg:touch-none max-lg:rounded-t-[28px] max-lg:pt-2 max-lg:pb-3 lg:py-4"
+          className="sticky top-0 z-30 flex flex-col border-b border-border/60 bg-background/90 px-5 backdrop-blur-xl max-lg:touch-none max-lg:rounded-t-[28px] max-lg:pt-2 max-lg:pb-3 lg:py-4"
         >
           <button
             type="button"
@@ -787,24 +795,27 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
             aria-label={sheet === "full" ? "Collapse the panel" : "Expand the panel"}
             className="mx-auto mb-2 grid h-4 w-16 place-items-center lg:hidden"
           >
-            <span className="h-1.5 w-11 rounded-full bg-foreground/20" />
+            <span className="neo-inset h-1.5 w-11 rounded-full" />
           </button>
           <div className="flex items-center justify-between gap-3">
-          <div className="max-lg:hidden">
-            <Logo />
-          </div>
-          <p className={`min-w-0 flex-1 truncate text-sm font-semibold lg:hidden ${isPlanToday ? "text-brand" : ""}`}>{sheetSummary}</p>
-          {plan && (
-            <Segmented
-              label="Panel"
-              value={view}
-              onChange={setView}
-              options={[
-                { value: "edit", label: "Build" },
-                { value: "plan", label: "Itinerary" },
-              ]}
-            />
-          )}
+            <div className="max-lg:hidden">
+              <Logo />
+            </div>
+            <p className={`min-w-0 flex-1 truncate text-sm font-semibold lg:hidden ${isPlanToday ? "text-brand" : ""}`}>{sheetSummary}</p>
+            <div className="flex items-center gap-2">
+              <ThemeToggle className="size-8" />
+              {plan && (
+                <Segmented
+                  label="Panel"
+                  value={view}
+                  onChange={setView}
+                  options={[
+                    { value: "edit", label: "Build" },
+                    { value: "plan", label: "Itinerary" },
+                  ]}
+                />
+              )}
+            </div>
           </div>
         </header>
 
@@ -876,46 +887,47 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
             <div className="space-y-8">
               {/* Assistant */}
               <section aria-labelledby="ask-heading">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-brand">A better way around New York</p>
                 <h1 id="ask-heading" className="font-display text-4xl leading-none tracking-tight">
-                  Make a day of it.
+                  Where do you want to go?
                 </h1>
-                <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">Choose what you want to see. Roam finds an order that fits opening hours, travel time and the quieter parts of the day.</p>
+                <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">Choose places or describe the kind of day you want. Set a date and how you’d like to get around.</p>
                 <div className="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Trip ideas">
                   {TRIP_STARTERS.map((starter) => (
-                    <button key={starter.label} type="button" onClick={() => setPrompt(starter.prompt)} className="shrink-0 rounded-full border border-border bg-card px-3 py-2 text-xs font-medium transition hover:border-brand hover:bg-brand-soft">
+                    <button key={starter.label} type="button" onClick={() => setPrompt(starter.prompt)} className="neo-control shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium text-foreground">
                       {starter.label}
                     </button>
                   ))}
                 </div>
                 <form
                   suppressHydrationWarning
-                  className="mt-4 rounded-2xl border border-border bg-card p-2 shadow-sm transition focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/10"
+                  className="neo-raised mt-4 rounded-2xl p-3 shadow-none transition"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void ask(prompt, settings);
                   }}
                 >
-                  <textarea
-                    suppressHydrationWarning
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                        e.preventDefault();
-                        void ask(prompt, settings);
-                      }
-                    }}
-                    rows={3}
-                    maxLength={1500}
-                    placeholder="What would make this a great NYC day? Try: ‘Saturday with my parents, a museum, skyline view and pizza. Avoid crowds.’"
-                    aria-label="Describe your day"
-                    className="w-full resize-none bg-transparent px-2.5 py-2 text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground"
-                  />
-                  <div className="flex items-center justify-between gap-2 px-1">
+                  <div className="neo-inset rounded-2xl p-2.5 outline-none focus-within:outline-none focus-within:ring-0">
+                    <textarea
+                      suppressHydrationWarning
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                          e.preventDefault();
+                          void ask(prompt, settings);
+                        }
+                      }}
+                      rows={3}
+                      maxLength={1500}
+                      placeholder="What would make this a great NYC day? Try: ‘Saturday with my parents, a museum, skyline view and pizza. Avoid crowds.’"
+                      aria-label="Describe your day"
+                      className="w-full resize-none bg-transparent px-1 py-1 text-[15px] leading-relaxed outline-none focus:outline-none focus:ring-0 placeholder:text-muted-foreground caret-brand"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 px-1 pt-3">
                     <span className="text-[11px] text-muted-foreground max-sm:hidden">Places, timing and travel are worked out for you</span>
-                    <Button type="submit" disabled={thinking || prompt.trim().length < 3} className="ml-auto rounded-full bg-brand px-4 text-on-color hover:bg-brand/90">
-                      {thinking ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles aria-hidden />}
+                    <Button type="submit" disabled={thinking || prompt.trim().length < 3} className="neo-primary ml-auto rounded-xl px-4 py-2 font-semibold">
+                      {thinking ? <Loader2 className="animate-spin" aria-hidden /> : <ArrowRight aria-hidden />}
                       {thinking ? "Building your day…" : "Build my day"}
                     </Button>
                   </div>
@@ -923,9 +935,9 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                 <div aria-live="polite">
                   {assistantError && <p className="mt-3 text-sm text-sev-c">{assistantError}</p>}
                   {assistant && (
-                    <div className="mt-3 rounded-2xl bg-brand-soft px-4 py-3 text-sm leading-relaxed">
+                    <div className="neo-raised mt-3 rounded-2xl p-4 text-sm leading-relaxed">
                       <p className="flex gap-2">
-                        <Sparkles className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+                        <MessageCircle className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
                         {assistant.reply}
                       </p>
                       {assistant.unresolved.length > 0 && (
@@ -941,7 +953,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                   <h2 id="saved-heading" className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
                     <Bookmark className="size-4 text-brand" aria-hidden /> Pick up a saved plan
                   </h2>
-                  <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+                  <ul className="neo-raised divide-y divide-border/60 rounded-2xl overflow-hidden">
                     {savedPlans.slice(0, 5).map((p) => (
                       <li key={p.id} className="flex items-center gap-2 pr-2">
                         <button type="button" onClick={() => openSaved(p)} disabled={planning} className="min-w-0 flex-1 truncate px-4 py-2.5 text-left text-sm font-medium hover:text-brand">
@@ -950,7 +962,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                         <button
                           type="button"
                           onClick={() => storeSaved(savedPlans.filter((x) => x.id !== p.id))}
-                          className="grid size-7 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                          className="neo-control grid size-7 place-items-center rounded-full text-muted-foreground hover:text-foreground"
                           aria-label={`Delete saved plan ${p.title}`}
                         >
                           <Trash2 className="size-3.5" aria-hidden />
@@ -963,18 +975,18 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
 
               {/* Everything below is what the assistant fills in; it's here to check or do by hand. */}
               <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
-                <span className="h-px flex-1 bg-border" aria-hidden />
+                <span className="h-px flex-1 bg-border/60" aria-hidden />
                 Or plan it yourself
-                <span className="h-px flex-1 bg-border" aria-hidden />
+                <span className="h-px flex-1 bg-border/60" aria-hidden />
               </div>
 
               {stops.length > 0 && (
                 <section aria-labelledby="stops-heading">
                   <div className="flex items-start justify-between gap-3">
                     <h2 id="stops-heading" className="text-sm font-semibold">Your day so far</h2>
-                    <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand tabular-nums">{stops.length}/{MAX_STOPS} stops</span>
+                    <span className="neo-inset shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-brand tabular-nums">{stops.length}/{MAX_STOPS} stops</span>
                   </div>
-                  <ul className="mt-3 divide-y divide-border rounded-2xl border border-border bg-card">
+                  <ul className="neo-raised mt-3 divide-y divide-border/60 rounded-2xl overflow-hidden">
                     {stops.map((s) => {
                       const a = s.attractionId ? ATTRACTION_BY_ID.get(s.attractionId) : undefined;
                       const options = VISIT_OPTIONS.includes(s.visitMin) ? VISIT_OPTIONS : [...VISIT_OPTIONS, s.visitMin].sort((x, y) => x - y);
@@ -985,7 +997,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                             {s.name}
                           </button>
                           {s.fixedStartMin != null ? (
-                            <span className="inline-flex items-center gap-1 rounded-lg bg-brand-soft py-0.5 pr-0.5 pl-1.5 text-xs text-brand">
+                            <span className="neo-inset inline-flex items-center gap-1 rounded-lg py-0.5 pr-0.5 pl-1.5 text-xs text-brand">
                               <Clock className="size-3" aria-hidden />
                               <label className="sr-only" htmlFor={`fixed-${s.key}`}>
                                 Start time for {s.name}
@@ -1010,7 +1022,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                               onClick={() => setFixed(s.key, Math.max(settings.startMin, 12 * 60))}
                               title="Must start at a set time (a booking, a show)"
                               aria-label={`Set a start time for ${s.name}`}
-                              className="grid size-7 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                              className="neo-control grid size-7 place-items-center rounded-full text-muted-foreground hover:text-foreground"
                             >
                               <Clock className="size-3.5" aria-hidden />
                             </button>
@@ -1025,10 +1037,10 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                               const v = Number(e.target.value);
                               setStops((list) => list.map((x) => (x.key === s.key ? { ...x, visitMin: v } : x)));
                             }}
-                            className="rounded-lg border border-border bg-background px-2 py-1 text-xs tabular-nums"
+                            className="neo-inset rounded-lg px-2 py-1 text-xs tabular-nums bg-transparent"
                           >
                             {options.map((m) => (
-                              <option key={m} value={m}>
+                              <option key={m} value={m} className="bg-background text-foreground">
                                 {duration(m)}
                               </option>
                             ))}
@@ -1036,7 +1048,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                           <button
                             type="button"
                             onClick={() => setStops((list) => list.filter((x) => x.key !== s.key))}
-                            className="grid size-7 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            className="neo-control grid size-7 place-items-center rounded-full text-muted-foreground hover:text-foreground"
                             aria-label={`Remove ${s.name}`}
                           >
                             <X className="size-4" aria-hidden />
@@ -1050,9 +1062,9 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
               )}
 
               {/* Trip details: a one-line summary of what's set, opened to change it. */}
-              <section aria-labelledby="details-heading" className="rounded-2xl border border-border bg-card">
+              <section aria-labelledby="details-heading" className="neo-raised rounded-2xl overflow-hidden">
                 <button type="button" aria-expanded={showSettings} aria-controls="trip-details" onClick={() => setShowSettings((v) => !v)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
-                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
+                  <span className="neo-inset grid size-8 shrink-0 place-items-center rounded-full text-brand">
                     <SlidersHorizontal className="size-4" aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -1064,15 +1076,15 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                   <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition ${showSettings ? "rotate-180" : ""}`} aria-hidden />
                 </button>
                 {showSettings && (
-                  <div id="trip-details" className="space-y-5 border-t border-border px-4 pt-4 pb-5">
+                  <div id="trip-details" className="space-y-5 border-t border-border/60 px-4 pt-4 pb-5">
                     <div className="space-y-3">
-                      <label className="flex items-center gap-3 text-sm"><CalendarDays className="size-4 text-muted-foreground" aria-hidden /><span className="w-14 text-xs text-muted-foreground">Visit</span><input type="date" value={settings.date} min={nycToday()} onChange={(e) => e.target.value && set("date", e.target.value)} className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-sm" /></label>
+                      <label className="flex items-center gap-3 text-sm"><CalendarDays className="size-4 text-muted-foreground" aria-hidden /><span className="w-14 text-xs text-muted-foreground">Visit</span><input type="date" value={settings.date} min={nycToday()} onChange={(e) => e.target.value && set("date", e.target.value)} className="neo-inset min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-sm bg-transparent" /></label>
                       <div className="flex items-center gap-3"><Footprints className="size-4 text-muted-foreground" aria-hidden /><span className="w-14 text-xs text-muted-foreground">Getting around</span><Segmented label="Getting around" value={settings.mode} onChange={(v) => set("mode", v)} options={(Object.keys(MODE_LABEL) as TravelMode[]).map((m) => ({ value: m, label: MODE_LABEL[m] }))} className="min-w-0 flex-1 overflow-x-auto" /></div>
                       <div className="flex items-center gap-3"><MapPin className="size-4 text-muted-foreground" aria-hidden /><span className="w-14 text-xs text-muted-foreground">Crowds</span><Segmented label="Crowds" value={settings.crowd} onChange={(v) => set("crowd", v)} options={[{ value: "avoid", label: "Avoid" }, { value: "balanced", label: "Balance" }, { value: "ignore", label: "Okay" }]} className="min-w-0 flex-1 overflow-x-auto" /></div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-xs"><label className="flex flex-col gap-1 text-muted-foreground">Start time<input type="time" value={toHHMM(settings.startMin)} onChange={(e) => { const m = toMinutes(e.target.value); if (m !== null) set("startMin", m); }} className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground" /></label><label className="flex flex-col gap-1 text-muted-foreground">Wrap up<input type="time" value={toHHMM(settings.endMin)} onChange={(e) => { const m = toMinutes(e.target.value); if (m !== null) set("endMin", m <= settings.startMin ? m + 1440 : m); }} className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground" /></label></div>
-                    <div className="space-y-2"><span className="text-xs text-muted-foreground">Food breaks</span><div className="flex gap-2">{(["lunch", "dinner"] as const).map((m) => <label key={m} className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm"><input type="checkbox" checked={settings.meals[m]} onChange={(e) => set("meals", { ...settings.meals, [m]: e.target.checked })} className="size-4 accent-(--brand)" />{m === "lunch" ? "Lunch" : "Dinner"}</label>)}</div><p className="text-[11px] text-muted-foreground">Roam finds a good time and nearby food for your route.</p></div>
-                    <div className="space-y-2"><span className="text-xs text-muted-foreground">Start from</span>{settings.origin ? <div className="flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-2 rounded-full border border-border bg-background py-1.5 pr-1.5 pl-3 text-sm"><Home className="size-3.5 text-brand" aria-hidden />{settings.origin.label}<button type="button" onClick={() => set("origin", null)} className="grid size-6 place-items-center rounded-full hover:bg-muted" aria-label="Clear starting point"><X className="size-3.5" aria-hidden /></button></span><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={settings.returnToOrigin} onChange={(e) => set("returnToOrigin", e.target.checked)} className="size-4 accent-(--brand)" />Return here</label></div> : <form suppressHydrationWarning className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void setOrigin(); }}><input suppressHydrationWarning value={originText} onChange={(e) => { setOriginText(e.target.value); setOriginError(null); }} placeholder="Hotel, address or neighborhood" aria-label="Starting point" className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand" /><Button type="submit" variant="outline" disabled={originBusy || originText.trim().length < 2}>{originBusy ? <Loader2 className="animate-spin" aria-hidden /> : "Set"}</Button></form>}{originError && <p className="text-sm text-sev-c">{originError}</p>}</div>
+                    <div className="grid grid-cols-2 gap-3 text-xs"><label className="flex flex-col gap-1 text-muted-foreground">Start time<input type="time" value={toHHMM(settings.startMin)} onChange={(e) => { const m = toMinutes(e.target.value); if (m !== null) set("startMin", m); }} className="neo-inset rounded-lg px-2.5 py-1.5 text-sm text-foreground bg-transparent" /></label><label className="flex flex-col gap-1 text-muted-foreground">Wrap up<input type="time" value={toHHMM(settings.endMin)} onChange={(e) => { const m = toMinutes(e.target.value); if (m !== null) set("endMin", m <= settings.startMin ? m + 1440 : m); }} className="neo-inset rounded-lg px-2.5 py-1.5 text-sm text-foreground bg-transparent" /></label></div>
+                    <div className="space-y-2"><span className="text-xs text-muted-foreground">Food breaks</span><div className="flex gap-2">{(["lunch", "dinner"] as const).map((m) => <label key={m} className={`neo-control flex items-center gap-2 rounded-xl px-3 py-2 text-sm cursor-pointer ${settings.meals[m] ? "neo-inset text-brand font-semibold" : ""}`}><input type="checkbox" checked={settings.meals[m]} onChange={(e) => set("meals", { ...settings.meals, [m]: e.target.checked })} className="size-4 accent-(--brand)" />{m === "lunch" ? "Lunch" : "Dinner"}</label>)}</div><p className="text-[11px] text-muted-foreground">Roam finds a good time and nearby food for your route.</p></div>
+                    <div className="space-y-2"><span className="text-xs text-muted-foreground">Start from</span>{settings.origin ? <div className="flex flex-wrap items-center gap-2"><span className="neo-raised inline-flex items-center gap-2 rounded-full py-1.5 pr-1.5 pl-3 text-sm"><Home className="size-3.5 text-brand" aria-hidden />{settings.origin.label}<button type="button" onClick={() => set("origin", null)} className="neo-control grid size-6 place-items-center rounded-full hover:bg-muted" aria-label="Clear starting point"><X className="size-3.5" aria-hidden /></button></span><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={settings.returnToOrigin} onChange={(e) => set("returnToOrigin", e.target.checked)} className="size-4 accent-(--brand)" />Return here</label></div> : <form suppressHydrationWarning className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void setOrigin(); }}><input suppressHydrationWarning value={originText} onChange={(e) => { setOriginText(e.target.value); setOriginError(null); }} placeholder="Hotel, address or neighborhood" aria-label="Starting point" className="neo-inset min-w-0 flex-1 rounded-xl px-3 py-2 text-sm outline-none bg-transparent" /><Button type="submit" variant="outline" disabled={originBusy || originText.trim().length < 2} className="neo-control">{originBusy ? <Loader2 className="animate-spin" aria-hidden /> : "Set"}</Button></form>}{originError && <p className="text-sm text-sev-c">{originError}</p>}</div>
                     <ProfileCard profile={profile} onChange={updateProfile} />
                   </div>
                 )}
@@ -1098,10 +1110,10 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
         </div>
 
         {showingPlan ? (
-          <div ref={setComposerEl} className="sticky bottom-0 z-30 border-t border-border bg-background/90 px-5 py-3 backdrop-blur-xl" />
+          <div ref={setComposerEl} className="sticky bottom-0 z-30 border-t border-border/60 bg-background/90 px-5 py-3 backdrop-blur-xl" />
         ) : (
           (stops.length > 0 || planError) && (
-            <div className="sticky bottom-0 z-30 border-t border-border bg-background/90 px-5 py-4 backdrop-blur-xl">
+            <div className="sticky bottom-0 z-30 border-t border-border/60 bg-background/90 px-5 py-4 backdrop-blur-xl">
               {planError && (
                 <p role="alert" className="mb-2 text-sm text-sev-c">
                   {planError}
@@ -1115,7 +1127,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                   void runPlan(stops, next);
                 }}
                 disabled={planning || stops.length === 0}
-                className="h-12 w-full rounded-full bg-foreground text-[15px] font-semibold text-background hover:bg-foreground/90"
+                className="neo-primary h-12 w-full rounded-xl text-[15px] font-semibold"
               >
                 {planning ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
                 {planning ? "Finding the best order…" : stops.length ? `Plan my day · ${stops.length} stop${stops.length > 1 ? "s" : ""}` : "Add a stop to start"}
@@ -1131,22 +1143,22 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
         aria-label="Resize map and itinerary panel"
         aria-orientation="vertical"
         aria-valuemin={360}
-        aria-valuemax={720}
-        aria-valuenow={panelWidth}
+        aria-valuemax={maxPanelWidth}
+        aria-valuenow={visiblePanelWidth}
         tabIndex={0}
         onPointerDown={(e) => {
-          resizeStart.current = { x: e.clientX, width: panelWidth };
+          resizeStart.current = { x: e.clientX, width: visiblePanelWidth };
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onPointerMove={(e) => {
           if (!resizeStart.current) return;
-          setPanelWidth(Math.max(360, Math.min(720, resizeStart.current.width + e.clientX - resizeStart.current.x)));
+          setPanelWidth(Math.max(360, Math.min(maxPanelWidth, resizeStart.current.width + e.clientX - resizeStart.current.x)));
         }}
         onPointerUp={() => { resizeStart.current = null; }}
         onKeyDown={(e) => {
           if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
             e.preventDefault();
-            setPanelWidth((width) => Math.max(360, Math.min(720, width + (e.key === "ArrowRight" ? 24 : -24))));
+            setPanelWidth((width) => Math.max(360, Math.min(maxPanelWidth, width + (e.key === "ArrowRight" ? 24 : -24))));
           }
         }}
         className="group hidden w-3 shrink-0 cursor-col-resize items-center justify-center bg-background transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-brand lg:order-2 lg:flex"
@@ -1154,7 +1166,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
         <span className="h-12 w-1 rounded-full bg-border transition group-hover:h-16 group-hover:bg-brand" />
       </div>
 
-      <div className="fixed top-3 left-3 z-30 rounded-full bg-card/90 py-1.5 pr-4 pl-1.5 shadow-lg ring-1 ring-foreground/5 backdrop-blur-md lg:hidden">
+      <div className="neo-raised fixed top-3 left-3 z-30 rounded-full py-1.5 pr-4 pl-1.5 lg:hidden">
         <Logo />
       </div>
       <div className="relative order-1 shrink-0 max-lg:fixed max-lg:inset-0 lg:order-3 lg:h-dvh lg:flex-1">
@@ -1181,7 +1193,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
           className="size-full"
         />
         {!showingPlan && (
-          <p className="pointer-events-none absolute top-3 left-3 rounded-full bg-card/90 max-lg:hidden px-3 py-1.5 text-xs text-muted-foreground shadow-sm backdrop-blur">
+          <p className="neo-raised pointer-events-none absolute top-3 left-3 rounded-full max-lg:hidden px-3.5 py-1.5 text-xs text-muted-foreground backdrop-blur">
             Tap a dot for photos, hours and crowds
           </p>
         )}

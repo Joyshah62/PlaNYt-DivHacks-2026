@@ -1,157 +1,497 @@
 import Link from "next/link";
-import { ArrowRight, Clock, Route, Sparkles, TrainFront, Users } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Compass,
+  Flame,
+  Footprints,
+  MapPin,
+  Train,
+  Tv,
+  Zap,
+} from "lucide-react";
 import { AmbientMapLazy } from "@/components/map/LazyMaps";
 import { LandingPrompt } from "@/components/plan/LandingPrompt";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { BRAND } from "@/lib/plan/display";
 
-const FEATURES = [
+const FEATURED_JOURNEYS = [
   {
-    icon: Users,
-    title: "Around the crowds",
-    body: "Hour-by-hour busyness from MTA subway ridership near every stop, so the Met gets your quiet morning, not the 3pm rush.",
+    id: "friends",
+    title: "The 'Friends' Greenwich Village Walk",
+    show: "Friends",
+    vibe: "Cozy & Nostalgic",
+    colorClass: "border-(--friends-purple)/30 text-(--friends-purple)",
+    accentBg: "bg-(--friends-purple)/10",
+    badgeBg: "bg-(--friends-purple)/15 text-(--friends-purple) border-(--friends-purple)/30",
+    desc: "Sip espresso on a velvet couch, photograph Monica's famous apartment facade on Bedford St, and relax by the Washington Square fountain.",
+    duration: "4.5 hrs",
+    transit: "Walking · 4 stops",
+    crowd: "Relaxed pace",
+    query: "Friends themed day in Greenwich Village: Central Perk coffee vibes, visit Monica's apartment on Bedford St, Washington Square Park fountain, and dinner at a West Village bistro.",
+    stops: [
+      { time: "9:30 AM", name: "Village Coffee on Bedford", tag: "Central Perk vibe" },
+      { time: "11:15 AM", name: "Monica's Apartment (90 Bedford St)", tag: "Iconic facade" },
+      { time: "1:30 PM", name: "Washington Square Fountain", tag: "People watching" },
+      { time: "3:45 PM", name: "Lucille Lortel Theatre & Bistro", tag: "West 4th St" },
+    ],
   },
   {
-    icon: Route,
-    title: "The best order, worked out",
-    body: "Every possible order of your stops is checked against travel time, opening hours and your end time. No zig-zagging across town.",
+    id: "seinfeld",
+    title: "The 'Seinfeld' Upper West Side Tour",
+    show: "Seinfeld",
+    vibe: "Classic NYC Comedy",
+    colorClass: "border-(--seinfeld-blue)/30 text-(--seinfeld-blue)",
+    accentBg: "bg-(--seinfeld-blue)/10",
+    badgeBg: "bg-(--seinfeld-blue)/15 text-(--seinfeld-blue) border-(--seinfeld-blue)/30",
+    desc: "Grab a big salad at Monk's Diner (Tom's Restaurant), wander Jerry's UWS stomping grounds, and stroll Central Park West.",
+    duration: "5.0 hrs",
+    transit: "1 Train & Walking · 4 stops",
+    crowd: "Brisk & lively",
+    query: "Classic Seinfeld day on the Upper West Side: Monk's Diner at Tom's Restaurant, walk Central Park West reservoir, Jerry's West 81st St neighborhood, and an evening comedy show.",
+    stops: [
+      { time: "10:00 AM", name: "Monk's Diner (Tom's Restaurant)", tag: "Big Salad & Coffee" },
+      { time: "12:15 PM", name: "Central Park West Reservoir", tag: "UWS Promenade" },
+      { time: "2:00 PM", name: "Jerry's 81st Street Block", tag: "Brownstones" },
+      { time: "4:30 PM", name: "Original Soup Kitchen & Diner", tag: "Midtown West" },
+    ],
   },
   {
-    icon: TrainFront,
-    title: "However you get around",
-    body: "Walk, bike, drive, or subway plus walking. Real street routes on OpenStreetMap, drawn on the map leg by leg.",
+    id: "himym",
+    title: "How I Met Your Mother Midtown Trail",
+    show: "HIMYM",
+    vibe: "Legendary Manhattan",
+    colorClass: "border-(--nyc-taxi)/40 text-amber-600 dark:text-amber-400",
+    accentBg: "bg-(--nyc-taxi)/10",
+    badgeBg: "bg-(--nyc-taxi)/20 text-amber-700 dark:text-amber-300 border-amber-500/35",
+    desc: "Track down the Yellow Umbrella at Central Park South, take in the Empire State view, and toast at MacLaren's booth.",
+    duration: "5.5 hrs",
+    transit: "Subway N/Q/R · 4 stops",
+    crowd: "Golden hour peak",
+    query: "How I Met Your Mother route: MacLaren's Pub booth at McGee's, Yellow Umbrella at Central Park South, Empire State Building deck, and Corner Bistro burger.",
+    stops: [
+      { time: "11:00 AM", name: "MacLaren's Pub (McGee's 55th)", tag: "The corner booth" },
+      { time: "1:15 PM", name: "Central Park South Umbrella Spot", tag: "Horse carriages" },
+      { time: "3:30 PM", name: "Empire State Building Deck", tag: "360° Sky view" },
+      { time: "6:00 PM", name: "Corner Bistro Burger Haven", tag: "Best in NYC" },
+    ],
   },
   {
-    icon: Sparkles,
-    title: "Just describe it",
-    body: "“A chill Sunday in Brooklyn, a museum and good pizza.” Gemini turns it into stops; the planner does the math.",
+    id: "skyline",
+    title: "High Line & Gotham Skyline Horizons",
+    show: "NYC Classic",
+    vibe: "Architectural & Scenic",
+    colorClass: "border-brand/30 text-brand",
+    accentBg: "bg-brand/10",
+    badgeBg: "bg-brand/15 text-brand border-brand/30",
+    desc: "Walk above the streets on the elevated High Line garden, taste through Chelsea Market, and watch dusk fall from Top of the Rock.",
+    duration: "6.0 hrs",
+    transit: "Subway & Walking · 4 stops",
+    crowd: "Scenic views",
+    query: "Plan a Saturday with Central Park, the Met, Top of the Rock and Chelsea Market. Subway and walking, 9am to 6pm.",
+    stops: [
+      { time: "9:00 AM", name: "The High Line Elevated Park", tag: "Hudson views" },
+      { time: "11:00 AM", name: "Chelsea Market Artisans", tag: "Tacos & pastries" },
+      { time: "2:15 PM", name: "Little Island at Pier 55", tag: "Floating garden" },
+      { time: "5:00 PM", name: "Top of the Rock Sunset", tag: "Empire State view" },
+    ],
   },
 ];
 
-/** An illustrative day, labelled as a sample. */
-const SAMPLE = [
-  { time: "9:00am", name: "Central Park", crowd: "Quiet", color: "var(--cat-parks)" },
-  { time: "10:45am", name: "The Met", crowd: "Moderate", color: "var(--sev-b)" },
-  { time: "1:40pm", name: "Top of the Rock", crowd: "Moderate", color: "var(--sev-b)" },
-  { time: "3:45pm", name: "Chelsea Market", crowd: "Busy", color: "var(--cat-restaurants)" },
+const NEIGHBORHOODS = [
+  {
+    name: "Greenwich Village",
+    tagline: "Cafés, comedy cellars & leafy brownstones",
+    vibe: "Bohemian Chic",
+    stops: "Central Perk · Washington Sq · Comedy Cellar",
+    query: "Plan an afternoon in Greenwich Village: visit Washington Square Park, iconic brownstone streets, comedy club, and a rustic Italian dinner.",
+  },
+  {
+    name: "SoHo & Nolita",
+    tagline: "Cast-iron architecture, indie boutiques & espresso",
+    vibe: "Design & Style",
+    stops: "Spring St · Prince St Pizza · Balthazar",
+    query: "Day in SoHo and Nolita: boutique shopping on Spring St, Prince St Pizza, cast iron architecture tour, and coffee at a corner café.",
+  },
+  {
+    name: "DUMBO & Brooklyn Bridge",
+    tagline: "Cobblestones, waterfront parks & skyline panoramas",
+    vibe: "Iconic Waterfront",
+    stops: "Jane's Carousel · Washington St · Pier 1",
+    query: "Explore DUMBO and Brooklyn Heights: walk across the Brooklyn Bridge, photo spot on Washington St, Jane's Carousel, and waterfront sunset.",
+  },
+  {
+    name: "Upper West Side",
+    tagline: "Classic pre-war elegance & Lincoln Center culture",
+    vibe: "Historic & Calm",
+    stops: "Tom's Diner · Natural History · Zabar's",
+    query: "Upper West Side culture tour: American Museum of Natural History, Zabar's bagels, Central Park Strawberry Fields, and Lincoln Center plaza.",
+  },
+  {
+    name: "Chelsea & Meatpacking",
+    tagline: "Contemporary art galleries, High Line & Hudson sunsets",
+    vibe: "Modern Urban",
+    stops: "High Line · Chelsea Market · Whitney Museum",
+    query: "Art and dining in Chelsea: Whitney Museum of American Art, High Line walk, Chelsea Market lunch, and Little Island sunset.",
+  },
+  {
+    name: "Midtown & Broadway",
+    tagline: "Neon marquees, art deco towers & Grand Central",
+    vibe: "Electrifying Heart",
+    stops: "Rockefeller Center · Bryant Park · Grand Central",
+    query: "Midtown Manhattan highlights: Grand Central Terminal whispering gallery, Bryant Park library, Top of the Rock, and Broadway theater.",
+  },
+];
+
+const INTELLIGENCE_FEATURES = [
+  {
+    icon: Train,
+    title: "MTA Subway Live Intelligence",
+    desc: "Real-time frequency tracking and delay avoidance. Automatically suggests cross-town walking when the 1 or A train is held.",
+  },
+  {
+    icon: Flame,
+    title: "Neighborhood Rhythm & Crowd Flow",
+    desc: "Predictive crowd curves tell you when Central Park or the Met are calmest, versus when Chelsea Market is buzzing with lunch energy.",
+  },
+  {
+    icon: Zap,
+    title: "Adaptive Live Timeline",
+    desc: "Linger 20 minutes longer at coffee or duck inside for sudden Hudson showers. Your schedule re-balances with a single tap.",
+  },
+];
+
+const SITCOM_TAGS = [
+  { label: "Central Perk Couch", show: "Friends" },
+  { label: "Monica's 90 Bedford St", show: "Friends" },
+  { label: "Monk's Diner", show: "Seinfeld" },
+  { label: "Jerry's 81st Block", show: "Seinfeld" },
+  { label: "MacLaren's Pub", show: "HIMYM" },
+  { label: "Yellow Umbrella Corner", show: "HIMYM" },
+  { label: "Top of the Rock", show: "Skyline" },
 ];
 
 export default function Home() {
   return (
-    <div className="flex min-h-dvh flex-col">
-      <section className="relative isolate flex min-h-[92dvh] flex-col overflow-hidden border-b border-border">
-        <div className="absolute inset-0 -z-20">
-          <AmbientMapLazy className="size-full" />
-        </div>
-        {/* Wash the map toward the page on the reading side so type stays crisp. */}
-        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-background via-background/90 to-background/5 max-lg:via-background/80 max-lg:to-background/60" />
+    <main className="neo-home relative isolate flex min-h-dvh w-full flex-col overflow-x-clip">
+      {/* 3D Satellite backdrop of Manhattan with real OSM buildings & terrain, slowly rotating */}
+      <div className="fixed inset-0 -z-20">
+        <AmbientMapLazy className="size-full" />
+      </div>
 
-        <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
-          <Link href="/" className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
-            <span aria-hidden className="grid size-8 place-items-center rounded-lg bg-foreground font-display text-xl text-background">
-              {BRAND.name[0]}
+      {/* Clean architectural ambient map wash: lets the real satellite photograph shine through cleanly */}
+      <div aria-hidden className="neo-map-wash pointer-events-none fixed inset-0 -z-10" />
+
+      {/* Main Header Bar - Full Width with Uniform Padding */}
+      <header className="flex w-full items-center justify-between gap-4 px-6 sm:px-10 lg:px-14 xl:px-16 2xl:px-20 py-5">
+        <Link
+          href="/"
+          aria-label={`${BRAND.name} ${BRAND.suffix} home`}
+          className="flex items-center gap-3 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
+        >
+          <span className="neo-raised grid size-11 place-items-center rounded-2xl shadow-sm">
+            <Compass className="size-5 text-brand" aria-hidden />
+          </span>
+          <div>
+            <span className="text-xl font-extrabold tracking-tight">
+              {BRAND.name}
+              <span className="ml-1.5 font-normal text-muted-foreground">{BRAND.suffix}</span>
             </span>
-            {BRAND.name} <span className="-ml-1 font-display text-lg font-normal text-muted-foreground italic">{BRAND.suffix}</span>
-          </Link>
-          <nav className="flex items-center gap-1 text-sm">
-            <a href="#how" className="rounded-full px-3 py-1.5 text-muted-foreground transition hover:bg-card/80 hover:text-foreground">
-              How it works
-            </a>
-            <Link href="/plan" className="rounded-full bg-foreground px-4 py-1.5 font-medium text-background transition hover:bg-foreground/85">
-              Open planner
-            </Link>
-          </nav>
-        </header>
-
-        <div className="mx-auto grid w-full max-w-7xl flex-1 items-center gap-12 px-5 pt-6 pb-20 sm:px-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-          <div className="max-w-2xl">
-            <p className="animate-rise inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
-              <span className="size-1.5 rounded-full bg-brand" /> Free · Built on MTA ridership and OpenStreetMap
-            </p>
-            <h1
-              className="animate-rise mt-6 font-display text-[3.4rem] leading-[0.95] tracking-tight text-balance sm:text-7xl lg:text-[5.6rem]"
-              style={{ "--delay": "60ms" } as React.CSSProperties}
-            >
-              See New York, <em className="text-brand">not</em> the crowds.
-            </h1>
-            <p className="animate-rise mt-6 max-w-lg text-lg leading-relaxed text-muted-foreground" style={{ "--delay": "120ms" } as React.CSSProperties}>
-              Tell us what you want to see. We put it in the right order and at the right times: less travel, fewer lines, nothing closed when you arrive.
-            </p>
-            <div className="animate-rise mt-9 max-w-xl" style={{ "--delay": "180ms" } as React.CSSProperties}>
-              <LandingPrompt />
-            </div>
-            <p className="animate-rise mt-4 text-sm text-muted-foreground" style={{ "--delay": "240ms" } as React.CSSProperties}>
-              Rather pick spots yourself?{" "}
-              <Link href="/plan" className="font-medium text-foreground underline-offset-4 hover:underline">
-                Browse 40+ places on the map
-              </Link>
+            <p className="hidden text-[10px] font-semibold tracking-wider text-muted-foreground uppercase sm:block">
+              New York Urban Explorer
             </p>
           </div>
+        </Link>
 
-          <div className="relative hidden lg:block" aria-hidden>
-            <div
-              className="animate-rise ml-auto w-80 rounded-3xl bg-card/90 p-5 shadow-2xl ring-1 ring-foreground/8 backdrop-blur-xl"
-              style={{ "--delay": "300ms" } as React.CSSProperties}
+        {/* Theme and Planner CTA Controls */}
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+
+          <Link
+            href="/plan"
+            className="neo-primary inline-flex min-h-11 items-center gap-2 rounded-xl px-5 py-2 text-sm font-bold shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span>Open Planner</span>
+            <ArrowUpRight className="size-4" aria-hidden />
+          </Link>
+        </div>
+      </header>
+
+      {/* Full-Canvas 2-Column Hero Stage - Fills Viewport Height and Width */}
+      <section
+        aria-labelledby="home-title"
+        className="w-full flex-1 flex items-center px-6 sm:px-10 lg:px-14 xl:px-16 2xl:px-20 py-6 lg:py-10"
+      >
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 xl:gap-16 items-center">
+          {/* Left Column: Rich Brand Information & Real-Time City Context */}
+          <div className="lg:col-span-6 flex flex-col items-start text-left space-y-6">
+            {/* Striking Bold Headline with Display Typography */}
+            <h1
+              id="home-title"
+              className="text-[clamp(2.9rem,5.8vw,5.25rem)] leading-[1.03] font-extrabold tracking-[-0.04em]"
             >
-              <p className="text-xs text-muted-foreground">Saturday · subway + walk</p>
-              <p className="mt-1 font-display text-4xl leading-none">9am – 6pm</p>
-              <ol className="mt-5 space-y-3">
-                {SAMPLE.map((s, i) => (
-                  <li key={s.name} className="flex items-center gap-3">
-                    <span className="grid size-6 place-items-center rounded-full bg-foreground text-xs font-semibold text-background">{i + 1}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium">{s.name}</span>
-                      <span className="text-xs text-muted-foreground">{s.time}</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: s.color }}>
-                      <span className="size-2 rounded-full" style={{ background: s.color }} />
-                      {s.crowd}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-              <p className="mt-5 flex items-center gap-2 rounded-xl bg-brand-soft px-3 py-2 text-xs">
-                <Clock className="size-3.5 text-brand" /> Saves 1h 17m of travel vs. the order you added them
-              </p>
+              Your day.<br />
+              <span className="bg-gradient-to-r from-brand via-amber-500 to-orange-500 bg-clip-text text-transparent">
+                Your New York.
+              </span>
+            </h1>
+
+            {/* Expansive Narrative Text */}
+            <p className="text-base sm:text-lg leading-relaxed text-muted-foreground max-w-2xl font-normal">
+              From Central Perk velvet couches in Greenwich Village to golden hour views from Top of the Rock.
+              Roam turns your ideas into effortless New York itineraries with live MTA transit logic and crowd-flow intelligence.
+            </p>
+
+            {/* 3 City Intelligence Feature Cards */}
+            <div className="grid grid-cols-3 gap-3 w-full pt-1">
+              <div className="neo-raised rounded-2xl p-3.5 border">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-brand">
+                  <Train className="size-3.5" aria-hidden /> Live MTA
+                </span>
+                <p className="mt-1 text-[11px] text-muted-foreground leading-tight">
+                  Real subway frequencies & delay bypasses
+                </p>
+              </div>
+
+              <div className="neo-raised rounded-2xl p-3.5 border">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-amber-500">
+                  <Flame className="size-3.5" aria-hidden /> Crowd Flow
+                </span>
+                <p className="mt-1 text-[11px] text-muted-foreground leading-tight">
+                  Avoid long lines with quiet-hour timing
+                </p>
+              </div>
+
+              <div className="neo-raised rounded-2xl p-3.5 border">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-500">
+                  <Zap className="size-3.5" aria-hidden /> Adaptive
+                </span>
+                <p className="mt-1 text-[11px] text-muted-foreground leading-tight">
+                  Instant re-route for rain or extra coffee
+                </p>
+              </div>
             </div>
-            <p className="mt-3 mr-2 text-right text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Sample day</p>
+
+            {/* Sitcom & Landmark Quick Badges */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-xs font-bold text-muted-foreground mr-1">Iconic spots:</span>
+              {SITCOM_TAGS.map((tag) => (
+                <span
+                  key={tag.label}
+                  className="neo-inset rounded-lg px-2.5 py-1 text-[11px] font-medium text-foreground/80"
+                >
+                  {tag.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Column: Expansive Prompt Box with Proper Preset Buttons */}
+          <div className="lg:col-span-6 w-full">
+            <LandingPrompt />
           </div>
         </div>
       </section>
 
-      <section id="how" className="mx-auto w-full max-w-7xl scroll-mt-8 px-5 py-20 sm:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <h2 className="max-w-xl font-display text-4xl leading-tight tracking-tight text-balance sm:text-5xl">
-            A day planned like a local would plan it.
-          </h2>
-          <ol className="flex flex-wrap gap-2 text-sm">
-            {["Pick or describe", "Choose how you'll travel", "Get your day"].map((step, i) => (
-              <li key={step} className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">
-                <span className="grid size-5 place-items-center rounded-full bg-foreground text-[11px] font-semibold text-background">{i + 1}</span>
-                {step}
-                {i < 2 && <ArrowRight className="size-3.5 text-muted-foreground" aria-hidden />}
-              </li>
-            ))}
-          </ol>
-        </div>
-        <div className="mt-12 grid gap-px overflow-hidden rounded-3xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURES.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="bg-card p-6">
-              <span className="grid size-10 place-items-center rounded-xl bg-brand-soft text-brand">
-                <Icon className="size-5" aria-hidden />
-              </span>
-              <h3 className="mt-5 font-display text-2xl leading-tight">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
+      {/* Featured Sitcom & Classic Journeys Grid - Full Width Canvas */}
+      <section
+        aria-label="Featured NYC Sitcom & Iconic Journeys"
+        className="w-full px-6 sm:px-10 lg:px-14 xl:px-16 2xl:px-20 py-12"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-8">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-brand uppercase">
+              <Tv className="size-3.5" aria-hidden />
+              <span>Curated Experiences</span>
             </div>
+            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+              Walk Through Iconic NYC Moments
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground max-w-xl">
+              Step into the world of legendary New York sitcoms or classic skyline landmarks, fully mapped with realistic transit times.
+            </p>
+          </div>
+
+          <Link
+            href="/plan"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline"
+          >
+            <span>Custom route planner</span>
+            <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
+        </div>
+
+        {/* 4 Multi-Column Journey Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {FEATURED_JOURNEYS.map((journey) => (
+            <article
+              key={journey.id}
+              className="neo-card flex flex-col justify-between rounded-3xl p-6 sm:p-7 border transition-all duration-300"
+            >
+              <div>
+                {/* Header row */}
+                <div className="flex items-start justify-between gap-3">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${journey.badgeBg}`}
+                  >
+                    <span>{journey.show}</span>
+                    <span className="opacity-60">·</span>
+                    <span className="font-normal">{journey.vibe}</span>
+                  </span>
+
+                  <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                    {journey.duration}
+                  </span>
+                </div>
+
+                <h3 className="mt-3.5 text-xl font-bold tracking-tight">{journey.title}</h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                  {journey.desc}
+                </p>
+
+                {/* Stops Timeline */}
+                <div className="mt-5 space-y-2.5 rounded-2xl border border-border/50 bg-background/40 p-3.5 backdrop-blur-sm">
+                  {journey.stops.map((stop, i) => (
+                    <div key={stop.name} className="flex items-center justify-between text-xs gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="neo-inset grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-brand">
+                          {i + 1}
+                        </span>
+                        <span className="font-medium truncate">{stop.name}</span>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">
+                        {stop.time}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card Footer CTA */}
+              <div className="mt-6 flex items-center justify-between pt-3 border-t border-border/40">
+                <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Footprints className="size-3.5 text-brand" aria-hidden />
+                  <span>{journey.transit}</span>
+                </span>
+
+                <Link
+                  href={{ pathname: "/plan", query: { q: journey.query } }}
+                  className="group inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-brand transition-all hover:bg-brand/10"
+                >
+                  <span>Explore this Day</span>
+                  <ArrowRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
+                </Link>
+              </div>
+            </article>
           ))}
         </div>
       </section>
 
-      <footer className="mt-auto border-t border-border">
-        <div className="mx-auto max-w-7xl px-5 py-8 text-xs leading-relaxed text-muted-foreground sm:px-8">
-          Built on open data: MTA Subway Hourly Ridership (data.ny.gov), OpenStreetMap, OSRM routing, Nominatim, NYC Planning GeoSearch and
-          OpenFreeMap tiles. Crowd levels describe the area around a place, not the line inside it. Opening hours are typical; check before you go.
+      {/* Neighborhood Spotlight Carousel / Grid - Full Width Canvas */}
+      <section
+        aria-label="New York Neighborhood Explorer"
+        className="w-full px-6 sm:px-10 lg:px-14 xl:px-16 2xl:px-20 py-12"
+      >
+        <div className="mb-6">
+          <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-brand uppercase">
+            <MapPin className="size-3.5" aria-hidden />
+            <span>Boroughs & Neighborhoods</span>
+          </div>
+          <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+            Choose Your Corner of the City
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Each enclave has its own personality, café culture, and transit connections.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {NEIGHBORHOODS.map((hood) => (
+            <Link
+              key={hood.name}
+              href={{ pathname: "/plan", query: { q: hood.query } }}
+              className="neo-raised group flex flex-col justify-between rounded-2xl p-5 transition-all duration-200 hover:-translate-y-1"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-brand">{hood.vibe}</span>
+                  <ArrowUpRight className="size-4 text-muted-foreground transition-transform duration-200 group-hover:text-brand group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
+                </div>
+                <h3 className="mt-2 text-base font-bold tracking-tight">{hood.name}</h3>
+                <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                  {hood.tagline}
+                </p>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-border/40 text-[11px] text-muted-foreground truncate">
+                <span className="font-semibold text-foreground/80">Highlights: </span>
+                <span>{hood.stops}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Urban Intelligence Features Section - Full Width Canvas */}
+      <section
+        aria-labelledby="features-title"
+        className="w-full px-6 sm:px-10 lg:px-14 xl:px-16 2xl:px-20 py-12"
+      >
+        <div className="neo-raised rounded-3xl p-6 sm:p-10 border">
+          <div className="max-w-2xl">
+            <h2 id="features-title" className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Engineered for the Real NYC
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Most map apps pretend trains always run on time and museums never have lines.
+              {BRAND.name} is powered by live MTA schedules, walking times, and density trends.
+            </p>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            {INTELLIGENCE_FEATURES.map((feat) => {
+              const Icon = feat.icon;
+              return (
+                <div key={feat.title} className="flex flex-col gap-3">
+                  <span className="neo-inset grid size-10 place-items-center rounded-xl text-brand">
+                    <Icon className="size-5" aria-hidden />
+                  </span>
+                  <h3 className="text-base font-semibold">{feat.title}</h3>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {feat.desc}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Modern Footer - Full Width Canvas */}
+      <footer id="how" className="w-full px-6 sm:px-10 lg:px-14 xl:px-16 2xl:px-20 pb-8 pt-4">
+        <div className="neo-raised rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 border">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="neo-inset grid size-8 place-items-center rounded-xl">
+                <Compass className="size-4 text-brand" aria-hidden />
+              </span>
+              <span className="font-bold tracking-tight">
+                {BRAND.name} <span className="font-normal text-muted-foreground">{BRAND.suffix}</span>
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground max-w-md">
+              Adaptive New York itineraries tailored for sitcom fans, culture explorers, and weekend wanderers.
+              Live MTA GTFS alerts & 3D OpenStreetMap tiles.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-muted-foreground">
+            <Link href="/plan" className="hover:text-brand transition-colors">Planner</Link>
+            <a href="#home-title" className="hover:text-brand transition-colors">Back to top</a>
+            <span className="text-[11px] opacity-60">© {new Date().getFullYear()} {BRAND.name}</span>
+          </div>
         </div>
       </footer>
-    </div>
+    </main>
   );
 }

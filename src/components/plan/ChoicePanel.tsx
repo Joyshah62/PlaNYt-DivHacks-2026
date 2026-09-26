@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, MapPin, Sparkles, Star, UtensilsCrossed, ArrowRight, ArrowLeft } from "lucide-react";
+import { AlertTriangle, Check, MapPin, Star, UtensilsCrossed, ArrowRight, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { bestOutcome } from "@/lib/plan/choices";
 import { CROWD_COLOR, CROWD_LABEL } from "@/lib/plan/display";
@@ -122,12 +122,12 @@ function ChoiceGroup({
   // "Wherever you are" never costs a detour, so it would always win; compare real places.
   const best = outcomes ? bestOutcome(outcomes.filter((o) => o.key !== null)) : null;
   const mealStop = choice.meal ? plan.stops.find((s) => s.meal === choice.meal) : undefined;
-  const Icon = choice.kind === "meal" ? UtensilsCrossed : Sparkles;
+  const Icon = choice.kind === "meal" ? UtensilsCrossed : MapPin;
   const foodTypes = useMemo(() => ["All nearby", ...new Set(choice.options.map((o) => o.why.split("·")[0].trim()).filter(Boolean))], [choice.options]);
   const visibleOptions = choice.kind === "meal" && foodFilter !== "All nearby" ? options.filter((o) => !o || o.why.split("·")[0].trim() === foodFilter) : options;
 
   return (
-    <section className={`rounded-2xl border border-border bg-card p-3 ${choice.kind === "meal" ? "overflow-hidden" : ""}`} aria-label={`Options for ${choice.title}`}>
+    <section className={`neo-raised rounded-2xl p-3.5 ${choice.kind === "meal" ? "overflow-hidden" : ""}`} aria-label={`Options for ${choice.title}`}>
       <h3 className="flex items-baseline gap-2 px-1 pb-2 text-sm font-semibold">
         <Icon className="size-3.5 shrink-0 translate-y-0.5 text-brand" aria-hidden />
         <span>
@@ -139,11 +139,11 @@ function ChoiceGroup({
       {choice.kind === "meal" && <>
         <p className="px-1 pb-3 text-xs leading-relaxed text-muted-foreground">Pick a bite near your route. Swipe to browse, then see how each option changes your day.</p>
         <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]" aria-label="Filter nearby food">
-          {foodTypes.map((type) => <button key={type} type="button" aria-pressed={foodFilter === type} onClick={() => setFoodFilter(type)} className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition ${foodFilter === type ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}>{type}</button>)}
+          {foodTypes.map((type) => <button key={type} type="button" aria-pressed={foodFilter === type} onClick={() => setFoodFilter(type)} className={`neo-control shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition ${foodFilter === type ? "neo-inset text-brand font-semibold" : ""}`}>{type}</button>)}
         </div>
       </>}
       {choice.kind === "meal" && <div className="mb-2 flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground"><ArrowLeft className="size-3" aria-hidden /> Swipe to explore <ArrowRight className="size-3" aria-hidden /></div>}
-      <ul className={choice.kind === "meal" ? "-mx-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:thin]" : "space-y-1.5"}>
+      <ul className={choice.kind === "meal" ? "-mx-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:thin]" : "space-y-2"}>
         {visibleOptions.map((option) => {
           const key = option?.key ?? null;
           const selected = key === choice.currentKey;
@@ -158,8 +158,8 @@ function ChoiceGroup({
                 aria-pressed={selected}
                 onClick={() => onPick(choice, option)}
                 className={cn(
-                  choice.kind === "meal" ? "group flex h-full w-[235px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border text-left transition" : "flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition",
-                  selected ? "border-brand bg-brand-soft/60" : "border-transparent bg-muted/40 hover:border-foreground/15 hover:bg-muted/70",
+                  choice.kind === "meal" ? "group neo-card flex h-full w-[235px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl text-left" : "neo-control flex w-full items-start gap-3 rounded-xl px-3.5 py-2.5 text-left",
+                  selected && "border-brand/50 ring-1 ring-brand/30",
                   (busy || noRoom) && !selected && "cursor-not-allowed opacity-60",
                 )}
               >

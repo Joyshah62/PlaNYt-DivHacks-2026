@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2, MapPin, Plus, Search, Sparkles } from "lucide-react";
+import { Check, Loader2, MapPin, Plus, Search } from "lucide-react";
 import { ATTRACTIONS, KIND_LABELS, searchAttractions, type Attraction, type AttractionKind } from "@/lib/plan/attractions";
 import { KIND_COLOR } from "@/lib/plan/display";
 import type { StopInput } from "@/lib/plan/types";
@@ -76,12 +76,12 @@ export function StopPicker({
           }}
           placeholder="Search a place, restaurant or address"
           aria-label="Search for a place to add"
-          className="w-full rounded-full border border-border bg-card py-2.5 pr-4 pl-10 text-sm shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-brand focus:ring-4 focus:ring-brand/10"
+          className="neo-inset w-full rounded-full py-2.5 pr-4 pl-10 text-sm outline-none focus:outline-none focus:ring-0 bg-transparent caret-brand transition placeholder:text-muted-foreground"
         />
       </form>
 
       {query.trim().length >= 2 && (
-        <ul className="mt-2 overflow-hidden rounded-2xl border border-border bg-popover text-sm shadow-sm">
+        <ul className="neo-raised mt-2 overflow-hidden rounded-2xl text-sm">
           {matches.map((a) => (
             <li key={a.id}>
               <button
@@ -121,13 +121,11 @@ export function StopPicker({
 
       {suggestions.length > 0 && (
         <div className="mt-5">
-          <h3 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            <Sparkles className="size-3.5 text-brand" aria-hidden /> Picked for you
-          </h3>
+          <h3 className="text-xs font-semibold tracking-wide text-muted-foreground">Matches your preferences</h3>
           <ul className="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
             {suggestions.map((a) => (
               <li key={a.id} className="w-40 shrink-0">
-                <div className="flex h-full flex-col rounded-2xl border border-brand/25 bg-brand-soft/50 p-3">
+                <div className="neo-raised flex h-full flex-col rounded-2xl p-3 border-brand/20">
                   <button type="button" onClick={() => onInspect(a)} aria-haspopup="dialog" className="text-left">
                     <span className="block text-sm leading-snug font-medium hover:text-brand">{a.name}</span>
                     <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -159,8 +157,8 @@ export function StopPicker({
             aria-checked={kind === k}
             onClick={() => setKind(k)}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition",
-              kind === k ? "border-foreground bg-foreground text-background" : "border-border bg-card text-muted-foreground hover:text-foreground",
+              "neo-control inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
+              kind === k && "neo-inset text-brand font-semibold",
             )}
           >
             {k !== "all" && <span className="size-1.5 rounded-full" style={{ background: KIND_COLOR[k] }} aria-hidden />}
@@ -169,15 +167,15 @@ export function StopPicker({
         ))}
       </div>
 
-      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+      <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
         {list.map((a) => {
           const on = chosen.has(a.id);
           return (
             <li key={a.id}>
               <div
                 className={cn(
-                  "flex h-full w-full items-start gap-3 rounded-2xl border p-3 transition",
-                  on ? "border-brand bg-brand-soft" : "border-border bg-card hover:border-foreground/20",
+                  "neo-card flex h-full w-full items-start gap-3 rounded-2xl p-3 transition-all duration-200",
+                  on && "border-brand/40 ring-1 ring-brand/30",
                 )}
               >
                 <button
@@ -188,7 +186,7 @@ export function StopPicker({
                   onClick={() => onToggle(a)}
                   className={cn(
                     "mt-0.5 grid size-7 shrink-0 place-items-center rounded-full transition disabled:opacity-45",
-                    on ? "bg-brand text-on-color" : "bg-muted text-muted-foreground hover:bg-foreground hover:text-background",
+                    on ? "neo-primary" : "neo-control text-muted-foreground",
                   )}
                 >
                   {on ? <Check className="size-3.5" aria-hidden /> : <Plus className="size-3.5" aria-hidden />}

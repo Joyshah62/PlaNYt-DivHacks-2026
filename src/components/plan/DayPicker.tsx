@@ -140,9 +140,11 @@ export function DayPicker({
               onClick={() => !isSelected && onPickDate(day)}
               title={outcome?.closed.length ? `Closed: ${outcome.closed.join(", ")}` : undefined}
               className={cn(
-                "relative flex w-[4.4rem] shrink-0 snap-start flex-col items-center rounded-2xl border px-1 pt-2 pb-2.5 transition",
-                isSelected ? "border-foreground bg-foreground text-background shadow-lg" : "border-border bg-card hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-md",
-                isBest && !isSelected && "border-sev-b ring-2 ring-sev-b/25",
+                "relative flex w-[4.4rem] shrink-0 snap-start flex-col items-center rounded-2xl px-1 pt-2 pb-2.5 transition-all duration-200",
+                isSelected
+                  ? "neo-control neo-inset text-brand font-semibold shadow-xs"
+                  : "neo-control hover:-translate-y-0.5",
+                isBest && !isSelected && "ring-2 ring-sev-b/40",
               )}
             >
               {isBest && (

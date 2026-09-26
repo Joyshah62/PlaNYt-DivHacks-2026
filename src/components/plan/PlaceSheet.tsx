@@ -117,7 +117,7 @@ export function PlaceSheet({
       <section
         role="dialog"
         aria-label={place.name}
-        className="animate-rise fixed inset-x-0 bottom-0 z-50 max-h-[82dvh] overflow-y-auto rounded-t-3xl bg-card shadow-2xl ring-1 ring-foreground/8 lg:absolute lg:inset-x-auto lg:top-4 lg:bottom-auto lg:left-4 lg:max-h-[calc(100%-2rem)] lg:w-[380px] lg:rounded-3xl"
+        className="animate-rise neo-raised-lg fixed inset-x-0 bottom-0 z-50 max-h-[82dvh] overflow-y-auto rounded-t-3xl lg:absolute lg:inset-x-auto lg:top-4 lg:bottom-auto lg:left-4 lg:max-h-[calc(100%-2rem)] lg:w-[min(380px,calc(100vw_-_2rem))] lg:rounded-3xl"
         style={{ "--delay": "0ms" } as React.CSSProperties}
       >
         <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted lg:rounded-t-3xl">
@@ -199,7 +199,7 @@ export function PlaceSheet({
               disabled={!inDay && full}
               className={cn(
                 "h-10 flex-1 rounded-full text-sm font-semibold",
-                inDay ? "bg-muted text-foreground hover:bg-muted/70" : "bg-brand text-on-color hover:bg-brand/90",
+                inDay ? "neo-control neo-inset text-brand" : "neo-primary",
               )}
             >
               {inDay ? <Check aria-hidden /> : <Plus aria-hidden />}
@@ -209,7 +209,7 @@ export function PlaceSheet({
               href={mapsDirections(place)}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-medium transition hover:bg-muted"
+              className="neo-control inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition"
             >
               <Navigation className="size-4" aria-hidden /> Directions
             </a>

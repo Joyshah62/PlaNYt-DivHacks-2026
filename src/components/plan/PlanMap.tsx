@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AttributionControl, LngLatBounds, Map as MapLibre, Marker, NavigationControl, Popup, type GeoJSONSource } from "maplibre-gl";
-import { Box, Flame, Pause, Play, RotateCcw } from "lucide-react";
+import { Box, Crosshair, Flame, Pause, Play, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { STYLES, ensureWorker, prefersReducedMotion, resolveColors, resolveMissingStyleImages, useDarkScheme } from "@/components/map/mapStyle";
+import { MapThemeSwitcher } from "@/components/map/MapThemeSwitcher";
+import { STYLES, ensureWorker, prefersReducedMotion, resolveColors, resolveMissingStyleImages, useDarkScheme, useMapTheme } from "@/components/map/mapStyle";
 import { ATTRACTIONS } from "@/lib/plan/attractions";
 import { positionAt, type Timeline } from "@/lib/plan/playback";
-import { clock, nycNowMin, nycToday, weekdayOf, WEEKDAYS } from "@/lib/plan/time";
+import { clock, nycToday, weekdayOf, WEEKDAYS } from "@/lib/plan/time";
 import type { LegMode, PointLabel } from "@/lib/plan/types";
 
 export interface MapStop {
@@ -74,12 +75,7 @@ function heatWeight(t: number): unknown {
   return ["+", ["*", 1 - f, ["get", `h${h}`]], ["*", f, ["get", `h${(h + 1) % 24}`]]];
 }
 
-/** Station column colour, from the same quiet-to-packed ramp as the heatmap legend. */
-function columnColor(level: unknown): unknown {
-  return ["interpolate", ["linear"], level, 0, "#38bdf8", 0.3, "#818cf8", 0.5, "#facc15", 0.72, "#f97316", 1, "#ef4444"];
-}
-
-/** A small hexagon around a station, for its 3D ridership column. */
+/** A small hexagon around a station. */
 function hexagon(lon: number, lat: number, meters = 55): [number, number][] {
   const dLat = meters / 111_320;
   const dLon = meters / (111_320 * Math.cos((lat * Math.PI) / 180));
@@ -122,6 +118,68 @@ export function PlanMap(props: PlanMapProps) {
   const camera = useRef<{ last: [number, number] | null; bearing: number; from: number }>({ last: null, bearing: 0, from: 0 });
   const latest = useRef(props);
   const dark = useDarkScheme();
+
+  const userMarker = useRef<Marker | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<string | null>(null);
+
+  function handleLocateMe() {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setLocationStatus("Geolocation not supported by your browser");
+      setTimeout(() => setLocationStatus(null), 3500);
+      return;
+    }
+    setLocating(true);
+    setLocationStatus("Finding your location…");
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lng = pos.coords.longitude;
+        const lat = pos.coords.latitude;
+        setUserLocation([lng, lat]);
+        setLocating(false);
+        setLocationStatus("Location found!");
+
+        const map = mapRef.current;
+        if (!map) return;
+
+        if (!userMarker.current) {
+          const el = document.createElement("div");
+          el.className = "relative flex size-6 items-center justify-center pointer-events-none";
+          el.innerHTML = `
+            <span class="absolute size-10 rounded-full bg-blue-500/25 animate-ping"></span>
+            <span class="absolute size-7 rounded-full bg-blue-500/35"></span>
+            <span class="size-4 rounded-full bg-blue-600 border-2 border-white shadow-lg"></span>
+          `;
+          const popup = new Popup({ offset: 12, closeButton: false }).setHTML(
+            '<div class="px-2 py-1 text-xs font-bold text-blue-600 dark:text-blue-400">You are here</div>'
+          );
+          userMarker.current = new Marker({ element: el })
+            .setLngLat([lng, lat])
+            .setPopup(popup)
+            .addTo(map);
+        } else {
+          userMarker.current.setLngLat([lng, lat]);
+        }
+
+        map.flyTo({
+          center: [lng, lat],
+          zoom: Math.max(map.getZoom(), 14.5),
+          duration: 1200,
+        });
+
+        setTimeout(() => setLocationStatus(null), 3500);
+      },
+      (err) => {
+        setLocating(false);
+        const msg = err.code === 1 ? "Location permission denied" : "Unable to acquire GPS location";
+        setLocationStatus(msg);
+        setTimeout(() => setLocationStatus(null), 3500);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  }
 
   const timeline = props.player?.timeline ?? null;
   // Playback state belongs to one timeline; a new plan starts it over.
@@ -250,6 +308,10 @@ export function PlanMap(props: PlanMapProps) {
     map.fitBounds(bounds, { padding, maxZoom: 15.5, duration });
   }
 
+  const [mapTheme] = useMapTheme();
+  const activeStyleKey = mapTheme || (dark ? "night" : "day");
+  const activeStyle = STYLES[activeStyleKey] ?? (dark ? STYLES.night : STYLES.day);
+
   const pinCardRef = useRef<Popup | null>(null);
 
   useEffect(() => {
@@ -257,7 +319,7 @@ export function PlanMap(props: PlanMapProps) {
     ensureWorker();
     const map = new MapLibre({
       container: container.current,
-      style: dark ? STYLES.dark : STYLES.light,
+      style: activeStyle,
       center: [-73.985, 40.742],
       zoom: 11.6,
       minZoom: 9.5,
@@ -277,66 +339,88 @@ export function PlanMap(props: PlanMapProps) {
       readyRef.current = false;
       colors.current = resolveColors();
       const c = colors.current;
-      if (map.getLayer("background")) map.setPaintProperty("background", "background-color", c["--background"]);
+      if (activeStyleKey === "night" && map.getLayer("background")) {
+        map.setPaintProperty("background", "background-color", c["--background"]);
+      }
 
       // The city's pulse: where people are, hour by hour, under everything else.
-      map.addSource("heat", { type: "geojson", data: EMPTY });
-      map.addLayer({
-        id: "heat",
-        type: "heatmap",
-        source: "heat",
-        layout: { visibility: "none" },
-        paint: {
-          "heatmap-weight": heatWeight(12 * 60) as never,
-          "heatmap-radius": ["interpolate", ["exponential", 1.6], ["zoom"], 10, 14, 13, 38, 16, 110],
-          "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 1.4, 15, 2.2],
-          "heatmap-opacity": 0.8,
-          "heatmap-color": [
-            "interpolate",
-            ["linear"],
-            ["heatmap-density"],
-            0, "rgba(0,0,0,0)",
-            0.1, "rgba(56,189,248,0.28)",
-            0.3, "rgba(129,140,248,0.5)",
-            0.5, "rgba(250,204,21,0.6)",
-            0.72, "rgba(249,115,22,0.72)",
-            1, "rgba(239,68,68,0.85)",
-          ],
-        },
-      });
+      if (!map.getSource("heat")) {
+        map.addSource("heat", { type: "geojson", data: EMPTY });
+      }
+      if (!map.getLayer("heat")) {
+        map.addLayer({
+          id: "heat",
+          type: "heatmap",
+          source: "heat",
+          layout: { visibility: "none" },
+          paint: {
+            "heatmap-weight": heatWeight(12 * 60) as never,
+            "heatmap-radius": ["interpolate", ["exponential", 1.6], ["zoom"], 10, 14, 13, 38, 16, 110],
+            "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 1.4, 15, 2.2],
+            "heatmap-opacity": 0.8,
+            "heatmap-color": [
+              "interpolate",
+              ["linear"],
+              ["heatmap-density"],
+              0, "rgba(0,0,0,0)",
+              0.1, "rgba(56,189,248,0.28)",
+              0.3, "rgba(129,140,248,0.5)",
+              0.5, "rgba(250,204,21,0.6)",
+              0.72, "rgba(249,115,22,0.72)",
+              1, "rgba(239,68,68,0.85)",
+            ],
+          },
+        });
+      }
 
-      // 3D: the city's real buildings, and each subway station as a column of riders.
-      map.addLayer({
-        id: "buildings-3d",
-        type: "fill-extrusion",
-        source: "openmaptiles",
-        "source-layer": "building",
-        minzoom: 12,
-        layout: { visibility: "none" },
-        paint: {
-          "fill-extrusion-color": c["--muted"],
-          "fill-extrusion-height": ["coalesce", ["get", "render_height"], 10],
-          "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-          "fill-extrusion-opacity": 0.82,
-        },
-      });
-      map.addSource("columns", { type: "geojson", data: EMPTY });
-      map.addLayer({
-        id: "columns",
-        type: "fill-extrusion",
-        source: "columns",
-        layout: { visibility: "none" },
-        paint: { "fill-extrusion-opacity": 0.9, "fill-extrusion-base": 0 },
-      });
+      // 3D vector buildings: only attach if openmaptiles source exists in this style
+      if (map.getSource("openmaptiles") && !map.getLayer("buildings-3d")) {
+        try {
+          map.addLayer({
+            id: "buildings-3d",
+            type: "fill-extrusion",
+            source: "openmaptiles",
+            "source-layer": "building",
+            minzoom: 12,
+            layout: { visibility: "none" },
+            paint: {
+              "fill-extrusion-color": c["--muted"],
+              "fill-extrusion-height": ["coalesce", ["get", "render_height"], 10],
+              "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+              "fill-extrusion-opacity": 0.82,
+            },
+          });
+        } catch {
+          // Source not ready or vector layer unavailable
+        }
+      }
 
-      map.addSource("legs", { type: "geojson", data: EMPTY });
-      map.addLayer({
-        id: "legs-casing",
-        type: "line",
-        source: "legs",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": c["--background"], "line-width": 8, "line-opacity": 0.9 },
-      });
+      // Columns source kept inactive to avoid giant obstructing pillars
+      if (!map.getSource("columns")) {
+        map.addSource("columns", { type: "geojson", data: EMPTY });
+      }
+      if (!map.getLayer("columns")) {
+        map.addLayer({
+          id: "columns",
+          type: "fill-extrusion",
+          source: "columns",
+          layout: { visibility: "none" },
+          paint: { "fill-extrusion-opacity": 0, "fill-extrusion-base": 0 },
+        });
+      }
+
+      if (!map.getSource("legs")) {
+        map.addSource("legs", { type: "geojson", data: EMPTY });
+      }
+      if (!map.getLayer("legs-casing")) {
+        map.addLayer({
+          id: "legs-casing",
+          type: "line",
+          source: "legs",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": c["--background"], "line-width": 8, "line-opacity": 0.9 },
+        });
+      }
       const leg = (id: string, modes: LegMode[], paint: Record<string, unknown>) =>
         map.addLayer({
           id,
@@ -435,8 +519,8 @@ export function PlanMap(props: PlanMapProps) {
       });
       readyRef.current = true;
       if (heatData.current) {
-        (map.getSource("heat") as GeoJSONSource).setData(heatData.current.data);
-        (map.getSource("columns") as GeoJSONSource).setData(heatData.current.columns);
+        (map.getSource("heat") as GeoJSONSource | undefined)?.setData(heatData.current.data);
+        (map.getSource("columns") as GeoJSONSource | undefined)?.setData(heatData.current.columns);
       }
       applyCatalog(map);
       applyLegs(map);
@@ -490,11 +574,13 @@ export function PlanMap(props: PlanMapProps) {
       markers.current = [];
       traveler.current?.remove();
       traveler.current = null;
+      userMarker.current?.remove();
+      userMarker.current = null;
       readyRef.current = false;
       map.remove();
       mapRef.current = null;
     };
-  }, [dark]);
+  }, [activeStyle, activeStyleKey, dark]);
 
   const run = (fn: (map: MapLibre) => void) => {
     const map = mapRef.current;
@@ -569,8 +655,8 @@ export function PlanMap(props: PlanMapProps) {
         };
         heatData.current = { dow, data, columns };
         run((map) => {
-          (map.getSource("heat") as GeoJSONSource).setData(data);
-          (map.getSource("columns") as GeoJSONSource).setData(columns);
+          (map.getSource("heat") as GeoJSONSource | undefined)?.setData(data);
+          (map.getSource("columns") as GeoJSONSource | undefined)?.setData(columns);
         });
       })
       .catch(() => {});
@@ -583,20 +669,23 @@ export function PlanMap(props: PlanMapProps) {
   const engaged = current?.engaged ?? false;
   useEffect(() => {
     const draw = (map: MapLibre) => {
-      // Before there's a plan, 3D shows the city right now.
-      const at = timeline ? t : nycNowMin();
-      map.setLayoutProperty("heat", "visibility", timeline && showHeat && !is3d ? "visible" : "none");
-      map.setLayoutProperty("buildings-3d", "visibility", is3d ? "visible" : "none");
-      map.setLayoutProperty("columns", "visibility", is3d && showHeat ? "visible" : "none");
-      if (timeline) map.setPaintProperty("heat", "heatmap-weight", heatWeight(t) as never);
-      if (is3d && showHeat) {
-        const level = heatWeight(at);
-        // Tall over the whole city, shorter up close so they don't wall off the street.
-        map.setPaintProperty("columns", "fill-extrusion-height", ["interpolate", ["linear"], ["zoom"], 11, ["*", level, 1600], 15, ["*", level, 650]] as never);
-        map.setPaintProperty("columns", "fill-extrusion-color", columnColor(level) as never);
+      // Heatmap visibility: visible when user toggles Crowds
+      if (map.getLayer("heat")) {
+        map.setLayoutProperty("heat", "visibility", showHeat ? "visible" : "none");
+        if (timeline) {
+          map.setPaintProperty("heat", "heatmap-weight", heatWeight(t) as never);
+        }
+      }
+      // Vector buildings (only if layer exists in current style)
+      if (map.getLayer("buildings-3d")) {
+        map.setLayoutProperty("buildings-3d", "visibility", is3d ? "visible" : "none");
+      }
+      // Columns are permanently hidden to eliminate giant obstructing pillars
+      if (map.getLayer("columns")) {
+        map.setLayoutProperty("columns", "visibility", "none");
       }
       const trail = engaged && position ? position.trail.filter((p) => p.length > 1) : [];
-      (map.getSource("trail") as GeoJSONSource).setData({
+      (map.getSource("trail") as GeoJSONSource | undefined)?.setData({
         type: "FeatureCollection",
         features: trail.map((coordinates) => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates } })),
       });
@@ -714,7 +803,7 @@ export function PlanMap(props: PlanMapProps) {
       <div ref={container} className="size-full" role="region" aria-label="Map of your day" />
       <div
         className={cn(
-          "absolute top-14 left-3 z-10 flex max-w-[calc(100%-4rem)] gap-1.5 overflow-x-auto rounded-2xl border border-border/70 bg-card/90 p-1.5 shadow-lg backdrop-blur-md [scrollbar-width:none]",
+          "neo-inset absolute top-14 left-3 z-10 flex max-w-[calc(100%-4rem)] gap-1 overflow-x-auto rounded-2xl p-1.5 backdrop-blur-md [scrollbar-width:none]",
           // On a phone the planned day needs the room; exploring is for building it.
           props.player && "max-sm:hidden",
         )}
@@ -734,8 +823,8 @@ export function PlanMap(props: PlanMapProps) {
             aria-pressed={kindFilter === item.id}
             onClick={() => setKindFilter(item.id)}
             className={cn(
-              "shrink-0 rounded-xl px-3 py-2 text-xs font-semibold transition",
-              kindFilter === item.id ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              "shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200",
+              kindFilter === item.id ? "neo-control font-bold text-brand shadow-xs" : "text-muted-foreground hover:text-foreground",
             )}
           >
             {item.label}
@@ -743,41 +832,67 @@ export function PlanMap(props: PlanMapProps) {
         ))}
       </div>
 
-      <button
-        type="button"
-        aria-pressed={is3d}
-        onClick={() => setIs3d((v) => !v)}
-        title={is3d ? "Back to the flat map" : "See the city in 3D, with each subway station's riders as a column"}
-        className={cn(
-          "absolute top-[106px] right-2.5 z-10 grid size-[29px] place-items-center rounded-lg text-[11px] font-bold shadow-md transition",
-          is3d ? "bg-brand text-on-color" : "bg-card/95 text-foreground hover:bg-muted",
-        )}
-      >
-        {is3d ? "2D" : "3D"}
-      </button>
+      <div className="absolute top-[106px] left-2.5 z-10 hidden sm:block">
+        <MapThemeSwitcher showLayersDialog={true} />
+      </div>
+
+      <div className="absolute top-[106px] right-2.5 z-10 flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={handleLocateMe}
+          disabled={locating}
+          title={userLocation ? "Re-center on my location" : "Show my location on the map"}
+          aria-label="Locate me"
+          className={cn(
+            "grid size-8 place-items-center rounded-xl text-[11px] font-bold transition shadow-xs",
+            userLocation ? "neo-raised text-blue-500 font-bold" : "neo-control text-foreground",
+            locating && "animate-pulse"
+          )}
+        >
+          <Crosshair className={cn("size-4", locating && "animate-spin text-brand")} aria-hidden />
+        </button>
+
+        <button
+          type="button"
+          aria-pressed={is3d}
+          onClick={() => setIs3d((v) => !v)}
+          title={is3d ? "Back to flat map" : "See the city in 3D perspective"}
+          className={cn(
+            "grid size-8 place-items-center rounded-xl text-[11px] font-bold transition",
+            is3d ? "neo-primary" : "neo-control text-foreground",
+          )}
+        >
+          {is3d ? "2D" : "3D"}
+        </button>
+      </div>
+
+      {locationStatus && (
+        <div className="neo-raised absolute top-28 left-1/2 -translate-x-1/2 z-20 rounded-xl px-3.5 py-1.5 text-xs font-semibold backdrop-blur-md animate-rise shadow-md border">
+          {locationStatus}
+        </div>
+      )}
       {is3d && !timeline && (
         <div
           style={props.bottomInset ? { bottom: props.bottomInset + 10 } : undefined}
-          className="pointer-events-none absolute bottom-8 left-3 z-10 max-w-xs animate-rise rounded-2xl border border-border/70 bg-card/92 px-3.5 py-2.5 text-xs shadow-xl backdrop-blur-xl">
+          className="neo-raised pointer-events-none absolute bottom-8 left-3 z-10 max-w-xs animate-rise rounded-2xl px-4 py-3 text-xs backdrop-blur-xl border">
           <p className="flex items-center gap-1.5 font-semibold">
-            <Box className="size-3.5 text-brand" aria-hidden /> NYC transit pulse, right now
+            <Box className="size-3.5 text-brand" aria-hidden /> 3D Perspective Mode
           </p>
-          <p className="mt-0.5 text-muted-foreground">Each column is a subway station; its height is how many people ride at this hour on a typical {WEEKDAYS[dow]}.</p>
-          <span className="heat-legend mt-2 block h-1.5 rounded-full" aria-hidden />
+          <p className="mt-0.5 text-muted-foreground">Tilted aerial view with elevation terrain. Follow your itinerary routes and explore the city from above.</p>
         </div>
       )}
 
       {timeline && props.player && !props.hideOverlays && (
         <div
           style={props.bottomInset ? { bottom: props.bottomInset + 10 } : undefined}
-          className="absolute right-2 bottom-7 left-2 z-10 mx-auto max-w-2xl animate-rise rounded-2xl border border-border/70 bg-card/92 p-2.5 shadow-2xl backdrop-blur-xl sm:right-3 sm:bottom-8 sm:left-3 sm:rounded-3xl sm:p-4">
+          className="neo-raised-lg absolute right-2 bottom-7 left-2 z-10 mx-auto max-w-2xl animate-rise rounded-3xl p-3 sm:right-3 sm:bottom-8 sm:left-3 sm:p-4 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={togglePlay}
               aria-label={playing ? "Pause" : ended ? "Replay your day" : "Play your day"}
               className={cn(
-                "relative grid size-10 shrink-0 place-items-center sm:size-12 rounded-full bg-brand text-on-color shadow-lg transition hover:scale-105 active:scale-95",
+                "neo-primary relative grid size-10 shrink-0 place-items-center sm:size-12 rounded-full transition hover:scale-105 active:scale-95",
                 !engaged && "play-halo",
               )}
             >
@@ -798,8 +913,8 @@ export function PlanMap(props: PlanMapProps) {
               aria-pressed={showHeat}
               onClick={() => setShowHeat((v) => !v)}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition",
-                showHeat ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground",
+                "neo-control inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition",
+                showHeat && "neo-inset text-brand",
               )}
             >
               <Flame className="size-3.5" aria-hidden /> Crowds
@@ -833,7 +948,7 @@ export function PlanMap(props: PlanMapProps) {
               <span className="heat-legend h-1.5 flex-1 rounded-full" aria-hidden />
               <span>Packed</span>
               <span className="max-sm:hidden">
-                · {is3d ? "column height = subway riders this hour" : "subway riders"}, typical {WEEKDAYS[props.player.dow]}
+                · subway riders, typical {WEEKDAYS[props.player.dow]}
               </span>
             </div>
           )}

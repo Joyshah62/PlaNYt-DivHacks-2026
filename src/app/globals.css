@@ -3,13 +3,8 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark {
-  &:is(.dark *) {
+  &:is(.dark, .dark *) {
     @slot;
-  }
-  @media (prefers-color-scheme: dark) {
-    &:not(.light *) {
-      @slot;
-    }
   }
 }
 
@@ -58,6 +53,13 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-nyc-taxi: var(--nyc-taxi);
+  --color-friends-orange: var(--friends-orange);
+  --color-friends-purple: var(--friends-purple);
+  --color-friends-green: var(--friends-green);
+  --color-seinfeld-blue: var(--seinfeld-blue);
+  --color-seinfeld-red: var(--seinfeld-red);
+  --color-himym-amber: var(--himym-amber);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -68,46 +70,54 @@
 }
 
 :root {
-  --background: oklch(0.978 0.006 85);
-  --foreground: oklch(0.19 0.012 60);
-  --card: oklch(0.996 0.002 85);
-  --card-foreground: oklch(0.19 0.012 60);
-  --popover: oklch(0.996 0.002 85);
-  --popover-foreground: oklch(0.19 0.012 60);
-  --primary: oklch(0.19 0.012 60);
-  --primary-foreground: oklch(0.98 0.005 85);
-  --secondary: oklch(0.945 0.008 80);
-  --secondary-foreground: oklch(0.22 0.012 60);
-  --muted: oklch(0.945 0.008 80);
-  --muted-foreground: oklch(0.5 0.014 60);
-  --accent: oklch(0.94 0.01 80);
-  --accent-foreground: oklch(0.22 0.012 60);
+  --background: oklch(0.978 0.008 85);
+  --foreground: oklch(0.20 0.015 65);
+  --card: oklch(0.995 0.003 85);
+  --card-foreground: oklch(0.20 0.015 65);
+  --popover: oklch(0.995 0.003 85);
+  --popover-foreground: oklch(0.20 0.015 65);
+  --primary: oklch(0.20 0.015 65);
+  --primary-foreground: oklch(0.985 0.005 85);
+  --secondary: oklch(0.942 0.010 85);
+  --secondary-foreground: oklch(0.22 0.015 65);
+  --muted: oklch(0.940 0.010 85);
+  --muted-foreground: oklch(0.50 0.018 65);
+  --accent: oklch(0.935 0.012 80);
+  --accent-foreground: oklch(0.22 0.015 65);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.01 80);
-  --input: oklch(0.9 0.01 80);
-  --ring: oklch(0.52 0.17 262);
+  --border: oklch(0.89 0.012 85);
+  --input: oklch(0.89 0.012 85);
+  --ring: oklch(0.68 0.19 55);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.875rem;
-  /* Severity reads through tint and weight, not saturation - the page should
-     inform rather than alarm, so no large red fills anywhere. */
-  --brand: oklch(0.52 0.17 262);
-  --brand-soft: oklch(0.95 0.028 262);
-  /* Text on brand and category fills: white in light mode, ink in dark mode where the fills are lighter. */
+
+  /* NYC Taxi & Central Perk warm amber brand core */
+  --brand: oklch(0.68 0.19 55);
+  --brand-soft: oklch(0.96 0.04 55);
   --on-color: oklch(0.99 0 0);
+
+  /* NYC Iconic & Sitcom Palette Tokens (Light Mode - Harmonious Warm NYC Tones) */
+  --nyc-taxi: oklch(0.76 0.18 78);          /* NYC Yellow Cab & HIMYM Yellow Umbrella */
+  --friends-orange: oklch(0.66 0.18 45);    /* Friends Central Perk Velvet Couch */
+  --friends-purple: oklch(0.56 0.16 310);   /* Friends Monica's Iconic Purple Door */
+  --friends-green: oklch(0.50 0.13 160);    /* Friends Central Perk Sign & Sage Green */
+  --seinfeld-blue: oklch(0.58 0.17 235);    /* Seinfeld Monk's Diner Neon Blue */
+  --seinfeld-red: oklch(0.58 0.21 26);      /* Seinfeld Neon Sign Crimson */
+  --himym-amber: oklch(0.62 0.16 65);       /* HIMYM MacLaren's Pub Warm Ale & Wood */
+
   --sev-c: oklch(0.52 0.17 22);
   --sev-c-soft: oklch(0.96 0.025 22);
   --sev-b: oklch(0.58 0.13 62);
   --sev-b-soft: oklch(0.96 0.04 75);
   --sev-a: oklch(0.52 0.05 232);
   --sev-a-soft: oklch(0.96 0.015 232);
-  /* Neighborhood categories: one hue each, shared by tile, pin, legend and card.
-     Mid lightness so white icons and the tinted fills both hold contrast. */
+  /* Neighborhood categories */
   --cat-groceries: oklch(0.56 0.17 330);
-  --cat-restaurants: oklch(0.62 0.17 45);
+  --cat-restaurants: oklch(0.66 0.19 45);
   --cat-coffee: oklch(0.52 0.08 60);
   --cat-subway: oklch(0.53 0.17 262);
   --cat-parks: oklch(0.58 0.14 148);
@@ -130,40 +140,52 @@
 }
 
 .dark {
-  --background: oklch(0.165 0.006 60);
-  --foreground: oklch(0.965 0.006 85);
-  --card: oklch(0.205 0.006 60);
-  --card-foreground: oklch(0.965 0.006 85);
-  --popover: oklch(0.225 0.006 60);
-  --popover-foreground: oklch(0.965 0.006 85);
-  --primary: oklch(0.965 0.006 85);
-  --primary-foreground: oklch(0.19 0.012 60);
-  --secondary: oklch(0.26 0.006 60);
-  --secondary-foreground: oklch(0.965 0.006 85);
-  --muted: oklch(0.25 0.006 60);
-  --muted-foreground: oklch(0.72 0.01 75);
-  --accent: oklch(0.27 0.006 60);
-  --accent-foreground: oklch(0.965 0.006 85);
+  /* Rich Gotham Midnight Slate - NOT pitch black */
+  --background: oklch(0.215 0.032 258);
+  --foreground: oklch(0.965 0.008 85);
+  --card: oklch(0.265 0.038 256);
+  --card-foreground: oklch(0.965 0.008 85);
+  --popover: oklch(0.285 0.040 256);
+  --popover-foreground: oklch(0.965 0.008 85);
+  --primary: oklch(0.965 0.008 85);
+  --primary-foreground: oklch(0.18 0.025 258);
+  --secondary: oklch(0.31 0.035 255);
+  --secondary-foreground: oklch(0.965 0.008 85);
+  --muted: oklch(0.285 0.030 255);
+  --muted-foreground: oklch(0.74 0.025 250);
+  --accent: oklch(0.32 0.038 255);
+  --accent-foreground: oklch(0.965 0.008 85);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.72 0.14 262);
+  --border: oklch(0.40 0.040 255 / 0.45);
+  --input: oklch(0.32 0.035 255 / 0.55);
+  --ring: oklch(0.80 0.18 75);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
+  --sidebar: oklch(0.24 0.035 258);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent: oklch(0.29 0.035 258);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-border: oklch(1 1 1 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-  --brand: oklch(0.72 0.14 262);
-  --brand-soft: oklch(0.29 0.05 262);
-  --on-color: oklch(0.17 0.006 60);
+
+  /* NYC Taxi & Central Perk amber core in Dark Mode */
+  --brand: oklch(0.80 0.18 75);
+  --brand-soft: oklch(0.32 0.06 75);
+  --on-color: oklch(0.14 0.03 60);
+
+  /* NYC Sitcom Palette Tokens (Dark Mode - Luminous and Cohesive) */
+  --nyc-taxi: oklch(0.82 0.18 78);
+  --friends-orange: oklch(0.72 0.18 48);
+  --friends-purple: oklch(0.68 0.17 310);
+  --friends-green: oklch(0.64 0.14 160);
+  --seinfeld-blue: oklch(0.68 0.16 235);
+  --seinfeld-red: oklch(0.68 0.21 25);
+  --himym-amber: oklch(0.74 0.16 68);
   --sev-c: oklch(0.72 0.15 22);
   --sev-c-soft: oklch(0.29 0.05 22);
   --sev-b: oklch(0.78 0.12 75);
@@ -185,64 +207,6 @@
   --cat-bus: oklch(0.7 0.03 255);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) {
-    --background: oklch(0.165 0.006 60);
-    --foreground: oklch(0.965 0.006 85);
-    --card: oklch(0.205 0.006 60);
-    --card-foreground: oklch(0.965 0.006 85);
-    --popover: oklch(0.225 0.006 60);
-    --popover-foreground: oklch(0.965 0.006 85);
-    --primary: oklch(0.965 0.006 85);
-    --primary-foreground: oklch(0.19 0.012 60);
-    --secondary: oklch(0.26 0.006 60);
-    --secondary-foreground: oklch(0.965 0.006 85);
-    --muted: oklch(0.25 0.006 60);
-    --muted-foreground: oklch(0.72 0.01 75);
-    --accent: oklch(0.27 0.006 60);
-    --accent-foreground: oklch(0.965 0.006 85);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 9%);
-    --input: oklch(1 0 0 / 14%);
-    --ring: oklch(0.72 0.14 262);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-    --brand: oklch(0.72 0.14 262);
-    --brand-soft: oklch(0.29 0.05 262);
-    --on-color: oklch(0.17 0.006 60);
-  --on-color: oklch(0.17 0.006 60);
-    --sev-c: oklch(0.72 0.15 22);
-    --sev-c-soft: oklch(0.29 0.05 22);
-    --sev-b: oklch(0.78 0.12 75);
-    --sev-b-soft: oklch(0.30 0.04 75);
-    --sev-a: oklch(0.72 0.04 232);
-    --sev-a-soft: oklch(0.27 0.02 232);
-    --cat-groceries: oklch(0.72 0.15 330);
-    --cat-restaurants: oklch(0.75 0.15 50);
-    --cat-coffee: oklch(0.7 0.08 65);
-    --cat-subway: oklch(0.7 0.14 262);
-    --cat-parks: oklch(0.74 0.14 148);
-    --cat-fitness: oklch(0.72 0.16 15);
-    --cat-pharmacy: oklch(0.74 0.1 195);
-    --cat-nightlife: oklch(0.7 0.15 295);
-    --cat-convenience: oklch(0.74 0.08 110);
-    --cat-laundry: oklch(0.73 0.1 235);
-    --cat-entertainment: oklch(0.78 0.12 85);
-    --cat-health: oklch(0.72 0.15 25);
-    --cat-bus: oklch(0.7 0.03 255);
-  }
-}
 
 
 @layer base {
@@ -265,6 +229,7 @@
     transform: translateY(10px);
   }
 }
+
 
 @utility animate-rise {
   animation: rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -572,12 +537,6 @@
 .dark .maplibregl-ctrl-attrib-button {
   filter: invert(1);
 }
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) .maplibregl-ctrl-group button .maplibregl-ctrl-icon,
-  :root:not(.light) .maplibregl-ctrl-attrib-button {
-    filter: invert(1);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -621,3 +580,272 @@
     appearance: auto;
   }
 }
+
+/* ==========================================================================
+   Hybrid Glassmorphism & Neumorphism Design System (NYC Sitcom & City Theme)
+   ========================================================================== */
+:root {
+  --neo-surface: var(--background);
+  --neo-glass-bg: color-mix(in oklch, var(--background) 82%, transparent);
+  --neo-glass-card: color-mix(in oklch, var(--background) 88%, transparent);
+  --neo-glass-inset: color-mix(in oklch, var(--background) 65%, transparent);
+  --neo-light: rgba(255, 255, 255, 0.95);
+  --neo-light-subtle: rgba(255, 255, 255, 0.72);
+  --neo-dark: rgba(160, 148, 132, 0.32);
+  --neo-dark-subtle: rgba(160, 148, 132, 0.18);
+  --neo-border: rgba(255, 255, 255, 0.80);
+  --neo-glass-rim: rgba(255, 255, 255, 0.88);
+}
+
+.dark {
+  --neo-surface: var(--background);
+  --neo-glass-bg: color-mix(in oklch, var(--background) 75%, transparent);
+  --neo-glass-card: color-mix(in oklch, var(--background) 82%, transparent);
+  --neo-glass-inset: color-mix(in oklch, var(--background) 52%, transparent);
+  --neo-light: rgba(255, 255, 255, 0.12);
+  --neo-light-subtle: rgba(255, 255, 255, 0.06);
+  --neo-dark: rgba(8, 12, 24, 0.70);
+  --neo-dark-subtle: rgba(8, 12, 24, 0.45);
+  --neo-border: rgba(255, 255, 255, 0.15);
+  --neo-glass-rim: rgba(255, 255, 255, 0.22);
+}
+
+/* Silky smooth theme cross-fade transition across layout, surfaces, and typography */
+html,
+body,
+.neo-raised,
+.neo-raised-sm,
+.neo-raised-lg,
+.neo-card,
+.neo-control,
+.neo-inset,
+.neo-inset-sm,
+.neo-inset-deep,
+.neo-panel,
+.neo-map-wash,
+header,
+footer,
+section {
+  transition:
+    background-color 340ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 340ms cubic-bezier(0.4, 0, 0.2, 1),
+    color 220ms ease,
+    box-shadow 340ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.neo-home {
+  --neo-surface: var(--background);
+}
+
+/* Ambient map wash: clean, architectural vignette without artificial color splotches */
+.neo-map-wash {
+  background:
+    radial-gradient(
+      ellipse at 50% 36%,
+      color-mix(in oklch, var(--background) 88%, transparent) 0%,
+      color-mix(in oklch, var(--background) 62%, transparent) 55%,
+      color-mix(in oklch, var(--background) 26%, transparent) 100%
+    );
+}
+
+/* Glass-Neumorphic Raised Extruded Surfaces */
+.neo-raised {
+  background: var(--neo-glass-card);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow:
+    inset 0 1px 1px 0 var(--neo-glass-rim),
+    7px 7px 22px var(--neo-dark),
+    -6px -6px 18px var(--neo-light);
+  border: 1px solid var(--neo-border);
+}
+
+.neo-raised-sm {
+  background: var(--neo-glass-card);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  box-shadow:
+    inset 0 1px 1px 0 var(--neo-glass-rim),
+    3px 3px 9px var(--neo-dark-subtle),
+    -3px -3px 8px var(--neo-light-subtle);
+  border: 1px solid var(--neo-border);
+}
+
+.neo-raised-lg {
+  background: var(--neo-glass-card);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  box-shadow:
+    inset 0 1.5px 1.5px 0 var(--neo-glass-rim),
+    14px 14px 38px var(--neo-dark),
+    -10px -10px 28px var(--neo-light);
+  border: 1px solid var(--neo-border);
+}
+
+/* Glass-Neumorphic Inset / Debossed Recessed Cavities */
+.neo-inset {
+  background: var(--neo-glass-inset);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    inset 3px 3px 8px var(--neo-dark),
+    inset -3px -3px 8px var(--neo-light),
+    inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  border: 1px solid color-mix(in oklch, var(--neo-border) 60%, transparent);
+}
+
+.neo-inset-sm {
+  background: var(--neo-glass-inset);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow:
+    inset 2px 2px 5px var(--neo-dark-subtle),
+    inset -2px -2px 5px var(--neo-light-subtle);
+  border: 1px solid color-mix(in oklch, var(--neo-border) 50%, transparent);
+}
+
+.neo-inset-deep {
+  background: var(--neo-glass-inset);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    inset 5px 5px 14px var(--neo-dark),
+    inset -4px -4px 12px var(--neo-light);
+  border: 1px solid color-mix(in oklch, var(--neo-border) 70%, transparent);
+}
+
+/* Interactive Tactile Glass-Neumorphic Controls */
+.neo-control {
+  background: var(--neo-glass-card);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  box-shadow:
+    inset 0 1px 1px 0 var(--neo-glass-rim),
+    4px 4px 11px var(--neo-dark),
+    -3px -3px 9px var(--neo-light);
+  border: 1px solid var(--neo-border);
+  transition: box-shadow 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              color 180ms ease-out,
+              transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              background-color 180ms ease-out,
+              border-color 180ms ease-out;
+}
+
+.neo-control:hover:not(:disabled) {
+  color: var(--brand);
+  transform: translateY(-1.5px);
+  box-shadow:
+    inset 0 1px 1.5px 0 var(--neo-glass-rim),
+    6px 6px 16px var(--neo-dark),
+    -4px -4px 13px var(--neo-light);
+  border-color: color-mix(in oklch, var(--brand) 40%, var(--neo-border));
+}
+
+.neo-control:active:not(:disabled),
+.neo-control[aria-pressed="true"],
+.neo-control[aria-checked="true"],
+.neo-control.is-active {
+  color: var(--brand);
+  box-shadow:
+    inset 3px 3px 7px var(--neo-dark),
+    inset -3px -3px 7px var(--neo-light);
+  transform: translateY(1px);
+}
+
+/* Primary NYC Brand Button (Taxi & Central Perk Amber Sheen) */
+.neo-primary {
+  background: linear-gradient(135deg, color-mix(in oklch, var(--brand), white 15%), var(--brand));
+  color: var(--on-color);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.65),
+    6px 6px 18px var(--neo-dark),
+    -4px -4px 14px var(--neo-light),
+    0 4px 18px color-mix(in oklch, var(--brand) 28%, transparent);
+  border: 1px solid color-mix(in oklch, var(--brand), white 35%);
+  transition: box-shadow 180ms ease-out, transform 180ms ease-out, filter 180ms ease-out;
+}
+
+.neo-primary:hover:not(:disabled) {
+  transform: translateY(-1.5px);
+  filter: brightness(1.05);
+  box-shadow:
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.8),
+    8px 8px 24px var(--neo-dark),
+    -5px -5px 18px var(--neo-light),
+    0 6px 24px color-mix(in oklch, var(--brand) 42%, transparent);
+}
+
+.neo-primary:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow:
+    inset 3px 3px 8px color-mix(in oklch, var(--brand), black 32%),
+    inset -1px -1px 3px color-mix(in oklch, var(--brand), white 25%);
+}
+
+/* Glass-Neumorphic Panels & Floating Sheets */
+.neo-panel {
+  background: var(--neo-glass-bg);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: 10px 0 32px -6px var(--neo-dark);
+  border-right: 1px solid var(--neo-border);
+}
+
+.neo-card {
+  background: var(--neo-glass-card);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  box-shadow:
+    inset 0 1px 1px 0 var(--neo-glass-rim),
+    5px 5px 16px var(--neo-dark-subtle),
+    -4px -4px 14px var(--neo-light-subtle);
+  border: 1px solid var(--neo-border);
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.neo-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 1.5px 0 var(--neo-glass-rim),
+    9px 9px 24px var(--neo-dark),
+    -6px -6px 20px var(--neo-light);
+}
+
+:is(.neo-control, .neo-primary):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+
+:is(.neo-control, .neo-primary):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 2px 2px 5px var(--neo-dark-subtle), -2px -2px 5px var(--neo-light-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.neo-control, .neo-primary, .neo-card) {
+    transform: none !important;
+  }
+}
+
+/* Explicit removal of selection borders on text boxes */
+.prompt-field,
+.prompt-field:focus,
+.prompt-field:focus-within,
+.neo-home .prompt-field:focus-within {
+  outline: none !important;
+  outline-offset: 0 !important;
+  border-color: color-mix(in oklch, var(--neo-border) 60%, transparent) !important;
+}
+
+.prompt-field textarea,
+.prompt-field textarea:focus,
+.prompt-field textarea:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
+

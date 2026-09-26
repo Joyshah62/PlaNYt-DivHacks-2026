@@ -24,19 +24,19 @@ export function ProfileCard({ profile, onChange }: { profile: Profile; onChange:
   const [open, setOpen] = useState(() => JSON.stringify(profile) === JSON.stringify(DEFAULT_PROFILE));
 
   return (
-    <details className="group rounded-2xl border border-border bg-card" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+    <details className="group neo-raised rounded-2xl border border-border/60 bg-card" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 select-none [&::-webkit-details-marker]:hidden">
-        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
+        <span className="neo-inset grid size-8 shrink-0 place-items-center rounded-full text-brand">
           <UserRound className="size-4" aria-hidden />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">Your travel style</span>
           <span className="block truncate text-xs text-muted-foreground">{profileSummary(profile)}</span>
         </span>
-        <span className="text-xs font-medium text-brand group-open:hidden">Edit</span>
+        <span className="neo-control px-2.5 py-1 text-xs font-medium text-brand rounded-full group-open:hidden">Edit</span>
       </summary>
 
-      <div className="space-y-4 border-t border-border px-4 pt-4 pb-5">
+      <div className="space-y-4 border-t border-border/50 px-4 pt-4 pb-5">
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-muted-foreground">Pace</span>
           <Segmented
@@ -74,7 +74,7 @@ export function ProfileCard({ profile, onChange }: { profile: Profile; onChange:
 
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-muted-foreground">What you&apos;re into</span>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {(Object.keys(INTERESTS) as Interest[]).map((i) => {
               const on = profile.interests.includes(i);
               return (
@@ -84,8 +84,8 @@ export function ProfileCard({ profile, onChange }: { profile: Profile; onChange:
                   aria-pressed={on}
                   onClick={() => set("interests", on ? profile.interests.filter((x) => x !== i) : [...profile.interests, i])}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition",
-                    on ? "border-brand bg-brand-soft text-brand" : "border-border bg-background text-muted-foreground hover:text-foreground",
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
+                    on ? "neo-inset text-brand bg-brand-soft/40 border border-brand/30" : "neo-control text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {on && <Check className="size-3" aria-hidden />}

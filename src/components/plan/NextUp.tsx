@@ -72,7 +72,7 @@ export function NextUp({ plan, onReplan }: { plan: DayPlan; onReplan: () => void
     <section
       aria-label="Right now"
       aria-live="polite"
-      className="mb-5 overflow-hidden rounded-3xl bg-[radial-gradient(130%_130%_at_0%_0%,var(--brand)_0%,oklch(0.32_0.12_275)_60%,oklch(0.22_0.06_265)_100%)] p-4 text-white shadow-lg"
+      className="neo-raised mb-5 overflow-hidden rounded-3xl border border-white/15 bg-[radial-gradient(130%_130%_at_0%_0%,var(--brand)_0%,oklch(0.32_0.12_275)_60%,oklch(0.22_0.06_265)_100%)] p-4 text-white"
     >
       <div className="flex items-center justify-between gap-3">
         <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.14em] uppercase text-white/80">
@@ -96,7 +96,7 @@ export function NextUp({ plan, onReplan }: { plan: DayPlan; onReplan: () => void
             href={directions}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-[oklch(0.25_0.08_270)] shadow transition active:scale-95"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-[oklch(0.25_0.08_270)] shadow-[0_3px_8px_rgba(0,0,0,0.25)] transition hover:shadow-sm active:scale-95 active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
           >
             <Navigation className="size-4" aria-hidden /> Directions
           </a>
@@ -104,7 +104,7 @@ export function NextUp({ plan, onReplan }: { plan: DayPlan; onReplan: () => void
         <button
           type="button"
           onClick={onReplan}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/15 px-4 text-sm font-semibold backdrop-blur transition hover:bg-white/25 active:scale-95"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/15 px-4 text-sm font-semibold backdrop-blur shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] transition hover:bg-white/25 active:scale-95 active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]"
         >
           <RotateCcw className="size-4" aria-hidden /> Running late?
         </button>

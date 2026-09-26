@@ -19,7 +19,6 @@ import {
   Replace,
   Search,
   ShoppingBag,
-  Sparkles,
   Star,
   Trees,
   UtensilsCrossed,
@@ -44,7 +43,7 @@ const ICON: Record<Category, typeof Coffee> = {
   park: Trees,
   viewpoint: Binoculars,
   shopping: ShoppingBag,
-  activity: Sparkles,
+  activity: Footprints,
   landmark: Landmark,
 };
 
@@ -206,8 +205,8 @@ function AreaChips({ d, plan }: { d: Discover; plan: DayPlan }) {
   const stops = plan.stops.filter((s) => !isMealBreak(s));
   const chip = (active: boolean) =>
     cn(
-      "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition",
-      active ? "border-foreground bg-foreground text-background" : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+      "neo-control inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
+      active ? "neo-inset text-brand" : "text-muted-foreground hover:text-foreground",
     );
 
   function nearMe() {
@@ -260,7 +259,7 @@ function AreaChips({ d, plan }: { d: Discover; plan: DayPlan }) {
         </button>
       ) : (
         <form
-          className="flex shrink-0 items-center gap-1 rounded-full border border-foreground bg-card py-0.5 pr-0.5 pl-3"
+          className="neo-inset flex shrink-0 items-center gap-1 rounded-full py-0.5 pr-0.5 pl-3"
           onSubmit={(e) => {
             e.preventDefault();
             if (hood.trim().length < 2) return;
@@ -269,7 +268,7 @@ function AreaChips({ d, plan }: { d: Discover; plan: DayPlan }) {
           }}
         >
           <input autoFocus onKeyDown={(e) => { if (e.key === "Escape") setHood(null); }} value={hood} onChange={(e) => setHood(e.target.value)} placeholder="e.g. Williamsburg" aria-label="Neighborhood" className="w-32 bg-transparent text-xs outline-none" />
-          <button type="submit" className="rounded-full bg-foreground px-2.5 py-1 text-[11px] font-semibold text-background">
+          <button type="submit" className="neo-primary rounded-full px-2.5 py-1 text-[11px] font-semibold text-on-color">
             Go
           </button>
         </form>
@@ -289,10 +288,10 @@ export function DiscoverBar({ d, plan }: { d: Discover; plan: DayPlan }) {
           e.preventDefault();
           void d.search(d.query);
         }}
-        className="flex items-center gap-2 rounded-2xl border border-border bg-card py-1.5 pr-1.5 pl-3 shadow-sm transition focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/10"
+        className="neo-inset flex items-center gap-2 rounded-2xl py-1.5 pr-1.5 pl-3 transition focus-within:ring-2 focus-within:ring-brand/40"
         suppressHydrationWarning
       >
-        {d.loading ? <Loader2 className="size-4 shrink-0 animate-spin text-brand" aria-hidden /> : <Sparkles className="size-4 shrink-0 text-brand" aria-hidden />}
+        {d.loading ? <Loader2 className="size-4 shrink-0 animate-spin text-brand" aria-hidden /> : <Search className="size-4 shrink-0 text-brand" aria-hidden />}
         <input
           value={d.query}
           onChange={(e) => d.setQuery(e.target.value)}
@@ -303,7 +302,7 @@ export function DiscoverBar({ d, plan }: { d: Discover; plan: DayPlan }) {
           suppressHydrationWarning
         />
         {refining && (
-          <button type="button" onClick={d.clear} aria-label="Clear the search" className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
+          <button type="button" onClick={d.clear} aria-label="Clear the search" className="neo-control grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-foreground">
             <X className="size-4" aria-hidden />
           </button>
         )}
@@ -311,7 +310,7 @@ export function DiscoverBar({ d, plan }: { d: Discover; plan: DayPlan }) {
           type="submit"
           disabled={d.loading || d.query.trim().length < 2}
           aria-label="Search"
-          className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-on-color transition disabled:opacity-40"
+          className="neo-primary grid size-8 shrink-0 place-items-center rounded-full text-on-color transition disabled:opacity-40"
         >
           <ArrowUp className="size-4" aria-hidden />
         </button>
@@ -319,21 +318,21 @@ export function DiscoverBar({ d, plan }: { d: Discover; plan: DayPlan }) {
       <AreaChips d={d} plan={plan} />
       <div className="mt-3 grid grid-cols-2 gap-2">
         <label className="space-y-1 text-xs text-muted-foreground">
-          <span className="block">Place in my day</span>
-          <select value={d.placement.after ?? ""} onChange={(e) => d.setPlacement({ ...d.placement, after: e.target.value || null })} className="w-full rounded-xl border border-border bg-card px-2 py-2 text-foreground">
+          <span className="block font-medium">Place in my day</span>
+          <select value={d.placement.after ?? ""} onChange={(e) => d.setPlacement({ ...d.placement, after: e.target.value || null })} className="neo-inset w-full rounded-xl px-2.5 py-2 text-foreground outline-none">
             <option value="">Let Roam choose</option>
             {plan.stops.filter((s) => !isMealBreak(s)).map((s) => <option key={s.key} value={s.key}>After {s.name} · ends {clock(s.endMin)}</option>)}
           </select>
         </label>
         <label className="space-y-1 text-xs text-muted-foreground">
-          <span className="block">Preferred start (optional)</span>
-          <input type="time" value={d.placement.preferredStartMin === null ? "" : toHHMM(d.placement.preferredStartMin)} onChange={(e) => d.setPlacement({ ...d.placement, preferredStartMin: toMinutes(e.target.value) })} className="w-full rounded-xl border border-border bg-card px-2 py-2 text-foreground" />
+          <span className="block font-medium">Preferred start (optional)</span>
+          <input type="time" value={d.placement.preferredStartMin === null ? "" : toHHMM(d.placement.preferredStartMin)} onChange={(e) => d.setPlacement({ ...d.placement, preferredStartMin: toMinutes(e.target.value) })} className="neo-inset w-full rounded-xl px-2.5 py-2 text-foreground outline-none" />
         </label>
       </div>
       <p className="mt-1.5 text-[11px] text-muted-foreground">Search area controls where to look. Placement controls where it goes. Leave the time blank for a suggested time. A chosen time is saved with the stop; later arrivals are flagged.</p>
       {refining && <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (followUp.trim().length >= 2) { void d.search(followUp, true); setFollowUp(""); } }}>
-        <input aria-label="Refine this search" placeholder="Refine these results: cheaper, quieter…" value={followUp} onChange={(e) => setFollowUp(e.target.value)} className="min-w-0 flex-1 rounded-xl border border-border bg-card px-3 py-2 text-xs" maxLength={300} />
-        <button type="submit" disabled={d.loading || d.stale || followUp.trim().length < 2} className="rounded-xl bg-muted px-3 text-xs font-medium disabled:opacity-40">Refine</button>
+        <input aria-label="Refine this search" placeholder="Refine these results: cheaper, quieter…" value={followUp} onChange={(e) => setFollowUp(e.target.value)} className="neo-inset min-w-0 flex-1 rounded-xl px-3 py-2 text-xs outline-none" maxLength={300} />
+        <button type="submit" disabled={d.loading || d.stale || followUp.trim().length < 2} className="neo-control rounded-xl px-3 text-xs font-semibold disabled:opacity-40">Refine</button>
       </form>}
     </div>
   );
@@ -383,8 +382,8 @@ export function ResultCard({ r, index, best, active, busy, onSelect, onAdd }: { 
       <article
         onClick={onSelect}
         className={cn(
-          "flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border bg-card shadow-sm transition",
-          active ? "border-brand ring-4 ring-brand/15" : "border-border hover:border-foreground/25",
+          "neo-raised flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-all duration-300",
+          active ? "border-brand/50 ring-2 ring-brand shadow-lg scale-[1.01]" : "hover:-translate-y-0.5 hover:shadow-md",
         )}
       >
         <div className="relative">
@@ -393,11 +392,11 @@ export function ResultCard({ r, index, best, active, busy, onSelect, onAdd }: { 
             {String.fromCharCode(65 + index)}
           </span>
           {best && (
-            <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-background/90 px-2 py-0.5 text-[11px] font-semibold text-sev-b shadow backdrop-blur">
+            <span className="neo-raised absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-sev-b backdrop-blur">
               <Star className="size-3 fill-current" aria-hidden /> Best fit
             </span>
           )}
-          <span className="absolute bottom-2.5 left-2.5 rounded-full bg-background/90 px-2.5 py-0.5 text-[11px] font-semibold shadow backdrop-blur">{r.kind}</span>
+          <span className="neo-raised absolute bottom-2.5 left-2.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold backdrop-blur">{r.kind}</span>
         </div>
         <div className="flex flex-1 flex-col p-3.5">
           <h3 className="text-[15px] leading-snug font-semibold">{r.name}</h3>
@@ -414,7 +413,7 @@ export function ResultCard({ r, index, best, active, busy, onSelect, onAdd }: { 
           </p>
 
           {/* The part that's ours: what it does to the day, from the planner. */}
-          <div className="mt-2.5 rounded-2xl bg-muted/60 p-2.5 text-xs leading-relaxed">
+          <div className="neo-inset mt-2.5 rounded-xl p-2.5 text-xs leading-relaxed">
             {r.closed ? (
               <p className="flex items-start gap-1.5 font-semibold text-sev-c">
                 <AlertTriangle className="mt-px size-3.5 shrink-0" aria-hidden /> Closed that day
@@ -450,7 +449,7 @@ export function ResultCard({ r, index, best, active, busy, onSelect, onAdd }: { 
               {r.crowdBand && fits && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">
                   <span className="size-1.5 rounded-full" style={{ background: CROWD_COLOR[r.crowdBand] }} aria-hidden />
-                  {CROWD_LABEL[r.crowdBand]} then
+                  {CROWD_LABEL[r.crowdBand]}
                 </span>
               )}
             </p>
@@ -464,7 +463,7 @@ export function ResultCard({ r, index, best, active, busy, onSelect, onAdd }: { 
                 onSelect();
               }}
               aria-pressed={active}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-semibold transition hover:bg-muted"
+              className={cn("neo-control inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition", active && "neo-inset text-brand")}
             >
               <Eye className="size-3.5" aria-hidden /> Preview
             </button>
@@ -475,7 +474,7 @@ export function ResultCard({ r, index, best, active, busy, onSelect, onAdd }: { 
                 e.stopPropagation();
                 onAdd();
               }}
-              className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-semibold text-background transition hover:bg-foreground/85 disabled:opacity-40"
+              className="neo-primary inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold transition disabled:opacity-40"
             >
               {r.action === "replace" ? <Replace className="size-3.5 shrink-0" aria-hidden /> : <Plus className="size-3.5 shrink-0" aria-hidden />}
               <span className="truncate">{actionLabel}</span>
@@ -509,7 +508,7 @@ export function DiscoverResults({ d, busy, onAdd }: { d: Discover; busy: boolean
             </p>
           )}
         </div>
-        <button type="button" onClick={d.clear} className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+        <button type="button" onClick={d.clear} className="neo-control shrink-0 rounded-full px-3 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
           Close
         </button>
       </div>
@@ -522,7 +521,7 @@ export function DiscoverResults({ d, busy, onAdd }: { d: Discover; busy: boolean
               type="button"
               disabled={d.loading || d.stale}
               onClick={() => void d.search(label, true)}
-              className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium transition hover:border-brand hover:bg-brand-soft disabled:opacity-50"
+              className="neo-control shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition hover:text-brand disabled:opacity-50"
             >
               {label}
             </button>
