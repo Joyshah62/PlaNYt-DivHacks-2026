@@ -29,6 +29,12 @@ npm run dev
 
 Open http://localhost:3000. `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) enables natural-language planning. `GOOGLE_PLACES_API_KEY` enables live Google place photos. Both are optional; manual planning and catalog photos work without them.
 
+To enable assistant voice playback, add `ELEVENLABS_API_KEY` and
+`NEXT_PUBLIC_ELEVENLABS_VOICE_ID` to `.env.local`. Get the API key from the
+ElevenLabs developer dashboard and the voice ID from the selected voice's
+details. The permanent key stays server-side; the browser receives a single-use
+token. Speech uses low-latency Flash v2.5. No production voice is selected yet.
+
 ## Common commands
 
 | Command | Purpose |

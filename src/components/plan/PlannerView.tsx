@@ -57,6 +57,8 @@ import { ProfileCard, profileSummary } from "./ProfileCard";
 import { ReplanDialog, type ReplanChoice } from "./ReplanDialog";
 import type { MapLeg, MapStop } from "./PlanMap";
 import { StopPicker, stopFromAttraction } from "./StopPicker";
+import { SpeakButton } from "./SpeakButton";
+import { stopCurrentSpeech } from "@/lib/tts/useTextToSpeech";
 
 const PlanMap = dynamic(() => import("./PlanMap").then((m) => m.PlanMap), {
   ssr: false,
@@ -470,6 +472,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? "The assistant couldn't help with that.");
         const r = body as AssistantResult;
+        stopCurrentSpeech();
         const next: Settings = {
           ...current,
           date: r.date ?? current.date,
@@ -928,6 +931,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                         <Sparkles className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
                         {assistant.reply}
                       </p>
+                      <SpeakButton text={assistant.reply} className="mt-2" />
                       {assistant.unresolved.length > 0 && (
                         <p className="mt-2 text-xs text-muted-foreground">Couldn&apos;t find on the map: {assistant.unresolved.join(", ")}. Try adding them by address.</p>
                       )}

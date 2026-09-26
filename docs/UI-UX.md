@@ -40,7 +40,7 @@ The view can also include:
 - **TripChat:** conversational edits that rebuild the plan.
 - **Discover:** suggestions that fit itinerary gaps.
 - **Next Up:** current/next stop and re-planning from the user’s current location/time.
-- **Actions:** save, copy share link, and export calendar.
+- **Actions:** play a concise spoken itinerary, save, copy share link, and export calendar. Playback is user-started and can be stopped; the text itinerary remains visible.
 
 ## Place details
 

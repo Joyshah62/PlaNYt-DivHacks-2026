@@ -8,6 +8,8 @@ import type { DiscoverResponse } from "@/lib/discover/types";
 import type { DayPlan } from "@/lib/plan/types";
 import { clock, duration } from "@/lib/plan/time";
 import { ResultCard, type Discover } from "./Discover";
+import { SpeakButton } from "./SpeakButton";
+import { stopCurrentSpeech } from "@/lib/tts/useTextToSpeech";
 
 type Message = { id: number; role: "user" | "assistant"; text: string; reply?: ChatReply; tripKey: string };
 const starters = [
@@ -92,6 +94,7 @@ export function TripChat({
         discover.present(reply.discovery);
       }
       const listing = reply.discovery?.results.map((r, i) => `${i + 1}. ${r.name}`).join("; ");
+      stopCurrentSpeech();
       setMessages((list) => [...list, { id: id * 2 + 1, role: "assistant", text: reply.message + (listing ? `\nOptions: ${listing}` : ""), reply, tripKey }]);
     } catch (e) {
       if (!abort.signal.aborted) setError(e instanceof Error ? e.message : "Couldn't send your message.");
@@ -101,6 +104,7 @@ export function TripChat({
   function apply(message: Message) {
     const next = message.reply?.proposal?.plan;
     if (!next || message.tripKey !== tripKey || disabled) return;
+    stopCurrentSpeech();
     setUndo({ before: plan, after: JSON.stringify(next.request) });
     setApplied((ids) => [...ids, message.id]);
     discover.clear();
@@ -128,6 +132,7 @@ export function TripChat({
           const activeResults = foundCurrent && reply?.discovery === found?.data;
           return <div key={message.id} className={message.role === "user" ? "ml-8 rounded-2xl bg-foreground px-3 py-2 text-sm text-background" : "space-y-3"}>
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{reply?.message ?? message.text}</p>
+            {message.role === "assistant" && <SpeakButton text={reply?.message ?? message.text} />}
             {reply?.discovery && <>
               <p className="text-[11px] text-muted-foreground">{reply.discovery.area.label} · {reply.discovery.source === "google" ? "Place details from Google" : "OpenStreetMap · ratings unavailable"}</p>
               {reply.discovery.note && <p className="text-xs text-muted-foreground">{reply.discovery.note}</p>}
@@ -143,7 +148,7 @@ export function TripChat({
               {reply.proposal.warnings.map((w) => <p key={w} className="mt-2 text-xs text-sev-c">{w}</p>)}
               {applied.includes(message.id) ? <p className="mt-3 flex items-center gap-1 text-xs text-brand"><Check className="size-3" /> Applied</p> : <div className="mt-3 flex flex-wrap gap-2">
                 <button type="button" disabled={disabled || !current || i !== messages.length - 1} onClick={() => apply(message)} className="rounded-full bg-brand px-3 py-2 text-xs font-semibold text-on-color disabled:opacity-40">{reply.proposal.warnings.length ? "Apply with these conflicts" : "Apply change"}</button>
-                <button type="button" disabled={disabled || i !== messages.length - 1} onClick={() => setMessages((list) => [...list, { id: ++sequence.current * 2, role: "assistant", text: "Kept your current trip. What would you like to try instead?", tripKey }])} className="rounded-full border border-border px-3 py-2 text-xs disabled:opacity-40">Keep current trip</button>
+                <button type="button" disabled={disabled || i !== messages.length - 1} onClick={() => { stopCurrentSpeech(); setMessages((list) => [...list, { id: ++sequence.current * 2, role: "assistant", text: "Kept your current trip. What would you like to try instead?", tripKey }]); }} className="rounded-full border border-border px-3 py-2 text-xs disabled:opacity-40">Keep current trip</button>
               </div>}
             </div>}
             {reply && i === messages.length - 1 && <div className="flex flex-wrap gap-2">{reply.choices.map((c) => <button key={c.label} type="button" disabled={disabled} onClick={() => void send(c.message)} className="rounded-full border border-brand/25 bg-brand-soft px-3 py-2 text-xs font-medium text-brand hover:bg-brand/15 disabled:opacity-40">{c.label}</button>)}</div>}

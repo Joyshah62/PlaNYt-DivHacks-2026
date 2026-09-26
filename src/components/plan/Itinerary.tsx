@@ -28,6 +28,7 @@ import { crowdBand } from "@/lib/plan/crowd";
 import { isMealBreak } from "@/lib/plan/profile";
 import { CROWD_COLOR, CROWD_LABEL, KIND_COLOR, LEG_VERB, MODE_LABEL } from "@/lib/plan/display";
 import { clock, duration, nycToday, WEEKDAYS } from "@/lib/plan/time";
+import { narrateItinerary } from "@/lib/plan/narration";
 import { mapsDayRoute, mapsDirections, mapsPoint, type MapsPoint } from "@/lib/plan/maps";
 import type { DayPlan, Leg, LegMode, PlannedStop, StopInput } from "@/lib/plan/types";
 import { WEATHER_LABEL, weatherKind, type Forecast } from "@/lib/plan/weatherCodes";
@@ -35,6 +36,7 @@ import { WeatherIcon } from "./WeatherIcon";
 import { stopFromAttraction } from "./StopPicker";
 import { cn } from "@/lib/utils";
 import { CrowdStrip } from "./CrowdStrip";
+import { SpeakButton } from "./SpeakButton";
 
 const LEG_ICON: Record<LegMode, typeof Footprints> = { walk: Footprints, subway: TrainFront, bike: Bike, car: Car };
 /** Places where rain changes the visit. */
@@ -148,6 +150,7 @@ export function Itinerary({
   photos: Record<string, string>;
 }) {
   const { summary, baseline, request } = plan;
+  const dayNarration = narrateItinerary(plan);
   const savedMin = baseline ? baseline.travelMin - summary.travelMin : 0;
   const dayRoute = mapsDayRoute(plan);
   const fromHour = Math.max(6, Math.floor(request.startMin / 60) - 1);
@@ -197,6 +200,7 @@ export function Itinerary({
       </header>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
+        <SpeakButton text={dayNarration} label="Play my day" />
         <Button size="sm" onClick={onSave} className={cn("rounded-full", isSaved ? "bg-brand-soft text-brand hover:bg-brand-soft" : "bg-foreground text-background hover:bg-foreground/85")}>
           {isSaved ? <BookmarkCheck aria-hidden /> : <Bookmark aria-hidden />}
           {isSaved ? "Saved" : "Save plan"}

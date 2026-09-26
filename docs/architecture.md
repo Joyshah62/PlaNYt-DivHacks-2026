@@ -13,6 +13,7 @@ Browser
        ├── /api/plan       deterministic route + schedule optimization → DayPlan
        ├── /api/plan/*     comparisons and multi-day/day data
        ├── /api/trip-chat  conversational changes → updated plan
+       ├── /api/tts-token  single-use ElevenLabs TTS WebSocket credential
        ├── /api/discover   place suggestions for itinerary gaps
        └── /api/*          place, route, food, photo, crowd and weather data
 ```
@@ -59,6 +60,7 @@ Catalog photo metadata is built from Wikipedia/Wikimedia Commons with attributio
 | `GET /api/plan/days` | Day overview data |
 | `GET /api/crowd-heat` | Crowd heatmap data |
 | `POST /api/trip-chat` | Apply conversational edits to a plan |
+| `POST /api/tts-token` | Mint a single-use ElevenLabs token for browser speech playback |
 | `POST /api/discover` | Find places that fit plan gaps and interests |
 | `GET /api/food` | Find meal options near a planned location |
 | `GET /api/place` | Place details, hours, and crowd profile |
@@ -98,11 +100,16 @@ Catalog photo metadata is built from Wikipedia/Wikimedia Commons with attributio
 | Wikipedia / Wikimedia Commons | Catalog photos with per-photo credit/license |
 | Google Places (optional) | Live photo lookup |
 | Google Gemini (optional key) | Natural-language intent extraction and chat |
+| ElevenLabs (optional key) | Low-latency text-to-speech for assistant responses; permanent API key stays server-side |
 
 Public service availability and terms can change. Respect each provider’s attribution, usage, and rate limits.
 
 ## Local development and configuration
 
 Requires Node.js 20+. Run `npm install`, copy `.env.example` to `.env.local`, then `npm run dev`. Gemini and Google Places keys are optional; manual planning and catalog photos work without them.
+
+Assistant replies can optionally use ElevenLabs TTS. Set `ELEVENLABS_API_KEY`
+and `NEXT_PUBLIC_ELEVENLABS_VOICE_ID` in `.env.local`; the private key is only
+used to mint a short-lived single-use WebSocket token. See the README for setup.
 
 Use `npm run crowd-data`, `npm run poi-data`, and `node scripts/build-photo-data.mjs` to rebuild bundled datasets. Other commands are listed in the [README](../README.md).
