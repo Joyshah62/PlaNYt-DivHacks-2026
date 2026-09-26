@@ -1,0 +1,74 @@
+import type { Camera, LatLng } from "./camera";
+
+/** One map, whichever engine draws it. Components only ever talk to this. */
+export interface CityMap {
+  readonly engine: "google" | "maplibre";
+  jumpTo(c: Camera): void;
+  /** Resolves when the flight ends (or is interrupted). */
+  flyTo(c: Camera, ms: number): Promise<void>;
+  orbit(c: Camera, secondsPerTurn: number): void;
+  stop(): void;
+  onMove(cb: (lat: number, lng: number, heading: number) => void): () => void;
+  setRoute(points: LatLng[]): void;
+  addPin(p: LatLng, label: string): void;
+  clearOverlays(): void;
+  destroy(): void;
+}
+
+export type MapRole = "hero" | "secondary";
+
+export interface EngineEnv {
+  hasKey: boolean;
+  webgl: boolean;
+  saveData: boolean;
+  deviceMemory: number | undefined;
+}
+
+export const isLite = (env: EngineEnv) => env.saveData || (env.deviceMemory !== undefined && env.deviceMemory <= 2);
+
+export function chooseEngine(env: EngineEnv, role: MapRole): "google" | "maplibre" | "none" {
+  if (!env.webgl) return "none";
+  if (!env.hasKey) return "maplibre";
+  if (role === "secondary" && isLite(env)) return "maplibre";
+  return "google";
+}
+
+let webgl: boolean | undefined;
+export function readEnv(): EngineEnv {
+  if (webgl === undefined) {
+    try {
+      const gl = document.createElement("canvas").getContext("webgl2");
+      webgl = !!gl;
+      gl?.getExtension("WEBGL_lose_context")?.loseContext(); // hand the context back
+    } catch {
+      webgl = false;
+    }
+  }
+  const nav = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number };
+  return {
+    hasKey: !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    webgl,
+    saveData: !!nav.connection?.saveData,
+    deviceMemory: nav.deviceMemory,
+  };
+}
+
+// Once Google has failed on this page, later maps go straight to the fallback.
+let googleBroken = false;
+
+/** Build a map in `host` and resolve once it has painted. Engines load on demand. */
+export async function createCityMap(host: HTMLElement, cam: Camera, role: MapRole): Promise<CityMap | null> {
+  const engine = chooseEngine(readEnv(), role);
+  if (engine === "none") return null;
+  if (engine === "google" && !googleBroken) {
+    try {
+      const { createGoogleMap } = await import("./cityMapGoogle");
+      return await createGoogleMap(host, cam);
+    } catch (err) {
+      console.warn("Google 3D map unavailable, using the satellite fallback.", err);
+      googleBroken = true;
+    }
+  }
+  const { createLibreMap } = await import("./cityMapLibre");
+  return createLibreMap(host, cam);
+}
