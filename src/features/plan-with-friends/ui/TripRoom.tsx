@@ -10,12 +10,13 @@ import { ConsensusBar } from "./ConsensusBar";
 import { DraftDay } from "./DraftDay";
 import { GettingHomePanel } from "./GettingHomePanel";
 import { GroupMapPanel } from "./GroupMapPanel";
+import { IdeasPanel } from "./IdeasPanel";
 import { JoinCard } from "./JoinCard";
 import { PlacesPanel } from "./PlacesPanel";
 import { StartPointCard } from "./StartPointCard";
 import { useTripRoom } from "./useTripRoom";
 
-type Tab = "places" | "day";
+type Tab = "places" | "ideas" | "day";
 
 export function TripRoom({ id }: { id: string }) {
   const room = useTripRoom(id);
@@ -74,7 +75,7 @@ export function TripRoom({ id }: { id: string }) {
       {!me && !room.locked && <JoinCard hostName={host} onJoin={actions.join} />}
 
       <div className="flex gap-1 rounded-full border border-border bg-card p-1 lg:hidden" role="tablist" aria-label="Trip room sections">
-        {(["places", "day"] as Tab[]).map((t) => (
+        {(["places", "ideas", "day"] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
@@ -83,18 +84,21 @@ export function TripRoom({ id }: { id: string }) {
             onClick={() => setTab(t)}
             className={cn("flex-1 rounded-full py-1.5 text-sm font-medium transition", tab === t ? "bg-foreground text-background" : "text-muted-foreground")}
           >
-            {t === "places" ? `Places · ${trip.candidates.length}` : "Map & day"}
+            {t === "places" ? `Places · ${trip.candidates.length}` : t === "ideas" ? `Ideas · ${trip.ideas.length}` : "Map & day"}
           </button>
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start lg:[grid-auto-rows:min-content]">
         <div className={cn("flex flex-col gap-4", tab !== "places" && "hidden lg:flex")}>
           {me && !room.locked && <StartPointCard start={me.start} onSet={actions.setStart} />}
           {me && !room.locked && <AskRoam onSuggest={actions.suggest} />}
           <PlacesPanel trip={trip} memberId={me?.id ?? null} locked={room.locked} onVote={actions.vote} onSuggest={actions.suggest} onRemove={actions.remove} />
         </div>
-        <div className={cn("flex flex-col gap-4 lg:sticky lg:top-4", tab !== "day" && "hidden lg:flex")}>
+        <div className={cn("lg:col-start-1", tab !== "ideas" && "hidden lg:block")}>
+          <IdeasPanel trip={trip} memberId={me?.id ?? null} onPost={actions.postIdea} onVote={actions.voteIdea} onToPlace={actions.ideaToPlace} />
+        </div>
+        <div className={cn("flex flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start", tab !== "day" && "hidden lg:flex")}>
           <GroupMapPanel trip={trip} plan={draft.plan} memberId={me?.id ?? null} onSuggest={actions.suggest} />
           <DraftDay plan={draft.plan} updating={draft.updating} error={draft.error} locked={room.locked} />
           <GettingHomePanel trip={trip} tripId={id} plan={draft.plan} />

@@ -177,6 +177,44 @@ describe("trip service: where everyone starts", () => {
   });
 });
 
+describe("trip service: ideas and chat", () => {
+  it("posts ideas in order, with upvotes", async () => {
+    const { trip, memberId } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.addIdea(trip.id, memberId, "dessert later?");
+    let t = await svc.addIdea(trip.id, rishi, "I'm free after 3");
+    expect(t.ideas.map((i) => [i.text, i.memberId])).toEqual([
+      ["dessert later?", memberId],
+      ["I'm free after 3", rishi],
+    ]);
+    t = await svc.voteIdea(trip.id, rishi, t.ideas[0].id, true);
+    expect(t.ideas[0].votes).toEqual([rishi]);
+    t = await svc.voteIdea(trip.id, rishi, t.ideas[0].id, false);
+    expect(t.ideas[0].votes).toEqual([]);
+  });
+
+  it("links an idea to the place it became", async () => {
+    const { trip, memberId } = await start();
+    const withIdea = await svc.addIdea(trip.id, memberId, "something with a view");
+    const t = await svc.linkIdea(trip.id, memberId, withIdea.ideas[0].id, "met");
+    expect(t.ideas[0].placeKey).toBe("met");
+    expect(await status(svc.linkIdea(trip.id, memberId, withIdea.ideas[0].id, "not-a-place"))).toBe(404);
+  });
+
+  it("keeps chat open after the plan locks, and needs you to have joined", async () => {
+    const { trip, memberId } = await start();
+    await svc.confirm(trip.id, memberId, true);
+    expect((await svc.addIdea(trip.id, memberId, "see you at 10!")).ideas).toHaveLength(1);
+    expect(await status(svc.addIdea(trip.id, "stranger1234", "hi"))).toBe(403);
+  });
+
+  it("rejects over-long ideas through the schema", async () => {
+    const { IdeaBody } = await import("./schema");
+    expect(IdeaBody.safeParse({ memberId: "member123", text: "x".repeat(281) }).success).toBe(false);
+    expect(IdeaBody.safeParse({ memberId: "member123", text: "   " }).success).toBe(false);
+  });
+});
+
 describe("trip service: deciding together", () => {
   it("locks when everyone is in, and freezes the trip", async () => {
     const { trip, memberId } = await start();

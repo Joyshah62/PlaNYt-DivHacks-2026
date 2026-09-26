@@ -4,7 +4,7 @@ import { defaultAvatar, type Avatar } from "../core/avatars";
 import { consensus } from "../core/consensus";
 import { fairestPoint, MEETUP_PREFIX, roundPoint, withGroupStart, type Point } from "../core/fairness";
 import { draftRequest } from "../core/rank";
-import { MAX_CANDIDATES, MAX_MEMBERS, type Fairness, type Member, type Trip, type TripSettings } from "../core/types";
+import { IDEAS_SHOWN, MAX_CANDIDATES, MAX_IDEAS, MAX_MEMBERS, type Fairness, type Member, type Trip, type TripSettings } from "../core/types";
 import type { StoredMember, StoredMeta, TripBackend, TripMeta } from "./backend";
 import { areaLabel, fairestMeetup, groupTravel } from "./travel";
 
@@ -52,7 +52,7 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
     const stored = await db.getMeta(id);
     if (!stored) throw new TripError(404, "This trip has expired or the link is wrong.");
     const meta = upgradeMeta(stored);
-    const [rawMembers, records, confirmations] = await Promise.all([db.getMembers(id), db.getCandidates(id), db.getConfirmations(id)]);
+    const [rawMembers, records, confirmations, ideaList] = await Promise.all([db.getMembers(id), db.getCandidates(id), db.getConfirmations(id), db.listIdeas(id, IDEAS_SHOWN)]);
     const votes = await db.getVotes(id, Object.keys(records));
     const members = Object.fromEntries(Object.entries(rawMembers).map(([mid, m]) => [mid, upgradeMember(mid, m)]));
     const candidates = Object.values(records)
@@ -78,7 +78,7 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
       const code = encodePlan(draft);
       lockedCode = (await db.lock(id, code)) ? code : ((await db.getMeta(id))?.lockedCode ?? code);
     }
-    const trip: Trip = { ...partial, deadline: meta.deadline, confirmations, consensus: c, draft, fairness, lockedCode };
+    const trip: Trip = { ...partial, ideas: ideaList.ideas, deadline: meta.deadline, confirmations, consensus: c, draft, fairness, lockedCode };
     return { meta, trip };
   }
 
@@ -151,6 +151,28 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
       const { trip } = await editable(id, memberId);
       const start = point ? { ...roundPoint(point), area: areaLabel(point) } : null;
       await db.setMember(id, memberId, { ...trip.members[memberId], start });
+      return saved(id);
+    },
+
+    async addIdea(id: string, memberId: string, text: string) {
+      const { trip } = await read(id);
+      if (!(memberId in trip.members)) throw new TripError(403, "Join the trip first.");
+      if ((await db.listIdeas(id, 1)).total >= MAX_IDEAS) throw new TripError(400, "This trip has a lot of ideas already. Vote on the ones here.");
+      await db.addIdea(id, { id: newId(6), memberId, text, votes: [], placeKey: null, at: now() });
+      return saved(id);
+    },
+
+    async voteIdea(id: string, memberId: string, ideaId: string, on: boolean) {
+      const { trip } = await read(id);
+      if (!(memberId in trip.members)) throw new TripError(403, "Join the trip first.");
+      if (!(await db.setIdeaVote(id, ideaId, memberId, on))) throw new TripError(404, "That idea isn't here anymore.");
+      return saved(id);
+    },
+
+    async linkIdea(id: string, memberId: string, ideaId: string, placeKey: string) {
+      const { trip } = await editable(id, memberId);
+      if (!trip.candidates.some((c) => c.stop.key === placeKey)) throw new TripError(404, "That place isn't on this trip.");
+      if (!(await db.linkIdea(id, ideaId, placeKey))) throw new TripError(404, "That idea isn't here anymore.");
       return saved(id);
     },
 

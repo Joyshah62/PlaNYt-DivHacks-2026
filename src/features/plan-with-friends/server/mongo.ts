@@ -1,5 +1,5 @@
 import type { Collection, Db, PullOperator } from "mongodb";
-import type { Member } from "../core/types";
+import type { Idea, Member } from "../core/types";
 import { TRIP_TTL_SECONDS, type CandidateRecord, type StoredMember, type StoredMeta, type TripBackend } from "./backend";
 
 export interface TripDoc {
@@ -13,6 +13,8 @@ export interface TripDoc {
 
 const expiry = () => new Date(Date.now() + TRIP_TTL_SECONDS * 1000);
 
+type IdeaDoc = Idea & { _id: string; tripId: string; expiresAt: Date };
+
 export function mongoBackend(db: () => Promise<Db>): TripBackend {
   let ready: Promise<Collection<TripDoc>> | null = null;
   const trips = () =>
@@ -24,6 +26,19 @@ export function mongoBackend(db: () => Promise<Db>): TripBackend {
       })
       .catch((error: unknown) => {
         ready = null;
+        throw error;
+      }));
+  let ideasReady: Promise<Collection<IdeaDoc>> | null = null;
+  const ideas = () =>
+    (ideasReady ??= db()
+      .then(async (d) => {
+        const col = d.collection<IdeaDoc>("trip_ideas");
+        await col.createIndex({ tripId: 1, at: -1 });
+        await col.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+        return col;
+      })
+      .catch((error: unknown) => {
+        ideasReady = null;
         throw error;
       }));
   const load = async (id: string) => (await trips()).findOne({ _id: id });
@@ -88,6 +103,22 @@ export function mongoBackend(db: () => Promise<Db>): TripBackend {
     },
     async touch(id) {
       await (await trips()).updateOne({ _id: id }, { $set: { expiresAt: expiry() } });
+    },
+    async listIdeas(id, limit) {
+      const col = await ideas();
+      const [docs, total] = await Promise.all([col.find({ tripId: id }).sort({ at: -1 }).limit(limit).toArray(), col.countDocuments({ tripId: id })]);
+      return { ideas: docs.reverse().map(({ id: ideaId, memberId, text, votes, placeKey, at }) => ({ id: ideaId, memberId, text, votes, placeKey, at })), total };
+    },
+    async addIdea(id, idea) {
+      await (await ideas()).insertOne({ ...idea, _id: `${id}:${idea.id}`, tripId: id, expiresAt: expiry() });
+    },
+    async setIdeaVote(id, ideaId, memberId, on) {
+      const r = await (await ideas()).updateOne({ _id: `${id}:${ideaId}` }, on ? { $addToSet: { votes: memberId } } : { $pull: { votes: memberId } });
+      return r.matchedCount === 1;
+    },
+    async linkIdea(id, ideaId, placeKey) {
+      const r = await (await ideas()).updateOne({ _id: `${id}:${ideaId}` }, { $set: { placeKey } });
+      return r.matchedCount === 1;
     },
   };
 }

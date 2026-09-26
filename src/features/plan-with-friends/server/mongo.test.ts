@@ -36,6 +36,9 @@ describe.skipIf(!uri)("mongo backend (live Atlas)", () => {
     ]);
     await svc.addCandidate(trip.id, host, { ...bridge, key: "temp", name: "Temp" });
     expect((await svc.removeCandidate(trip.id, host, "temp")).candidates.map((c) => c.stop.key)).toEqual(["met", "brooklyn-bridge"]);
+    const idea = await svc.addIdea(trip.id, memberId, "dessert later?");
+    const voted2 = await svc.voteIdea(trip.id, host, idea.ideas[0].id, true);
+    expect(voted2.ideas.map((i) => [i.text, i.votes])).toEqual([["dessert later?", [host]]]);
     await svc.setDeadline(trip.id, host, Date.now() + 3600_000);
     expect((await svc.confirm(trip.id, host, true)).lockedCode).toBeNull();
     const locked = await svc.confirm(trip.id, memberId, true);

@@ -1,5 +1,5 @@
 import type { StopInput } from "../bridge/index";
-import type { Member, TripSettings } from "../core/types";
+import type { Idea, Member, TripSettings } from "../core/types";
 
 export const TRIP_TTL_SECONDS = 60 * 60 * 24 * 30;
 
@@ -41,4 +41,9 @@ export interface TripBackend {
   getVotes(id: string, stopKeys: string[]): Promise<Record<string, string[]>>;
   setVote(id: string, stopKey: string, memberId: string, on: boolean): Promise<void>;
   touch(id: string, stopKeys: string[]): Promise<void>;
+  /** Newest `limit` ideas, oldest first; plus how many exist in total. */
+  listIdeas(id: string, limit: number): Promise<{ ideas: Idea[]; total: number }>;
+  addIdea(id: string, idea: Idea): Promise<void>;
+  setIdeaVote(id: string, ideaId: string, memberId: string, on: boolean): Promise<boolean>;
+  linkIdea(id: string, ideaId: string, placeKey: string): Promise<boolean>;
 }

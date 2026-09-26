@@ -6,6 +6,8 @@ import type { FairPick } from "./fairness";
 export const MAX_DAY_STOPS = 10;
 export const MAX_CANDIDATES = 30;
 export const MAX_MEMBERS = 12;
+export const MAX_IDEAS = 300;
+export const IDEAS_SHOWN = 100;
 
 export type TripSettings = Omit<PlanRequest, "stops" | "keepOrder">;
 
@@ -30,6 +32,16 @@ export interface Fairness {
   meetup: FairPick | null;
 }
 
+export interface Idea {
+  id: string;
+  memberId: string;
+  text: string;
+  votes: string[];
+  /** The place this idea turned into, once someone found one. */
+  placeKey: string | null;
+  at: number;
+}
+
 export interface Candidate {
   stop: StopInput;
   addedBy: string;
@@ -45,6 +57,8 @@ export interface Trip {
   settings: TripSettings;
   members: Record<string, Member>;
   candidates: Candidate[];
+  /** Oldest first, the latest IDEAS_SHOWN. */
+  ideas: Idea[];
   deadline: number | null;
   confirmations: Record<string, string>;
   consensus: Consensus;

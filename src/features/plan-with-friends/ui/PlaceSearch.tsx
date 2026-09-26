@@ -23,14 +23,16 @@ export function PlaceSearch({
   disabled,
   onPick,
   forStart = false,
+  initialQuery = "",
 }: {
   chosen: Set<string>;
   disabled?: boolean;
   onPick: (stop: StopInput) => void;
   /** Picking where you set off from: include subway stations, skip the popular sights. */
   forStart?: boolean;
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [found, setFound] = useState<{ q: string; results: Result[] }>({ q: "", results: [] });
   const [active, setActive] = useState(0);
   const [locating, setLocating] = useState(false);

@@ -1,4 +1,4 @@
-import type { Member } from "../core/types";
+import type { Idea, Member } from "../core/types";
 import type { CandidateRecord, TripBackend, TripMeta } from "./backend";
 
 export interface MemoryEntry {
@@ -7,6 +7,7 @@ export interface MemoryEntry {
   confirmations: Map<string, string>;
   cands: Map<string, CandidateRecord>;
   votes: Map<string, Set<string>>;
+  ideas: Idea[];
 }
 
 function shared(): Map<string, MemoryEntry> {
@@ -24,7 +25,7 @@ export function memoryBackend(trips: Map<string, MemoryEntry> = shared()): TripB
     async setMeta(meta) {
       const entry = trips.get(meta.id);
       if (entry) entry.meta = structuredClone(meta);
-      else trips.set(meta.id, { meta: structuredClone(meta), members: new Map(), confirmations: new Map(), cands: new Map(), votes: new Map() });
+      else trips.set(meta.id, { meta: structuredClone(meta), members: new Map(), confirmations: new Map(), cands: new Map(), votes: new Map(), ideas: [] });
     },
     async setDeadline(id, deadline) {
       const entry = trips.get(id);
@@ -78,5 +79,24 @@ export function memoryBackend(trips: Map<string, MemoryEntry> = shared()): TripB
       entry.votes.set(stopKey, set);
     },
     async touch() {},
+    async listIdeas(id, limit) {
+      const ideas = trips.get(id)?.ideas ?? [];
+      return { ideas: structuredClone(ideas.slice(-limit)), total: ideas.length };
+    },
+    async addIdea(id, idea) {
+      trips.get(id)?.ideas.push(structuredClone(idea));
+    },
+    async setIdeaVote(id, ideaId, memberId, on) {
+      const idea = trips.get(id)?.ideas.find((i) => i.id === ideaId);
+      if (!idea) return false;
+      idea.votes = on ? [...new Set([...idea.votes, memberId])] : idea.votes.filter((v) => v !== memberId);
+      return true;
+    },
+    async linkIdea(id, ideaId, placeKey) {
+      const idea = trips.get(id)?.ideas.find((i) => i.id === ideaId);
+      if (!idea) return false;
+      idea.placeKey = placeKey;
+      return true;
+    },
   };
 }
