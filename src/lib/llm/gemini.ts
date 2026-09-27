@@ -1,7 +1,7 @@
 /** Gemini through Google's compatible chat API: tool calls and structured answers. */
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
-/** Retries stay on the configured Gemini model. */
-export const GEMINI_FALLBACK_MODEL = GEMINI_MODEL;
+/** What a stalled request retries on: GEMINI_FALLBACK_MODEL when set (another model is often free when one is busy), else the same one. */
+export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || GEMINI_MODEL;
 export const GEMINI_ASSISTANT_MODEL = GEMINI_MODEL;
 export const geminiKey = () => process.env.GEMINI_API_KEY || null;
 
@@ -114,7 +114,7 @@ export async function geminiJson(system: string, user: string, schema: { name: s
   const reply = await geminiChat({ messages, schema, timeoutMs: opts.timeoutMs ?? 20_000, effort: opts.effort, model: opts.model }).catch((error) => {
     if (!transient(error)) throw error;
     console.warn(`[gemini] ${opts.model ?? GEMINI_MODEL} stalled, retrying Gemini:`, error instanceof Error ? error.message : error);
-    return geminiChat({ messages, schema, timeoutMs: 20_000, model: GEMINI_FALLBACK_MODEL });
+    return geminiChat({ messages, schema, timeoutMs: 25_000, model: GEMINI_FALLBACK_MODEL });
   });
   try {
     return JSON.parse(reply.text ?? "null");

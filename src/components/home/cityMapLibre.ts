@@ -4,7 +4,7 @@ import { Map as MapLibre, Marker, type GeoJSONSource, type StyleSpecification } 
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ensureWorker, keepAttributionCollapsed } from "@/components/map/mapStyle";
 import { rangeToZoom, type Camera, type LatLng } from "./camera";
-import { visibleTimeout, type CityMap, type MapRole } from "./cityMap";
+import { readyWithin, visibleTimeout, type CityMap, type MapRole } from "./cityMap";
 
 // Above ~50° the flat satellite raster runs out of tiles and shows a jagged black horizon.
 const MAX_PITCH = 50;
@@ -71,7 +71,7 @@ export async function createLibreMap(host: HTMLElement, cam: Camera, role: MapRo
       el.remove();
       reject(signal?.reason);
     };
-    const cancelTimer = visibleTimeout(document, 8000, done);
+    const cancelTimer = visibleTimeout(document, readyWithin(role), done);
     map.once("idle", done);
     signal?.addEventListener("abort", abort, { once: true });
   });

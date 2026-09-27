@@ -126,16 +126,18 @@ const suggestions = [
  * is dropped at this point and tried once more, rather than waited out.
  */
 const CALL_TIMEOUT_MS = 15_000;
+/** A retry after a stall gets longer: the model was busy, not broken. */
+const RETRY_TIMEOUT_MS = 25_000;
 /**
- * A transient failure gets one retry on the configured Gemini model.
+ * A transient failure (a stall, a rate limit) gets one retry, on GEMINI_FALLBACK_MODEL when one is set.
  */
-async function withFallback<T>(call: (model: string | undefined) => Promise<T>): Promise<T> {
+async function withFallback<T>(call: (model: string | undefined, timeoutMs: number) => Promise<T>): Promise<T> {
   try {
-    return await call(GEMINI_FALLBACK_MODEL);
+    return await call(undefined, CALL_TIMEOUT_MS);
   } catch (error) {
     if (!transient(error)) throw error;
-    console.warn("[trip-chat] model stalled, retrying Gemini:", error instanceof Error ? error.message : error);
-    return call(undefined);
+    console.warn(`[trip-chat] model stalled, retrying on ${GEMINI_FALLBACK_MODEL}:`, error instanceof Error ? error.message : error);
+    return call(GEMINI_FALLBACK_MODEL, RETRY_TIMEOUT_MS);
   }
 }
 
@@ -875,7 +877,7 @@ export async function chat(input: z.infer<typeof ChatInput>, progress: Progress 
   // Low effort keeps replies quick; the planner checks every change, so the model needn't deliberate.
   const ask = (round: number) => {
     progress(round ? "Reviewing what I found…" : "Working out the next step…");
-    return withFallback((model) => geminiChat({ messages, tools, timeoutMs: CALL_TIMEOUT_MS, model, effort: "low" })).catch((error) => {
+    return withFallback((model, timeoutMs) => geminiChat({ messages, tools, timeoutMs, model, effort: "low" })).catch((error) => {
     // A later round failing (rate limit, timeout) still leaves the earlier work to show.
     if (round === 0) throw error;
     console.error("[trip-chat] follow-up round failed:", error instanceof Error ? error.message : error);
@@ -937,7 +939,8 @@ export async function chat(input: z.infer<typeof ChatInput>, progress: Progress 
     messages.push(response.message, ...answers);
     if (looks.length) rounds = Math.min(MAX_ROUNDS + 1, Math.max(rounds, round + 2));
   }
-  console.info("[trip-chat] tools:", calls.map((c) => `${c.name}(${JSON.stringify(c.args ?? {})})`).join(" ") || "none", said ? `| said: ${said.slice(0, 120)}` : "");
+  // Tool names only: arguments and replies carry what the traveler wrote and where they're going.
+  console.info("[trip-chat] tools:", calls.map((c) => c.name).join(" ") || "none", said ? `| replied (${said.length} chars)` : "");
   const cited = sources.filter((s, i) => sources.findIndex((x) => x.url === s.url) === i).slice(0, 3);
   // What the model answered alongside its changes ("and what's the weather then?") goes with the app's reply.
   let answered = false;

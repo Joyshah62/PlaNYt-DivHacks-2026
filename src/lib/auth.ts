@@ -95,7 +95,15 @@ export const auth = betterAuth({
         // A new Google sign-in: take the phone number from their Google profile when there is one.
         after: async (account, ctx) => {
           if (account.providerId !== "google" || !ctx) return;
-          await secureLinkedAccount(account.userId, ctx.context.internalAdapter);
+          try {
+            await secureLinkedAccount(account.userId, ctx.context.internalAdapter);
+          } catch (error) {
+            // The link is already saved, and this hook never runs for it again: undo it and fail this
+            // sign-in, so the next attempt links afresh and the safeguard gets another go.
+            console.error("[auth] couldn't secure a linked Google account, undoing the link:", error instanceof Error ? error.message : error);
+            await ctx.context.internalAdapter.deleteAccount(account.id).catch(() => {});
+            throw error;
+          }
           if (!account.accessToken) return;
           const phoneNumber = await googlePhone(account.accessToken);
           if (!phoneNumber) return;

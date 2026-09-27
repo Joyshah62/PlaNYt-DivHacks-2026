@@ -3,7 +3,7 @@
 import { ArrowDown, ArrowUp, GripVertical, Plus, RefreshCw, X } from "lucide-react";
 import { useRef, useState, type DragEvent } from "react";
 import { clock, CROWD_COLOR, CROWD_LABEL, duration, isMealBreak, LEG_VERB, type DayPlan } from "../bridge/index";
-import { CrowdStrip } from "../bridge/ui";
+import { CrowdStrip, LiveAlerts } from "../bridge/ui";
 import type { Trip } from "../core/types";
 import { PlaceThumb } from "./PlaceThumb";
 
@@ -122,6 +122,7 @@ export function DayBuilder({
         </p>
       )}
       {error && <p className="tr-day-error">{error}</p>}
+      {stops.length > 0 && <LiveAlerts date={trip.settings.date} places={stops.map((s) => s.name)} />}
 
       {!order.length ? (
         <p className="tr-day-empty">Vote for a place to build the day.</p>

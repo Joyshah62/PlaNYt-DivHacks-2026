@@ -2,7 +2,7 @@
 
 import { importLibrary, setOptions } from "@googlemaps/js-api-loader";
 import type { Camera } from "./camera";
-import { visibleTimeout, type CityMap, type MapRole } from "./cityMap";
+import { readyWithin, visibleTimeout, type CityMap, type MapRole } from "./cityMap";
 
 // `beta`, not `alpha`: in alpha every maps3d overlay constructor throws (checked 2026-09-26).
 // The loader is global and warns on a second setOptions(); a module flag resets whenever this
@@ -54,8 +54,8 @@ export async function createGoogleMap(host: HTMLElement, cam: Camera, role: MapR
   map.inert = role !== "hero";
   host.append(map);
 
-  // Ready = first steady frame. Failure = gmp-error or an auth failure. Slow = give up after 8 s of
-  // visible time (a hidden tab renders nothing, so waiting there proves nothing).
+  // Ready = first steady frame. Failure = gmp-error or an auth failure. Slow = go ahead after
+  // readyWithin(role) of visible time (a hidden tab renders nothing, so waiting there proves nothing).
   await new Promise<void>((resolve, reject) => {
     const finish = (fn: () => void) => {
       cancelTimer();
@@ -72,7 +72,7 @@ export async function createGoogleMap(host: HTMLElement, cam: Camera, role: MapR
       map.remove();
       reject(new Error("Google 3D map failed to load"));
     });
-    const cancelTimer = visibleTimeout(document, 8000, () => finish(resolve));
+    const cancelTimer = visibleTimeout(document, readyWithin(role), () => finish(resolve));
     map.addEventListener("gmp-steadychange", onSteady);
     map.addEventListener("gmp-error", onError);
     authListeners.add(onError);
