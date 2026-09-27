@@ -18,11 +18,14 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@google/genai": "^2.24.0",
+    "better-auth": "^1.7.6",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
     "lucide-react": "^1.47.0",
     "maplibre-gl": "^6.11.2",
+    "mongodb": "^7.6.0",
     "next": "16.3.5",
+    "next-auth": "^4.24.15",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "^3.10.1",
@@ -31,6 +34,8 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@rolldown/binding-wasm32-wasi": "^1.2.11",
+    "@rolldown/binding-win32-x64-msvc": "^1.2.11",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24.13.6",
     "@types/react": "^19",
