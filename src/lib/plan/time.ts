@@ -40,6 +40,13 @@ export function weekdayOf(date: string): number {
   return new Date(`${date}T12:00:00Z`).getUTCDay();
 }
 
+/** A YYYY-MM-DD date n days later (or earlier). */
+export function addDays(date: string, n: number): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /** Minutes after midnight right now in New York, whatever the device's zone. */

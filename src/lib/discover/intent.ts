@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { grokJson, grokKey } from "@/lib/llm/grok";
 import { z } from "zod";
 import { isMealBreak } from "@/lib/plan/profile";
 import { clock } from "@/lib/plan/time";
@@ -8,7 +8,7 @@ import type { Area, Intent } from "./types";
 
 /**
  * Turning "Korean food for dinner without a big detour" or a follow-up like
- * "cheaper" into a structured search. Gemini only reads the words; which places
+ * "cheaper" into a structured search. Grok only reads the words; which places
  * come back, and why, is decided from data by the search and the planner.
  */
 
@@ -41,8 +41,6 @@ type Parsed = z.infer<typeof IntentSchema>;
 const SCHEMA: Record<string, unknown> = z.toJSONSchema(IntentSchema);
 delete SCHEMA.$schema;
 
-const MODEL = "gemini-3.5-flash-lite";
-let client: GoogleGenAI | null = null;
 
 const SYSTEM = `You turn a traveler's request into a search for one place to add to their New York day plan. Fill every field.
 
@@ -62,16 +60,10 @@ function planContext(plan: DayPlan): string {
 }
 
 export async function parseIntent(query: string, plan: DayPlan, previous: Intent | null): Promise<{ intent: Intent; area: Partial<Area> | null }> {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (apiKey) {
+  if (grokKey()) {
     try {
-      client ??= new GoogleGenAI({ apiKey });
-      const response = await client.models.generateContent({
-        model: MODEL,
-        contents: `${planContext(plan)}\n\n${previous ? `Previous search: ${JSON.stringify(previous)}\n\nFollow-up: ` : "Request: "}${query}`,
-        config: { systemInstruction: SYSTEM, responseMimeType: "application/json", responseJsonSchema: SCHEMA, abortSignal: AbortSignal.timeout(20_000) },
-      });
-      const parsed = IntentSchema.safeParse(JSON.parse(response.text ?? "null"));
+      const answer = await grokJson(SYSTEM, `${planContext(plan)}\n\n${previous ? `Previous search: ${JSON.stringify(previous)}\n\nFollow-up: ` : "Request: "}${query}`, { name: "search_intent", schema: SCHEMA }, { effort: "low" });
+      const parsed = IntentSchema.safeParse(answer);
       if (parsed.success) return clean(parsed.data, plan, query, previous);
       console.error("[discover] unusable intent", parsed.error.issues[0]?.message);
     } catch (error) {
@@ -94,8 +86,11 @@ function clean(p: Parsed, plan: DayPlan, query: string, previous: Intent | null)
   const { area: rawArea, ...rest } = p;
   const area = saysWhere ? rawArea : null;
   const after = saysAfter ? p.after : (previous?.after ?? null);
+  // "I don't want to travel much" is about distance even when the model reads it as a plain search.
+  const wantsClose = /\b(closer|close by|nearby|short walk|walking distance|walkable|not (too )?far|(don'?t|do not|not) (want to |have to )?(travel|walk|go) (much|far|too far))\b/.test(q);
   const intent: Intent = {
     ...rest,
+    sort: rest.sort === "fit" && wantsClose ? "closer" : rest.sort,
     after: after && keys.has(after) ? after : null,
     replace: p.replace && keys.has(p.replace) ? p.replace : null,
     visitMin: p.visitMin ? Math.max(15, Math.min(240, Math.round(p.visitMin))) : null,
@@ -109,7 +104,7 @@ function clean(p: Parsed, plan: DayPlan, query: string, previous: Intent | null)
   return { intent, area: { kind: area.kind, stopKey: area.stopKey ?? undefined, neighborhood: area.neighborhood ?? undefined } };
 }
 
-// --- without Gemini ---------------------------------------------------------------
+// --- without Grok ---------------------------------------------------------------
 
 // Word edges that also work next to accented letters ("café"), which \b doesn't.
 const W = (alternatives: string) => new RegExp(`(?<![\\p{L}])(?:${alternatives})(?![\\p{L}])`, "u");

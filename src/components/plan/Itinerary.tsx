@@ -122,9 +122,10 @@ export function Itinerary({
   onShare,
   onCalendar,
   friendsHref,
+  phone,
   assistant,
-  choices,
   dayPicker,
+  budget,
   forecast,
   photos,
 }: {
@@ -140,10 +141,12 @@ export function Itinerary({
   onCalendar: () => void;
   /** Starts a group trip from this plan; omitted when there's no plan to share. */
   friendsHref?: string;
+  /** "Text to my phone", with the actions. */
+  phone?: ReactNode;
   /** The trip assistant, right under the day's summary and actions. */
   assistant?: ReactNode;
-  /** Options for the day's open slots, shown under the summary. */
-  choices?: ReactNode;
+  /** What the day costs, under its numbers. */
+  budget?: ReactNode;
   /** The strip for choosing which day to go. */
   dayPicker?: ReactNode;
   forecast: Forecast | null;
@@ -228,6 +231,7 @@ export function Itinerary({
             <MapIcon className="size-3.5" aria-hidden /> Google Maps
           </a>
         )}
+        {phone}
         <span role="status" aria-live="polite" className="text-xs text-muted-foreground">
           {shareNote}
         </span>
@@ -264,7 +268,7 @@ export function Itinerary({
         </div>
       </dl>
 
-      {choices}
+      {budget}
 
       {plan.insights.length > 0 && (
         <ul className="mt-5 space-y-2 rounded-2xl border border-border bg-card p-4 text-sm leading-relaxed">

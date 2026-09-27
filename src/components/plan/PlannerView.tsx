@@ -7,16 +7,17 @@ import { ArrowRight, Bookmark, CalendarDays, ChevronDown, Clock, Footprints, Hom
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
-import { haversine } from "@/lib/osm/geo";
 import { ATTRACTION_BY_ID, type Attraction } from "@/lib/plan/attractions";
-import { fillSlot } from "@/lib/plan/choices";
 import { planToIcs } from "@/lib/plan/ics";
 import { catalogPhoto } from "@/lib/plan/photoUrls";
 import { nextStep } from "@/lib/plan/live";
 import { buildTimeline } from "@/lib/plan/playback";
 import type { Forecast } from "@/lib/plan/weatherCodes";
 import { BRAND, KIND_COLOR, MODE_LABEL } from "@/lib/plan/display";
-import { DEFAULT_PROFILE, GROUP, isMealBreak, MEAL_WINDOW, suggestFor, visitFor } from "@/lib/plan/profile";
+import { defaultSettings, fromAssistant, toRequest, type PlanSettings } from "@/lib/plan/fromAssistant";
+import { locate, NEAR_ME } from "@/lib/plan/here";
+import { withAnswers, type FollowUp } from "@/lib/plan/followUps";
+import { DEFAULT_PROFILE, isMealBreak, partySize, suggestFor, visitFor } from "@/lib/plan/profile";
 import {
   decodePlan,
   encodePlan,
@@ -33,30 +34,28 @@ import {
 import { clock, duration, nycToday, toHHMM, toMinutes, weekdayOf, WEEKDAYS } from "@/lib/plan/time";
 import type {
   AssistantResult,
-  Choice,
-  ChoiceOption,
   CrowdPref,
   DayPlan,
-  MealKind,
-  Meals,
   PlanRequest,
-  PlannedStop,
-  PointLabel,
   Profile,
   StopInput,
   TravelMode,
 } from "@/lib/plan/types";
-import { ChoicePanel } from "./ChoicePanel";
 import { useDiscover } from "./Discover";
 import { TripChat } from "./TripChat";
 import { NextUp, nextLine, useNycNow } from "./NextUp";
 import { DayPicker } from "./DayPicker";
 import { Itinerary } from "./Itinerary";
+import { Budget } from "./Budget";
+import { PhoneSend } from "./PhoneSend";
+import { FollowUpQuestions } from "./FollowUpQuestions";
+import type { AppAction } from "@/lib/discover/chat";
 import { PlaceSheet, type InspectPlace } from "./PlaceSheet";
 import { ProfileCard, profileSummary } from "./ProfileCard";
 import { ReplanDialog, type ReplanChoice } from "./ReplanDialog";
 import type { MapLeg, MapStop } from "./PlanMap";
 import { StopPicker, stopFromAttraction } from "./StopPicker";
+import { loadMemoryId, storeMemoryId } from "@/lib/memory/local";
 
 const PlanMap = dynamic(() => import("./PlanMap").then((m) => m.PlanMap), {
   ssr: false,
@@ -121,35 +120,6 @@ function planTitle(r: PlanRequest): string {
   return `${day} · ${names.slice(0, 2).join(", ")}${names.length > 2 ? ` +${names.length - 2}` : ""}`;
 }
 
-/** Meal options are looked up again once the meal moves this far (the day was re-planned). */
-const MEAL_ANCHOR_METERS = 700;
-const MEALS: MealKind[] = ["lunch", "dinner"];
-const mealChoiceId = (kind: MealKind) => `meal-${kind}`;
-const mealSpotKey = (kind: MealKind, p: { lat: number; lon: number }) => `${kind}@${p.lat.toFixed(3)},${p.lon.toFixed(3)}`;
-
-/** A meal break in the plan that has no options around it yet. */
-function mealsNeedingOptions(plan: DayPlan, choices: Choice[], noFood: Set<string>): { kind: MealKind; stop: PlannedStop }[] {
-  return MEALS.flatMap((kind) => {
-    const stop = plan.stops.find((s) => s.meal === kind);
-    if (!stop || !isMealBreak(stop) || noFood.has(mealSpotKey(kind, stop))) return [];
-    const group = choices.find((c) => c.id === mealChoiceId(kind));
-    return group?.anchor && haversine(group.anchor, stop) < MEAL_ANCHOR_METERS ? [] : [{ kind, stop }];
-  });
-}
-
-/** The choices that still apply to this plan: wishes whose stop is in it, meals that happen in it. */
-function choicesFor(plan: DayPlan, choices: Choice[]): Choice[] {
-  return choices
-    .filter((c) => {
-      if (c.kind === "wish") return plan.request.stops.some((s) => s.key === c.currentKey);
-      const stop = plan.stops.find((s) => s.meal === c.meal);
-      if (!stop) return false;
-      if (c.currentKey) return stop.key === c.currentKey;
-      return isMealBreak(stop) && !!c.anchor && haversine(c.anchor, stop) < MEAL_ANCHOR_METERS;
-    })
-    .sort((a, b) => (a.kind === b.kind ? MEALS.indexOf(a.meal!) - MEALS.indexOf(b.meal!) : a.kind === "wish" ? -1 : 1));
-}
-
 /** Discovery works on a planned day, shown as the itinerary. */
 const showingPlanForDiscover = (plan: DayPlan | null, view: "edit" | "plan") => (view === "plan" ? plan : null);
 
@@ -167,18 +137,7 @@ function subscribePhone(onChange: () => void) {
 type SheetSnap = "peek" | "half" | "full";
 const SHEET_PEEK = 150;
 
-interface Settings {
-  date: string;
-  startMin: number;
-  endMin: number;
-  mode: TravelMode;
-  crowd: CrowdPref;
-  origin: PointLabel | null;
-  returnToOrigin: boolean;
-  meals: Meals;
-  /** Keep the stops in their listed order (after placing something found by discovery). */
-  keepOrder: boolean;
-}
+type Settings = PlanSettings;
 
 
 function Logo() {
@@ -198,17 +157,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
   const [stops, setStops] = useState<StopInput[]>(() => shared?.stops ?? []);
   const [settings, setSettings] = useState<Settings>(() => {
     const today = nycToday();
-    const base: Settings = {
-      date: today,
-      startMin: 9 * 60,
-      endMin: 21 * 60,
-      mode: "transit",
-      crowd: "avoid",
-      origin: null,
-      returnToOrigin: false,
-      meals: { lunch: true, dinner: false },
-      keepOrder: false,
-    };
+    const base = defaultSettings(today);
     if (!shared) return base;
     // An old link keeps its stops and times, but a past date moves to today.
     // Only the settings fields: the shared request also carries its stops and profile, which live elsewhere.
@@ -250,12 +199,11 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
   const [thinking, setThinking] = useState(false);
   const [assistant, setAssistant] = useState<{ reply: string; unresolved: string[] } | null>(null);
   const [assistantError, setAssistantError] = useState<string | null>(null);
-  const [choices, setChoices] = useState<Choice[]>([]);
+  /** Questions asked before planning, with the answers picked so far. */
+  const [followUp, setFollowUp] = useState<{ text: string; questions: FollowUp[] } | null>(null);
   const [forecast, setForecast] = useState<Forecast | null>(null);
   // Photos for searched places, looked up once each; catalog photos ship with the app.
   const [placePhotos, setPlacePhotos] = useState<Record<string, string | null>>({});
-  // Meal spots where no food turned up, so they are not looked up again.
-  const [noFood, setNoFood] = useState<Set<string>>(() => new Set());
 
   const [originText, setOriginText] = useState("");
   const [originBusy, setOriginBusy] = useState(false);
@@ -286,13 +234,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
     if (!nextStops.length) return;
     setPlanning(true);
     setPlanError(null);
-    const request: PlanRequest = {
-      ...next,
-      // After the spread: the stops passed in are the day to plan, whatever else `next` carries.
-      stops: nextStops,
-      returnToOrigin: next.origin ? next.returnToOrigin : false,
-      profile: withProfile ?? profileRef.current,
-    };
+    const request: PlanRequest = toRequest(nextStops, next, withProfile ?? profileRef.current);
     try {
       const res = await fetch("/api/plan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
       const body = await res.json();
@@ -325,53 +267,6 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
       cancelled = true;
     };
   }, [plan]);
-
-  // Where a meal break falls, look up a few places to eat there.
-  const mealLookups = useMemo(() => (plan ? mealsNeedingOptions(plan, choices, noFood) : []), [plan, choices, noFood]);
-  const mealLookupKey = mealLookups.map(({ kind, stop }) => mealSpotKey(kind, stop)).join("|");
-  useEffect(() => {
-    if (!plan || !mealLookups.length) return;
-    let cancelled = false;
-    const exclude = plan.request.stops.map((s) => s.key).join(",");
-    for (const { kind, stop } of mealLookups) {
-      const i = plan.stops.indexOf(stop);
-      const near = plan.stops.slice(0, i).reverse().find((x) => !isMealBreak(x)) ?? plan.stops.slice(i + 1).find((x) => !isMealBreak(x));
-      const params = new URLSearchParams({ lat: String(stop.lat), lon: String(stop.lon), meal: kind, exclude });
-      fetch(`/api/food?${params}`)
-        .then((res) => (res.ok ? res.json() : { options: [] }))
-        .catch(() => ({ options: [] }))
-        .then((body: { options: ChoiceOption[] }) => {
-          if (cancelled) return;
-          if (!body.options.length) return setNoFood((set) => new Set(set).add(mealSpotKey(kind, stop)));
-          const group: Choice = {
-            id: mealChoiceId(kind),
-            kind: "meal",
-            meal: kind,
-            title: MEAL_WINDOW[kind].label,
-            currentKey: null,
-            options: body.options,
-            anchor: { lat: stop.lat, lon: stop.lon, near: near?.name ?? null },
-          };
-          setChoices((list) => [...list.filter((c) => c.id !== group.id), group]);
-        });
-    }
-    return () => {
-      cancelled = true;
-    };
-    // `mealLookupKey` names the lookups; the list itself is rebuilt every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mealLookupKey]);
-
-  function pickChoice(choice: Choice, option: ChoiceOption | null) {
-    if (!plan) return;
-    const nextStops = fillSlot(plan.request.stops, choice.currentKey, option);
-    if (nextStops.length > MAX_STOPS) return;
-    const next: Settings = choice.meal ? { ...settings, meals: { ...settings.meals, [choice.meal]: true } } : settings;
-    setChoices((list) => list.map((c) => (c.id === choice.id ? { ...c, currentKey: option?.key ?? null } : c)));
-    setStops(nextStops);
-    setSettings(next);
-    void runPlan(nextStops, next);
-  }
 
   // The next 16 days' weather, once: for the day strip, the header and each stop.
   useEffect(() => {
@@ -424,24 +319,35 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
   // "Find something that fits my trip": search, preview, add.
   const discover = useDiscover(showingPlanForDiscover(plan, view));
 
+  /** What Roam was asked to do in the app, for the plan it just shaped (which may not have rendered yet). */
+  function runChatAction(a: AppAction, target: DayPlan) {
+    if (a.action === "save") savePlan(target, true);
+    if (a.action === "calendar") downloadCalendar(target);
+    if (a.action === "share_link") void sharePlan(target);
+    if (a.action === "new_plan" && a.text) {
+      setView("edit");
+      setPrompt(a.text);
+      void ask(a.text, settings);
+    }
+  }
+
   function applyChatPlan(next: DayPlan) {
     setPlan(next);
     setStops(next.request.stops);
     setSettings({ ...next.request, keepOrder: next.request.keepOrder ?? false });
     setProfileOverride(next.request.profile);
-    setChoices([]);
     setActiveKey(null);
     setPlanError(null);
     window.history.replaceState(null, "", `/plan?plan=${encodePlan(next.request)}`);
   }
 
-  function downloadCalendar() {
-    if (!plan) return;
-    const link = `${window.location.origin}/plan?plan=${encodePlan(plan.request)}`;
-    const url = URL.createObjectURL(new Blob([planToIcs(plan, link)], { type: "text/calendar;charset=utf-8" }));
+  function downloadCalendar(target: DayPlan | null = plan) {
+    if (!target) return;
+    const link = `${window.location.origin}/plan?plan=${encodePlan(target.request)}`;
+    const url = URL.createObjectURL(new Blob([planToIcs(target, link)], { type: "text/calendar;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `roam-nyc-${plan.request.date}.ics`;
+    a.download = `roam-nyc-${target.request.date}.ics`;
     a.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     note("Calendar file downloaded");
@@ -456,47 +362,36 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
   // --- assistant --------------------------------------------------------------
 
   const ask = useCallback(
-    async (text: string, current: Settings) => {
+    async (text: string, current: Settings, skipQuestions = false) => {
       if (text.trim().length < 3) return;
       setThinking(true);
       setAssistantError(null);
       setAssistant(null);
+      setFollowUp(null);
       try {
+        // "Cafés near me" needs to know where that is; ask the device only when the words do.
+        const here = NEAR_ME.test(text) ? await locate() : null;
         const res = await fetch("/api/assistant", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text, profile: profileRef.current }),
+          body: JSON.stringify({ text, profile: profileRef.current, here, memoryId: loadMemoryId(), skipQuestions, knowsGroup: !!readProfileRaw() }),
         });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? "The assistant couldn't help with that.");
         const r = body as AssistantResult;
-        const next: Settings = {
-          ...current,
-          date: r.date ?? current.date,
-          startMin: r.startMin ?? current.startMin,
-          endMin: r.endMin && r.endMin > (r.startMin ?? current.startMin) ? r.endMin : current.endMin,
-          mode: r.mode ?? current.mode,
-          crowd: r.crowd ?? current.crowd,
-          origin: r.origin ?? current.origin,
-          meals: { ...current.meals, ...r.meals },
-          keepOrder: false,
-        };
-        // A group named in the text brings its walking limit unless the text set one.
-        const groupWalk = r.profile.group && r.profile.walkMax === undefined ? { walkMax: GROUP[r.profile.group].walkMax } : {};
-        const nextProfile: Profile = { ...profileRef.current, ...r.profile, ...groupWalk };
-        if (Object.keys(r.profile).length) {
+        storeMemoryId(r.memoryId);
+        if (r.questions?.length) {
+          setAssistant({ reply: r.reply, unresolved: [] });
+          setFollowUp({ text, questions: r.questions });
+          return;
+        }
+        const { settings: next, profile: nextProfile, profileChanged, stops: paced } = fromAssistant(r, current, profileRef.current);
+        if (profileChanged) {
           setProfileOverride(nextProfile);
           storeProfile(nextProfile);
         }
         setSettings(next);
         setAssistant({ reply: r.reply, unresolved: r.unresolved });
-        // Catalog stops at their typical length take the traveler's pace.
-        const pace = <T extends StopInput>(s: T): T => {
-          const a = s.attractionId ? ATTRACTION_BY_ID.get(s.attractionId) : undefined;
-          return a && s.visitMin === a.visitMin ? { ...s, visitMin: visitFor(a, nextProfile.pace) } : s;
-        };
-        const paced = r.stops.map(pace);
-        setChoices((r.choices ?? []).map((c) => ({ ...c, options: c.options.map(pace) })));
         if (paced.length) {
           setStops(paced);
           await runPlan(paced, next, nextProfile);
@@ -664,19 +559,22 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
     window.setTimeout(() => setShareNote((n) => (n === text ? null : n)), 2500);
   }
 
-  function savePlan() {
-    if (!plan || !planCode) return;
-    if (isSaved) {
-      storeSaved(savedPlans.filter((p) => p.code !== planCode));
+  /** The Save button toggles; Roam's "save it" only ever saves. */
+  function savePlan(target: DayPlan | null = plan, onlySave = false) {
+    if (!target) return;
+    const code = encodePlan(target.request);
+    if (savedPlans.some((p) => p.code === code)) {
+      if (onlySave) return note("Already saved on this device");
+      storeSaved(savedPlans.filter((p) => p.code !== code));
       return note("Removed from saved plans");
     }
-    const entry: SavedPlan = { id: `${Date.now().toString(36)}`, title: planTitle(plan.request), savedAt: new Date().toISOString(), code: planCode };
+    const entry: SavedPlan = { id: `${Date.now().toString(36)}`, title: planTitle(target.request), savedAt: new Date().toISOString(), code };
     note(storeSaved([entry, ...savedPlans]) ? "Saved on this device" : "Couldn't save here. Copy the link instead.");
   }
 
-  async function sharePlan() {
-    if (!planCode) return;
-    const url = `${window.location.origin}/plan?plan=${planCode}`;
+  async function sharePlan(target: DayPlan | null = plan) {
+    if (!target) return;
+    const url = `${window.location.origin}/plan?plan=${encodePlan(target.request)}`;
     try {
       await navigator.clipboard.writeText(url);
       note("Link copied");
@@ -702,7 +600,6 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
     };
     setStops(r.stops);
     setSettings(next);
-    setChoices([]);
     setProfileOverride(r.profile);
     void runPlan(r.stops, next, r.profile);
   }
@@ -844,6 +741,10 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                 onShare={sharePlan}
                 onCalendar={downloadCalendar}
                 friendsHref={planCode ? `/trip/start?plan=${planCode}` : undefined}
+                onSave={() => savePlan()}
+                onShare={() => void sharePlan()}
+                onCalendar={() => downloadCalendar()}
+                phone={planCode && <PhoneSend key={planCode} planCode={planCode} />}
                 forecast={forecast}
                 photos={photos}
                 assistant={
@@ -852,6 +753,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                     discover={discover}
                     planning={planning || stale}
                     onApply={applyChatPlan}
+                    onAction={runChatAction}
                     composerTarget={composerEl}
                     onEngage={() => {
                       if (isPhone && sheet === "peek") setSheet("half");
@@ -859,16 +761,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                   />
                 }
                 dayPicker={<DayPicker plan={plan} forecast={forecast} busy={planning} onPickDate={pickDate} />}
-                choices={
-                  <ChoicePanel
-                    plan={plan}
-                    choices={choicesFor(plan, choices)}
-                    busy={planning}
-                    full={plan.request.stops.length >= MAX_STOPS}
-                    loadingMeals={mealLookups.length > 0}
-                    onPick={pickChoice}
-                  />
-                }
+                budget={<Budget request={plan.request} people={partySize(profile)} onPeople={(people) => updateProfile({ ...profile, people })} />}
               />
               {replanOpen && <ReplanDialog plan={plan} busy={planning} onReplan={replan} onClose={() => setReplanOpen(false)} />}
             </div>
@@ -931,6 +824,19 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                       </p>
                       {assistant.unresolved.length > 0 && (
                         <p className="mt-2 text-xs text-muted-foreground">Couldn&apos;t find on the map: {assistant.unresolved.join(", ")}. Try adding them by address.</p>
+                      )}
+                      {followUp && (
+                        <FollowUpQuestions
+                          key={followUp.text}
+                          questions={followUp.questions}
+                          disabled={thinking}
+                          onDone={(answers) => {
+                            const text = withAnswers(followUp.text, answers);
+                            setPrompt(text);
+                            void ask(text, settings, true);
+                          }}
+                          onSkip={() => void ask(followUp.text, settings, true)}
+                        />
                       )}
                     </div>
                   )}

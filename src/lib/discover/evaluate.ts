@@ -71,11 +71,31 @@ export function weightedRating(c: Pick<Candidate, "rating" | "reviews">): number
 
 const CROWD_COST: Record<CrowdBand, number> = { quiet: 0, moderate: 6, busy: 14, peak: 22 };
 
-/** Lower is better. Every term is a number the card can show. */
+/**
+ * Minutes actually spent getting between places. The day's travel total also
+ * holds the pause the pace adds between stops, which any new stop brings along;
+ * counting it made a place next door look 20 minutes away.
+ */
+function movingMin(plan: DayPlan): number {
+  return plan.stops.reduce((min, s) => min + (s.leg?.minutes ?? 0), 0) + (plan.returnLeg?.minutes ?? 0);
+}
+
+/** How well known a place is, from its review count: 0 for none, up to 4 at 10,000 or more. */
+function popularity(reviews: number | null): number {
+  return reviews ? Math.min(4, Math.log10(reviews + 1)) : 0;
+}
+
+/**
+ * Lower is better. Every term is a number the card can show: minutes of extra
+ * travel, the rating (trusted more with more reviews), how many people
+ * reviewed it, and fit with what was asked and the rest of the day.
+ */
 export function scoreOf(r: Pick<Result, "travelDelta" | "overDelta" | "conflicts" | "closed" | "crowdBand" | "meters" | "price" | "rating" | "reviews" | "after">, intent: Intent, matched: number, afterKey: string | null): number {
   const weighted = weightedRating(r);
   let score = Math.max(0, r.travelDelta) + Math.max(0, r.overDelta) * 1.5 + r.conflicts.length * 45 + (r.closed ? 1000 : 0);
-  score -= weighted === null ? 0 : (weighted - 4.0) * (intent.sort === "rating" ? 60 : 25);
+  score -= weighted === null ? 0 : (weighted - 4.0) * (intent.sort === "rating" ? 60 : 35);
+  // A place thousands have reviewed is a safer bet than one a few dozen have.
+  score -= popularity(r.reviews) * (intent.sort === "rating" ? 8 : 6);
   if (intent.sort === "rating" && weighted === null) score += 12;
   score -= matched * 10;
   if (intent.quiet && r.crowdBand) score += CROWD_COST[r.crowdBand];
@@ -202,7 +222,7 @@ export async function evaluate(request: PlanRequest, candidates: Candidate[], in
         startMin: planned && !closed ? planned.startMin : null,
         endMin: planned && !closed ? planned.endMin : null,
         after: prev?.name ?? (planned && plan.request.origin ? plan.request.origin.label : null),
-        travelDelta: plan.summary.travelMin - base.summary.travelMin,
+        travelDelta: movingMin(plan) - movingMin(base),
         overDelta,
         closed,
         crowdBand: planned?.crowd?.band ?? null,
