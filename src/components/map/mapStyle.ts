@@ -141,15 +141,18 @@ export function setMapTheme(theme: MapTheme) {
   }
 }
 
+/** The planner opens on satellite; a layer someone picked is remembered. */
+export const DEFAULT_MAP_THEME: MapTheme = "satellite";
+
 export function getMapTheme(): MapTheme {
-  if (typeof window === "undefined") return "day";
+  if (typeof window === "undefined") return DEFAULT_MAP_THEME;
   const stored = localStorage.getItem("roam_map_theme");
   if (stored === "day" || stored === "night" || stored === "satellite" || stored === "transit") {
     return stored;
   }
   if (stored === "streets" || stored === "light") return "day";
   if (stored === "dark") return "night";
-  return "day";
+  return DEFAULT_MAP_THEME;
 }
 
 export function useMapTheme(): [MapTheme, (theme: MapTheme) => void] {
@@ -169,7 +172,7 @@ export function useMapTheme(): [MapTheme, (theme: MapTheme) => void] {
       };
     },
     getMapTheme,
-    () => "streets" as MapTheme,
+    () => DEFAULT_MAP_THEME,
   );
   return [theme, setMapTheme];
 }

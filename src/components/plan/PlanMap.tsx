@@ -5,12 +5,15 @@ import { AttributionControl, LngLatBounds, Map as MapLibre, Marker, Popup, type 
 import { Box, Compass, Crosshair, Ellipsis, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { rangeToZoom, zoomToRange, type Camera } from "@/components/home/camera";
+import { readEnv } from "@/components/home/cityMap";
 import { MapThemeSwitcher } from "@/components/map/MapThemeSwitcher";
 import { STYLES, ensureWorker, keepAttributionCollapsed, prefersReducedMotion, resolveColors, resolveMissingStyleImages, useDarkScheme, useMapTheme } from "@/components/map/mapStyle";
 import { ATTRACTIONS } from "@/lib/plan/attractions";
 import { positionAt, type Timeline } from "@/lib/plan/playback";
 import { clock } from "@/lib/plan/time";
 import type { LegMode, PointLabel } from "@/lib/plan/types";
+import { PlanMap3D, type PlanMap3DHandle } from "./PlanMap3D";
 
 export interface MapStop {
   key: string;
@@ -161,6 +164,30 @@ export function PlanMap(props: PlanMapProps) {
   const [scrub, setScrub] = useState<{ for: Timeline | null; t: number; engaged: boolean }>({ for: null, t: 0, engaged: false });
   const [playing, setPlaying] = useState(false);
   const [is3d, setIs3d] = useState(false);
+  // 3D is Google's photorealistic city, drawn over this map; 2D stays MapLibre. Without a key or
+  // WebGL, with NEXT_PUBLIC_MAP_ENGINE=maplibre, or if Google fails, 3D tilts this map instead.
+  const [googleOk, setGoogleOk] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const env = readEnv();
+    return env.webgl && env.hasKey && env.forced !== "maplibre";
+  });
+  const google3d = is3d && googleOk;
+  const libre3d = is3d && !googleOk;
+  const map3d = useRef<PlanMap3DHandle>(null);
+  const [open3d, setOpen3d] = useState<Camera | null>(null);
+
+  /** Switch between the flat map and 3D in place: the new view starts where the old one was. */
+  function setView3d(next: boolean) {
+    const flat = mapRef.current;
+    if (next && flat) {
+      const c = flat.getCenter();
+      setOpen3d({ lat: c.lat, lng: c.lng, alt: 0, range: zoomToRange(flat.getZoom()), tilt: 55, heading: flat.getBearing() });
+    } else if (!next && google3d) {
+      const c = map3d.current?.camera();
+      if (c) flat?.jumpTo({ center: [c.lng, c.lat], zoom: rangeToZoom(c.range), bearing: c.heading, pitch: 0 });
+    }
+    setIs3d(next);
+  }
   const [moreTools, setMoreTools] = useState(false);
   const [, setStyleLoads] = useState(0);
   const current = timeline && scrub.for === timeline ? scrub : timeline ? { for: timeline, t: timeline.startMin, engaged: false } : null;
@@ -583,7 +610,7 @@ export function PlanMap(props: PlanMapProps) {
     const draw = (map: MapLibre) => {
       // Vector buildings (only if layer exists in current style)
       if (map.getLayer("buildings-3d")) {
-        map.setLayoutProperty("buildings-3d", "visibility", is3d ? "visible" : "none");
+        map.setLayoutProperty("buildings-3d", "visibility", libre3d ? "visible" : "none");
       }
       const trail = engaged && position ? position.trail.filter((p) => p.length > 1) : [];
       (map.getSource("trail") as GeoJSONSource | undefined)?.setData({
@@ -608,7 +635,7 @@ export function PlanMap(props: PlanMapProps) {
         cam.bearing = moved > 1e-6 ? easeBearing(cam.bearing, bearingOf(cam.last!, position.at), 0.08) : cam.bearing + 0.12;
         // Keep the traveler in the open map above the player card (and the sheet, on phones).
         const bottom = Math.min((latest.current.bottomInset ?? 0) + 260, map.getContainer().clientHeight * 0.7);
-        map.jumpTo({ center: position.at, bearing: cam.bearing, pitch: 62, zoom: 15.4, padding: { top: 0, right: 0, bottom, left: 0 } });
+        if (libre3d) map.jumpTo({ center: position.at, bearing: cam.bearing, pitch: 62, zoom: 15.4, padding: { top: 0, right: 0, bottom, left: 0 } });
       }
       cam.last = position?.at ?? null;
     };
@@ -656,22 +683,22 @@ export function PlanMap(props: PlanMapProps) {
     latest.current.onPlayingChange?.(playing);
   }, [playing]);
 
-  // Tilt into 3D and back.
+  // Tilt into 3D and back (MapLibre's 3D only: Google's lies over a flat map).
   useEffect(() => {
     run((map) => {
       const duration = prefersReducedMotion() ? 0 : 1400;
-      if (is3d) {
+      if (libre3d) {
         // Tilt, then fit the day into the tilted view.
         map.easeTo({ pitch: 58, bearing: -24, zoom: Math.max(map.getZoom(), 13.4), duration });
         if (latest.current.stops.length) map.once("moveend", () => frame(map));
       } else map.easeTo({ pitch: 0, bearing: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, duration });
     });
-  }, [is3d]);
+  }, [libre3d]);
 
   // A 3D playback that finishes pulls back to show the whole day.
   const wasPlaying = useRef(false);
   useEffect(() => {
-    if (wasPlaying.current && !playing && is3d) run(frame);
+    if (wasPlaying.current && !playing && libre3d) run(frame);
     wasPlaying.current = playing;
   });
 
@@ -685,9 +712,9 @@ export function PlanMap(props: PlanMapProps) {
     if (starting && is3d) {
       // Swoop down to the traveler first, then follow.
       const at = positionAt(timeline, start)?.at;
-      const duration = prefersReducedMotion() ? 0 : 1400;
+      const duration = prefersReducedMotion() || google3d ? 0 : 1400;
       camera.current = { last: null, bearing: mapRef.current?.getBearing() ?? 0, from: performance.now() + duration };
-      if (at) {
+      if (at && libre3d) {
         run((map) => {
           const bottom = Math.min((latest.current.bottomInset ?? 0) + 260, map.getContainer().clientHeight * 0.7);
           map.flyTo({ center: at, zoom: 15.4, pitch: 62, bearing: camera.current.bearing, duration, padding: { top: 0, right: 0, bottom, left: 0 } });
@@ -701,6 +728,20 @@ export function PlanMap(props: PlanMapProps) {
   return (
     <div className={cn("relative", props.discover?.points.length && "is-discovering", props.className)}>
       <div ref={container} className="size-full" role="region" aria-label="Map of your day" />
+      {google3d && (
+        <PlanMap3D
+          ref={map3d}
+          initial={open3d ?? { lat: 40.742, lng: -73.985, alt: 0, range: 9000, tilt: 55, heading: 0 }}
+          stops={props.stops}
+          origin={props.origin}
+          legs={props.legs}
+          follow={playing && position ? position.at : null}
+          camera={camera}
+          traveler={engaged && position ? position.at : null}
+          onPickStop={(key) => latest.current.onPickStop(key)}
+          onFail={() => setGoogleOk(false)}
+        />
+      )}
 
       {/* Top left: what to show. Top right: how to look. Bottom: the day, played. */}
       {props.showFilter && (
@@ -721,10 +762,10 @@ export function PlanMap(props: PlanMapProps) {
       )}
 
       <div className="pl-maptools" style={{ top: "var(--s-1)", right: "var(--s-1)" }}>
-        <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => mapRef.current?.zoomIn()} className="pl-maptool">
+        <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => (google3d ? map3d.current?.zoom(1) : mapRef.current?.zoomIn())} className="pl-maptool">
           <Plus aria-hidden />
         </button>
-        <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => mapRef.current?.zoomOut()} className="pl-maptool">
+        <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => (google3d ? map3d.current?.zoom(-1) : mapRef.current?.zoomOut())} className="pl-maptool">
           <Minus aria-hidden />
         </button>
         <button
@@ -757,7 +798,7 @@ export function PlanMap(props: PlanMapProps) {
               title="North up"
               onClick={() => {
                 // Flat and facing north again, so leave 3D too.
-                setIs3d(false);
+                setView3d(false);
                 mapRef.current?.resetNorthPitch({ duration: prefersReducedMotion() ? 0 : 500 });
               }}
               className="pl-maptool"
@@ -767,7 +808,7 @@ export function PlanMap(props: PlanMapProps) {
             <button
               type="button"
               aria-pressed={is3d}
-              onClick={() => setIs3d((v) => !v)}
+              onClick={() => setView3d(!is3d)}
               title={is3d ? "Back to the flat map" : "See the city in 3D"}
               className="pl-maptool"
             >
@@ -788,7 +829,7 @@ export function PlanMap(props: PlanMapProps) {
           className="pl-mapnote pointer-events-none flex items-center gap-2"
           style={{ left: "var(--s-1)", bottom: inset?.bottom ?? "calc(var(--s-1) + 1.6em)" }}
         >
-          <Box className="size-4 pl-red" aria-hidden /> 3D view: a tilted aerial look at the city.
+          <Box className="size-4 pl-red" aria-hidden /> {google3d ? "3D view: the city in Google's photorealistic 3D." : "3D view: a tilted aerial look at the city."}
         </p>
       )}
 

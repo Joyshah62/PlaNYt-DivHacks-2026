@@ -16,6 +16,11 @@ export function rangeToZoom(range: number): number {
   return Math.max(0, Math.min(20, 16 - Math.log2(range / 400)));
 }
 
+/** The Google 3D range that frames what MapLibre shows at `zoom`: the inverse of `rangeToZoom`. */
+export function zoomToRange(zoom: number): number {
+  return 400 * 2 ** (16 - zoom);
+}
+
 export function formatTicker(lat: number, lng: number, heading: number): string {
   const h = Math.round(((heading % 360) + 360) % 360) % 360;
   return `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? "N" : "S"} · ${Math.abs(lng).toFixed(4)}° ${lng >= 0 ? "E" : "W"} · Heading ${String(h).padStart(3, "0")}°`;

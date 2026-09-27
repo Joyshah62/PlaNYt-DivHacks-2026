@@ -386,6 +386,8 @@
 .pl-mapbar button + button { border-left: 1px solid var(--hair); }
 .pl-mapbar button:hover { color: var(--ink); }
 .pl-mapbar button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+/* Google's 3D city, laid over the flat map while 3D is on (the tools stay above it). */
+.pl-map3d { position: absolute; inset: 0; z-index: 1; background: var(--night, #1c1a17); }
 .pl-maptools { position: absolute; z-index: 10; display: flex; flex-direction: column; gap: 0.4em; }
 .pl-maptool { position: relative; display: grid; place-items: center; width: 2.5em; height: 2.5em; background: var(--paper); color: var(--ink); border: 1px solid var(--rule); font: 600 var(--t-mono) / 1 var(--f-mono); }
 .pl-maptool:hover:not(:disabled) { border-color: var(--ink); }

@@ -5,10 +5,12 @@ import type { Camera } from "./camera";
 import { visibleTimeout, type CityMap, type MapRole } from "./cityMap";
 
 // `beta`, not `alpha`: in alpha every maps3d overlay constructor throws (checked 2026-09-26).
-let configured = false;
+// The loader is global and warns on a second setOptions(); a module flag resets whenever this
+// module is re-evaluated (hot reload, a fresh chunk), so the flag lives on window.
 function configure() {
-  if (configured) return;
-  configured = true;
+  const w = window as Window & { __roamMapsConfigured?: boolean };
+  if (w.__roamMapsConfigured) return;
+  w.__roamMapsConfigured = true;
   setOptions({ key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "", v: "beta" });
 }
 
@@ -29,13 +31,27 @@ const toCam = (c: Camera) => ({
   heading: c.heading,
 });
 
-export async function createGoogleMap(host: HTMLElement, cam: Camera, role: MapRole, signal?: AbortSignal): Promise<CityMap> {
+/** The maps3d library, loaded once; rejects if Google has already refused the key. */
+export async function loadMaps3d() {
   if (authFailed) throw new Error("Google Maps rejected the key");
   configure();
-  const { Map3DElement, MapMode, Polyline3DElement, Marker3DElement } = await importLibrary("maps3d");
+  return importLibrary("maps3d");
+}
+
+/** Call `fn` if Google later refuses the key. Returns an unsubscribe. */
+export function onAuthFailure(fn: () => void): () => void {
+  authListeners.add(fn);
+  return () => authListeners.delete(fn);
+}
+
+export async function createGoogleMap(host: HTMLElement, cam: Camera, role: MapRole, signal?: AbortSignal): Promise<CityMap> {
+  const { Map3DElement, MapMode, Polyline3DElement, Marker3DElement } = await loadMaps3d();
   signal?.throwIfAborted(); // don't create (and pay for) a map nobody will see
-  const map = new Map3DElement({ ...toCam(cam), mode: MapMode.SATELLITE, defaultUIHidden: true, gestureHandling: role === "hero" ? "COOPERATIVE" : undefined });
-  map.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
+  // maxTilt: Google clamps tilt below ~70° by default, which would lift a near-level camera
+  // (face to face with the Statue of Liberty) into an overhead view.
+  const map = new Map3DElement({ ...toCam(cam), mode: MapMode.SATELLITE, defaultUIHidden: true, maxTilt: 90, gestureHandling: role === "hero" ? "COOPERATIVE" : undefined });
+  map.style.cssText = `position:absolute;inset:0;width:100%;height:100%;${role === "hero" ? "" : "pointer-events:none"}`;
+  map.inert = role !== "hero";
   host.append(map);
 
   // Ready = first steady frame. Failure = gmp-error or an auth failure. Slow = give up after 8 s of

@@ -44,27 +44,28 @@ export function AuthScreen({
       {/* The plate: the city, captioned, with what an account is for. Desktop only. */}
       <div className="au-plate">
         <p className="au-caption ed-mono">
-          <span>Plate I · Lower Manhattan, live</span>
+          <span>Plate I · Statue of Liberty, live</span>
           <span>Crowds from MTA subway ridership</span>
         </p>
         <div className="au-frame">
           <LoginMap />
-          <div className="au-callout">
-            <strong>
-              See New York, <em>not</em> the crowds.
-            </strong>
-            <ol className="au-perks">
-              {PERKS.map((p, i) => (
-                <li key={p.title}>
-                  <span className="ed-bullet">{i + 1}</span>
-                  <span>
-                    <b>{p.title}</b>
-                    <span className="ed-small ed-muted">{p.body}</span>
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </div>
+        </div>
+        {/* Under the plate, not over it: the statue and Google's credit stay in view. */}
+        <div className="au-legend">
+          <p className="au-legend-title">
+            See New York, <em>not</em> the crowds.
+          </p>
+          <ol className="au-perks">
+            {PERKS.map((p, i) => (
+              <li key={p.title}>
+                <span className="ed-bullet">{i + 1}</span>
+                <span>
+                  <b>{p.title}</b>
+                  <span className="ed-small ed-muted">{p.body}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
         </div>
       </div>
 
