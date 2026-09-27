@@ -9,6 +9,8 @@ import { searchPlaces } from "./places";
 /** What someone is after, as Gemini (or the plain words) read it. */
 interface Want {
   named: string | null;
+  /** The named place's street address, when known; it maps far more reliably than a name. */
+  address?: string | null;
   query: string;
   category: (typeof CATEGORIES)[number] | null;
   cuisine: string | null;
@@ -31,6 +33,7 @@ const WANTS_SCHEMA = {
         type: "object",
         properties: {
           named: { type: ["string", "null"], description: "A specific place's name if they named one, else null." },
+          address: { type: ["string", "null"], description: "For a named place, its street address with borough if you know it ('90 Bedford St, Manhattan'), else null." },
           query: { type: "string", description: "Short search words, e.g. 'dessert' or 'rooftop bar'." },
           category: { type: ["string", "null"], enum: [...CATEGORIES, null], description: "The closest kind of place, even for a mood: 'artsy' is gallery or museum, 'historical' is landmark or museum. Null only for a named place." },
           cuisine: { type: ["string", "null"] },
@@ -39,7 +42,7 @@ const WANTS_SCHEMA = {
           why: { type: ["string", "null"], description: "Under 10 words: why this fits the group." },
           at: { type: ["integer", "null"], description: "The time they asked to be there, in minutes after midnight (9am = 540, 7pm = 1140); null if they gave none." },
         },
-        required: ["named", "query", "category", "cuisine", "keywords", "near", "why", "at"],
+        required: ["named", "address", "query", "category", "cuisine", "keywords", "near", "why", "at"],
       },
     },
   },
@@ -112,13 +115,24 @@ async function geocoded(text: string): Promise<Point | null> {
   return p && inNycArea(p) ? { lat: p.lat, lon: p.lon } : null;
 }
 
-async function resolveWant(want: Want, trip: Trip, limit: number): Promise<SuggestionItem[]> {
+const within = (a: Point, b: Point, meters: number) => Math.hypot((a.lat - b.lat) * 111_320, (a.lon - b.lon) * 84_000) <= meters;
+
+/** `strict`: one of several themed picks, so a named place that can't be found is dropped, not swapped for look-alikes. */
+async function resolveWant(want: Want, trip: Trip, limit: number, strict = false): Promise<SuggestionItem[]> {
   if (want.named) {
+    // Names repeat across the city (there's a Tom's Restaurant in Brooklyn too): trust our match only
+    // where the place is meant to be, by its address or, failing that, its neighborhood.
+    // Only a street address with a number: "Central Park, Manhattan" maps to the middle of the park.
+    const byAddress = want.address && /^\s*\d/.test(want.address) ? await geocoded(want.address) : null;
+    const area = byAddress ? null : want.near ? await geocoded(`${want.near}, New York`) : null;
     const [hit] = await searchPlaces(want.named, 1);
-    if (hit) return [{ key: hit.stop.key, name: hit.name, area: hit.detail.split(" · ").slice(1).join(" · ") || null, category: hit.detail.split(" · ")[0], crowdHint: crowdHint(hit, trip), why: want.why, stop: hit.stop }];
+    const fits = (p: Point) => (byAddress ? within(p, byAddress, 400) : !area || within(p, area, 3000));
+    if (hit && fits(hit)) return [{ key: hit.stop.key, name: hit.name, area: hit.detail.split(" · ").slice(1).join(" · ") || null, category: hit.detail.split(" · ")[0], crowdHint: crowdHint(hit, trip), why: want.why, stop: hit.stop }];
     // Not in our lists (the Chess & Checkers House): the map still knows where it is.
-    const at = await geocoded(want.named);
+    const byName = byAddress ? null : await geocoded(want.named);
+    const at = byAddress ?? (byName && fits(byName) ? byName : null);
     if (at) return [fromPoint(want.named, at, want, trip)];
+    if (strict) return [];
   }
   const base = fallbackIntent(want.query, null);
   const intent: Intent = { ...base, category: want.category ?? base.category, cuisine: want.cuisine ?? base.cuisine, keywords: want.keywords.length ? want.keywords : base.keywords };
@@ -148,7 +162,8 @@ function dedupe(items: SuggestionItem[]): SuggestionItem[] {
 
 const ASK_SYSTEM =
   "You help a group of friends plan a day in New York City. From their message and the trip context, say what they want as up to 5 'wants', one per kind of place, in the order asked ('breakfast at 9, then shopping, then a movie' is three, the first at 540). " +
-  "Use 'named' for a specific place they named, or the one well-known place an activity plainly means (chess in Central Park is the Chess & Checkers House). Keep 'why' under 10 words and about the group (their times, where they meet, what they voted for).";
+  "Use 'named' for a specific place they named, or the one well-known place an activity plainly means (chess in Central Park is the Chess & Checkers House). " +
+  "A broad theme ('something sitcom themed', 'movie spots') is not one place or one show: give 5 wants, each a different real place, spread across different shows or options, each with 'named' (the real place's name, not the show's: Tom's Restaurant, not Monk's Café), its neighborhood in 'near', and 'why' naming the show or reason. Keep 'why' under 10 words and about the group (their times, where they meet, what they voted for).";
 
 export interface AskAnswer {
   reply: string;
@@ -166,7 +181,7 @@ export async function askRoom(trip: Trip, text: string): Promise<AskAnswer> {
   if (blocked) return { reply: blocked, items: [], usedAi: false, picks: [], missed: [] };
   const ai = await askGemini(ASK_SYSTEM, `${roomContext(trip)}\n\nMessage: ${text}`);
   const wants = ai?.wants ?? [await plainWant(text)];
-  const groups = await Promise.all(wants.map((w) => resolveWant(w, trip, wants.length > 1 ? 3 : 6)));
+  const groups = await Promise.all(wants.map((w) => resolveWant(w, trip, wants.length > 1 ? 3 : 6, wants.length > 1)));
   const items = dedupe(groups.flat()).slice(0, 8);
   const picked = new Set<string>();
   const picks = groups.flatMap((g, i) => {

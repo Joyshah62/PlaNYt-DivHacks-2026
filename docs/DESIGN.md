@@ -133,7 +133,12 @@ var(--rule)`); inside, 1px rules. Map panels sit flush to the rule with a 1px `-
   away over 0.55s, the new one swings down and settles with a small bounce over 0.9s. Pauses on
   hover/focus and off screen.
 - **Theme switch:** the new theme spreads from the toggle as a circle (View Transitions, 750ms).
-- **Reduced motion:** no intro, no orbits, demo shows its final state, theme switches instantly.
+- **Micro-motion** (end of `editorial.css`): buttons and chips press in, trailing arrows nudge,
+  close icons turn, the chosen tab's red rule draws in, photos lean in on hover; panels, notes and
+  result lists rise in once on mount (lists staggered 40ms), crowd bars grow. 0.15–0.6s, `backwards`
+  fill so nothing keeps a transform.
+- **Reduced motion:** no intro, no orbits, demo shows its final state, theme switches instantly,
+  no micro-motion.
 
 ## 6. Maps
 
