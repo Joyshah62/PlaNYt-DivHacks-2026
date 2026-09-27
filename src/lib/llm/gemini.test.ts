@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GEMINI_FALLBACK_MODEL, GEMINI_MODEL, geminiChat, geminiJson } from "./gemini";
+import { fallbackModels, GEMINI_FALLBACK_MODEL, GEMINI_MODEL, GROK_MODEL, geminiChat, geminiJson, withFallbacks } from "./gemini";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -44,6 +44,34 @@ describe("Gemini", () => {
     const models = fetch.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string).model);
     expect(models).toEqual([GEMINI_MODEL, GEMINI_FALLBACK_MODEL]);
     expect(GEMINI_FALLBACK_MODEL).not.toBe(GEMINI_MODEL);
+  });
+
+  it("falls back to Grok when both Gemini models fail, without Gemini's own fields", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gemini-test");
+    vi.stubEnv("GROK_API_KEY", "grok-test");
+    const busy = () => new Response("busy", { status: 429 });
+    const fetch = vi.fn().mockResolvedValueOnce(busy()).mockResolvedValueOnce(new Response("down", { status: 503 })).mockResolvedValueOnce(answer('{"ok":true}'));
+    vi.stubGlobal("fetch", fetch);
+    const signed = { id: "c1", type: "function" as const, function: { name: "t", arguments: "{}" }, extra_content: { google: { thought_signature: "s" } } };
+    const reply = await withFallbacks((model) => geminiChat({ messages: [{ role: "assistant", content: null, tool_calls: [signed] }], effort: "low", model }));
+    expect(reply.text).toBe('{"ok":true}');
+    const [url, init] = fetch.mock.calls[2];
+    expect(url).toBe("https://api.x.ai/v1/chat/completions");
+    expect((init as RequestInit).headers).toMatchObject({ authorization: "Bearer grok-test" });
+    const sent = JSON.parse((init as RequestInit).body as string);
+    expect(sent.model).toBe(GROK_MODEL);
+    expect(sent.reasoning_effort).toBeUndefined();
+    expect(sent.messages[0].tool_calls[0]).toEqual({ id: "c1", type: "function", function: { name: "t", arguments: "{}" } });
+  });
+
+  it("stops at the Gemini fallback without a Grok key", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gemini-test");
+    vi.stubEnv("GROK_API_KEY", "");
+    const fetch = vi.fn(async () => new Response("busy", { status: 429 }));
+    vi.stubGlobal("fetch", fetch);
+    await expect(geminiJson("system", "the Met", { name: "t", schema: {} })).rejects.toMatchObject({ status: 429 });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fallbackModels()).toEqual([GEMINI_FALLBACK_MODEL]);
   });
 
   it("doesn't retry a bad key", async () => {
