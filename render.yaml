@@ -21,7 +21,9 @@ services:
     plan: 1c-2g
     region: ohio
     numInstances: 1
-    buildCommand: npm ci && npm run build
+    # --include=dev: NODE_ENV=production makes npm skip devDependencies, but the build
+    # needs them (@tailwindcss/postcss, tailwindcss, typescript).
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     domains:
