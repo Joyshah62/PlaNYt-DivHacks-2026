@@ -138,7 +138,7 @@ export function PlaceSearch({
                   <span className="tr-search-content">
                     <span className="tr-search-title">
                       <span>{r.name}</span>
-                      {r.source === "catalog" && <Sparkles aria-label="Roam pick" className="tr-search-icon-roam" />}
+                      {r.source === "catalog" && <Sparkles aria-label="PlaNYt pick" className="tr-search-icon-roam" />}
                     </span>
                     <span className="tr-search-detail">{r.detail}</span>
                   </span>

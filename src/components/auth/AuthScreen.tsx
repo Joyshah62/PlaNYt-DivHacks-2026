@@ -14,7 +14,7 @@ type Mode = "signin" | "signup";
 
 const PERKS = [
   { title: "Your days, kept", body: "Plans and preferences follow your account." },
-  { title: "Your day by text", body: "Roam texts you the plan, and when it's time to head to each stop." },
+  { title: "Your day by text", body: "PlaNYt texts you the plan, and when it's time to head to each stop." },
   { title: "Plans that know you", body: "Vegetarian, a stroller, hate crowds: say it once." },
 ];
 
@@ -145,7 +145,7 @@ function SignIn({ next, googleEnabled, initialMode, oauthError }: { next: string
         {signup ? <>Plan your <em>first day.</em></> : <>Welcome <em>back.</em></>}
       </h1>
       <p className="ed-dek">
-        {signup ? "An account keeps your plans, and lets Roam text you your day." : "Sign in to pick up where you left off."}
+        {signup ? "An account keeps your plans, and lets PlaNYt text you your day." : "Sign in to pick up where you left off."}
       </p>
 
       <div role="radiogroup" aria-label="Sign in or create an account" className="ed-tabs au-mode" onKeyDown={(e) => arrowKeys(e, "[role=\"radio\"]", false)}>
@@ -223,7 +223,7 @@ function SignIn({ next, googleEnabled, initialMode, oauthError }: { next: string
             hint={
               phoneTouched && !phoneOk
                 ? "Enter a valid number. Outside the US, start with + and the country code."
-                : "Roam texts your day here. We never share it."
+                : "PlaNYt texts your day here. We never share it."
             }
           />
         )}
@@ -248,7 +248,7 @@ function SignIn({ next, googleEnabled, initialMode, oauthError }: { next: string
       </form>
 
       <p className="au-switch ed-small ed-muted">
-        {signup ? "Already have an account? " : "New to Roam? "}
+        {signup ? "Already have an account? " : "New to PlaNYt? "}
         <button
           type="button"
           onClick={() => changeMode(signup ? "signin" : "signup")}
@@ -291,7 +291,7 @@ function PhoneStep({ next, who }: { next: string; who: { name: string; email: st
       <p className="ed-mono ed-kicker">One more thing</p>
       <h1 className="ed-title">{first ? <>Hi {first}, <em>what&apos;s your number?</em></> : <>What&apos;s your <em>number?</em></>}</h1>
       <p className="ed-dek">
-        Roam texts you your day and a heads-up when it&apos;s time to go. Google didn&apos;t share a number for {who.email}.
+        PlaNYt texts you your day and a heads-up when it&apos;s time to go. Google didn&apos;t share a number for {who.email}.
       </p>
       <form
         className="au-fields"

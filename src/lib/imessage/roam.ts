@@ -4,7 +4,7 @@ import type { DayWeather, Forecast } from "@/lib/plan/weatherCodes";
 import type { DiscoverResponse } from "@/lib/discover/types";
 import type { DayBudget } from "@/lib/plan/budget";
 
-/** What the bot needs from the Roam web app. All the planning happens there; this is only a client. */
+/** What the bot needs from the PlaNYt web app. All the planning happens there; this is only a client. */
 export interface Roam {
   assistant(text: string, profile: Profile, opts?: AssistantOptions): Promise<AssistantResult>;
   plan(request: PlanRequest): Promise<DayPlan>;

@@ -41,16 +41,21 @@ export const PlanMap3D = forwardRef<
     /** The 2D map's ride-along camera, which works out the heading to face. */
     camera: RefObject<{ bearing: number }>;
     traveler: [number, number] | null;
+    /** The place being looked at (its side sheet is open): fly there when it changes. */
+    focus: { key: string; lat: number; lon: number } | null;
     onPickStop: (key: string) => void;
+    /** A place on Google's map was clicked: open it in our side sheet, not Google's popup. */
+    onPickPlace: (place: { name: string; lat: number; lon: number }) => void;
     onFail: () => void;
   }
->(function PlanMap3D({ initial, stops, origin, legs, follow, camera, traveler, onPickStop, onFail }, ref) {
+>(function PlanMap3D({ initial, stops, origin, legs, follow, camera, traveler, focus, onPickStop, onPickPlace, onFail }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const [lib, setLib] = useState<{ maps: Maps3d; map: Map3D } | null>(null);
-  const latest = useRef({ onPickStop, onFail });
-  const opening = useRef(initial);
+  const latest = useRef({ onPickStop, onPickPlace, onFail });
+  // Opening on a place being looked at: centred on it, close in; else where the flat map was.
+  const opening = useRef(focus ? { ...initial, lat: focus.lat, lng: focus.lon, range: Math.min(initial.range, 1600) } : initial);
   useEffect(() => {
-    latest.current = { onPickStop, onFail };
+    latest.current = { onPickStop, onPickPlace, onFail };
   });
 
   // Build the map once; hand back to MapLibre on any failure.
@@ -64,6 +69,19 @@ export const PlanMap3D = forwardRef<
       map = new maps.Map3DElement({ ...toCam(opening.current), mode: maps.MapMode.HYBRID, defaultUIHidden: true, gestureHandling: "GREEDY", maxTilt: 80 });
       map.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
       map.addEventListener("gmp-error", fail);
+      // Google's places (its labels and icons) open in our side sheet, like the 2D map's dots.
+      map.addEventListener("gmp-click", (e) => {
+        const click = e as google.maps.maps3d.PlaceClickEvent;
+        if (!click.placeId) return;
+        click.preventDefault();
+        click
+          .fetchPlace()
+          .then(async (place) => {
+            await place.fetchFields({ fields: ["displayName", "location"] });
+            if (live && place.location) latest.current.onPickPlace({ name: place.displayName ?? "This place", lat: place.location.lat(), lon: place.location.lng() });
+          })
+          .catch(() => undefined);
+      });
       host.current.append(map);
       setLib({ maps, map });
     }, fail);
@@ -135,6 +153,17 @@ export const PlanMap3D = forwardRef<
     lib.map.flyCameraTo({ endCamera: toCam(cam), durationMillis: 1400 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lib, frameKey, following]);
+
+  // The place being looked at: fly there (after opening; the camera already starts on it).
+  const focusKey = focus?.key ?? null;
+  const flownTo = useRef(focusKey);
+  useEffect(() => {
+    if (!lib || !focus || flownTo.current === focusKey) return;
+    flownTo.current = focusKey;
+    lib.map.stopCameraAnimation();
+    lib.map.flyCameraTo({ endCamera: toCam({ lat: focus.lat, lng: focus.lon, alt: 0, range: Math.min(lib.map.range ?? 1600, 1600), tilt: lib.map.tilt ?? 55, heading: lib.map.heading ?? 0 }), durationMillis: 1200 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lib, focusKey]);
 
   // Ride along: sit behind the traveler, facing where they're going.
   useEffect(() => {

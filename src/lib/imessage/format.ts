@@ -12,7 +12,7 @@ import { normalizePhone } from "@/lib/phone";
 export const LETTERS = ["A", "B", "C", "D", "E"];
 
 export const HELP = [
-  "I'm Roam, your NYC day planner. Text me what you'd like to do, like:",
+  "I'm Roam AI, your NYC day-planning assistant. Text me what you'd like to do, like:",
   "• \"Saturday with my parents: the Met, a skyline view and pizza\"",
   "",
   "Once you have a day, just say what to change:",

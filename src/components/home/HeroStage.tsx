@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { BRAND } from "@/lib/plan/display";
 import { formatTicker } from "./camera";
 import { isLite, readEnv } from "./cityMap";
 import { HERO, ORBIT_SECONDS } from "./data";
@@ -163,7 +164,7 @@ export function HeroStage() {
       </div>
       <div className="ed-scrim" aria-hidden />
       <header className="ed-header ed-chrome">
-        <Link href="/" className="ed-wordmark ed-display">Roam</Link>
+        <Link href="/" className="ed-wordmark ed-display">{BRAND.name}</Link>
         <nav className="ed-mono" aria-label="Sections">
           <a href="#watch" className="ed-navlink">How it works</a>
           <a href="#neighborhoods" className="ed-navlink">Neighborhoods</a>
@@ -172,7 +173,7 @@ export function HeroStage() {
         </nav>
       </header>
       <div className="ed-eyebrow ed-gut ed-mono ed-chrome">
-        <span className="ed-kicker">The day planner · Vol. I</span>
+        <span className="ed-kicker">{BRAND.tagline}</span>
         <span>New York, N.Y. · Late city edition</span>
       </div>
       <span ref={tickerRef} className="ed-ticker ed-mono ed-chrome" aria-hidden>

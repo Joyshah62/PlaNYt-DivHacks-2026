@@ -8,7 +8,7 @@ import { RoamError, roamClient } from "@/lib/imessage/roam";
 import { openStore, type Thread } from "@/lib/imessage/store";
 import { hasElevenLabs, speechToText, textToSpeech } from "@/lib/elevenlabs";
 
-// Roam over iMessage: plan a NYC day by text, change it by text, and get told
+// PlaNYt over iMessage: plan a NYC day by text, change it by text, and get told
 // when to leave for each stop. Run it next to the web app with `npm run imessage`;
 // the planning happens in the web app (ROAM_URL), this process is the phone side.
 // Docs: https://photon.codes/docs/spectrum-ts
@@ -141,7 +141,7 @@ if (BRIDGE_TOKEN) {
         thread.muted = false;
         await store.save();
         const texts = [
-          "👋 Hi from Roam! Here's your NYC day.",
+          "👋 Hi from PlaNYt! Here's your NYC day.",
           await bot.show(plan, thread.profile),
           "Text or send a voice note to change anything (\"add a café after the Met\"). On the day, I'll text you when it's time to head to each stop. Reply STOP to pause updates.",
         ];
@@ -175,7 +175,7 @@ setInterval(() => {
   }
 }, NUDGE_EVERY_MS);
 
-console.log(`Roam iMessage bot is running. Planner: ${ROAM_URL}${hasElevenLabs() ? " · ElevenLabs STT/TTS on" : ""}`);
+console.log(`PlaNYt iMessage bot is running. Planner: ${ROAM_URL}${hasElevenLabs() ? " · ElevenLabs STT/TTS on" : ""}`);
 
 for await (const [space, message] of app.messages) {
   if (message.direction === "outbound") continue;

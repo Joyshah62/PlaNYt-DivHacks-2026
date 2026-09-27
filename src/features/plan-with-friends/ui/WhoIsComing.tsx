@@ -14,7 +14,7 @@ const CARDS: { id: Choice; emoji: string; label: string; hint: string }[] = [
   { id: "team", emoji: "💼", label: "Work team", hint: "Decide together" },
 ];
 
-/** Roam's first question. Embed it anywhere; it routes people to the planner or a trip room. */
+/** PlaNYt's first question. Embed it anywhere; it routes people to the planner or a trip room. */
 export function WhoIsComing({ className }: { className?: string }) {
   const router = useRouter();
   const [family, setFamily] = useState(false);

@@ -12,9 +12,9 @@ export type { Viewer };
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
 
-export const tripStartMetadata: Metadata = { title: `Plan with friends · ${BRAND.name} ${BRAND.suffix}` };
-export const startMetadata: Metadata = { title: `Who's coming? · ${BRAND.name} ${BRAND.suffix}` };
-export const tripRoomMetadata: Metadata = { title: `Trip room · ${BRAND.name} ${BRAND.suffix}` };
+export const tripStartMetadata: Metadata = { title: `Plan with friends · ${BRAND.name}` };
+export const startMetadata: Metadata = { title: `Who's coming? · ${BRAND.name}` };
+export const tripRoomMetadata: Metadata = { title: `Trip room · ${BRAND.name}` };
 
 export async function TripStartPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
@@ -29,9 +29,9 @@ export async function TripRoomPage({ params, viewer = null }: { params: Promise<
 export function StartPage() {
   return (
     <main className="ed-app ed-paper tr-page">
-      <AppBar />
+      <AppBar home="/plan" />
       <section className="ed-gut tr-start">
-        <p className="ed-mono ed-kicker">{BRAND.name} {BRAND.suffix}</p>
+        <p className="ed-mono ed-kicker">{BRAND.name}</p>
         <h1 className="tr-display">Who&apos;s <em>coming?</em></h1>
         <p className="ed-dek">We&apos;ll set up the right kind of plan. Groups get a trip room where everyone decides together.</p>
         <WhoIsComing />

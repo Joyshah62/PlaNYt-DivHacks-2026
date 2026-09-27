@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronUp, Clock, Loader2, MapPin, RefreshCw, Trash2, X } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { AccountMenu, type Account } from "@/components/auth/AccountMenu";
 import { haversine } from "@/lib/osm/geo";
-import { ATTRACTION_BY_ID, type Attraction } from "@/lib/plan/attractions";
+import { ATTRACTION_BY_ID, ATTRACTIONS, type Attraction } from "@/lib/plan/attractions";
 import { fillSlot } from "@/lib/plan/choices";
 import { planToIcs } from "@/lib/plan/ics";
 import { catalogPhoto } from "@/lib/plan/photoUrls";
@@ -45,12 +44,14 @@ import type {
   StopInput,
   TravelMode,
 } from "@/lib/plan/types";
+import { withAnswers, type FollowUp } from "@/lib/plan/followUps";
 import { ChoicePanel } from "./ChoicePanel";
 import { useDiscover } from "./Discover";
 import { TripChat } from "./TripChat";
 import { Assistant, type AssistantHandle } from "./Assistant";
 import { arrowKeys } from "./arrowKeys";
 import { Fold } from "./Fold";
+import { FollowUpQuestions } from "./FollowUpQuestions";
 import { NextUp, nextLine, useNycNow } from "./NextUp";
 import { DayPicker } from "./DayPicker";
 import { Itinerary } from "./Itinerary";
@@ -70,14 +71,34 @@ const PlanMap = dynamic(() => import("./PlanMap").then((m) => m.PlanMap), {
 const MAX_STOPS = 10;
 const VISIT_OPTIONS = [15, 30, 45, 60, 75, 90, 120, 150, 180, 240];
 /** Days to start from: a photo (a catalog place in the day), a line about it, and the prompt it fills in. */
-const TRIP_STARTERS = [
-  { label: "First time in NYC", blurb: "The icons, a skyline view and good pizza", photo: "empire-state", prompt: "First time in NYC this Saturday. I want to see a few iconic places, get a great skyline view and eat good pizza. Keep travel simple and avoid the biggest crowds." },
-  { label: "Downtown & Chinatown", blurb: "The 9/11 Memorial, the Brooklyn Bridge, dumplings", photo: "brooklyn-bridge", prompt: "Plan a day downtown with the 9/11 Memorial, Brooklyn Bridge and Chinatown for lunch. I have about 8 hours and prefer subway plus walking." },
-  { label: "A rainy day of museums", blurb: "The Met, MoMA and somewhere warm to eat", photo: "met", prompt: "It might rain on Saturday. Plan a museum day with the Met and MoMA, a cozy lunch in between, and as little walking outside as possible." },
-  { label: "Parks and the High Line", blurb: "Central Park, the High Line, Chelsea Market", photo: "high-line", prompt: "A slow outdoor day: a morning in Central Park, then the High Line and lunch at Chelsea Market. Relaxed pace, lots of walking is fine." },
-  { label: "The 'Friends' walk", blurb: "Greenwich Village, Bedford St, Washington Square", photo: "washington-square", prompt: "A Friends-themed Saturday: coffee in Greenwich Village, visit Monica's apartment on Bedford St, and an afternoon at Washington Square Park." },
-  { label: "The 'Seinfeld' day", blurb: "Tom's Restaurant, Central Park, stand-up", photo: "central-park", prompt: "Classic Seinfeld NYC: breakfast at Monk's Diner (Tom's Restaurant) on the Upper West Side, Central Park stroll, and stand-up comedy." },
-  { label: "The 'HIMYM' tour", blurb: "The Empire State, Natural History, drinks at MacLaren's", photo: "amnh", prompt: "How I Met Your Mother adventure: Empire State Building, Museum of Natural History, yellow cab ride down Broadway, and evening drinks at MacLaren's." },
+/** Who an idea is for; the filter over the list. */
+type Party = "solo" | "couple" | "friends" | "kids" | "seniors";
+const PARTY_LABEL: Record<Party, string> = { solo: "Solo", couple: "Couple", friends: "With friends", kids: "With kids", seniors: "Older parents" };
+
+/**
+ * Ideas to start from. Each names a day and who's coming, so it plans without follow-up
+ * questions, and a theme includes the places that theme is known for (checked against
+ * location guides), with somewhere to eat nearby and a pace that suits the party.
+ */
+const TRIP_STARTERS: { label: string; blurb: string; photo: string; who: Party; prompt: string }[] = [
+  { who: "solo", label: "First time in NYC", blurb: "Times Square, the Empire State, the Bridge, a classic slice", photo: "empire-state", prompt: "Just me, first time in NYC this Saturday: Times Square, the Empire State Building, the 9/11 Memorial, the Brooklyn Bridge walk, lunch in Chinatown, a slice at Joe's Pizza, and the Staten Island Ferry past the Statue of Liberty. Subway and walking, avoid the biggest crowds." },
+  { who: "solo", label: "Art and the High Line", blurb: "MoMA, Chelsea Market, the High Line, the Whitney", photo: "high-line", prompt: "Solo on Sunday: MoMA in the morning, lunch at Chelsea Market, walk the High Line from Hudson Yards and the Vessel down to the Whitney Museum, Little Island at sunset, then dinner in the West Village. Happy to walk." },
+  { who: "solo", label: "Downtown history", blurb: "Wall Street, Federal Hall, the Memorial, the ferry", photo: "wall-street", prompt: "By myself on Friday: Wall Street with the Charging Bull and Fearless Girl, Federal Hall, Trinity Church, the 9/11 Memorial & Museum, the Oculus, lunch on Stone Street, and the Staten Island Ferry for the skyline." },
+  { who: "couple", label: "Date day in DUMBO", blurb: "The Bridge, the photo spot, Jane's Carousel, sunset", photo: "dumbo", prompt: "A date day with my partner on Saturday: walk the Brooklyn Bridge, the DUMBO photo spot on Washington Street at Front Street, Jane's Carousel, the Time Out Market rooftop, Pebble Beach in Brooklyn Bridge Park, the Brooklyn Heights Promenade at sunset, and dinner at Juliana's Pizza." },
+  { who: "couple", label: "Village evening", blurb: "Washington Square, Stonewall, Little Island, Bleecker", photo: "washington-square", prompt: "My partner and I, Sunday afternoon into the evening: Washington Square Park and its arch, the Stonewall National Monument, a stroll down Bleecker Street, Little Island at golden hour, and dinner in the West Village." },
+  { who: "couple", label: "Midtown skyline", blurb: "Top of the Rock, the Library, Grand Central, oysters", photo: "top-of-the-rock", prompt: "My wife and I on Friday: Top of the Rock, St. Patrick's Cathedral, the Rose Main Reading Room at the New York Public Library, Bryant Park, the Whispering Gallery at Grand Central Terminal, and dinner at the Grand Central Oyster Bar. Avoid crowds." },
+  { who: "couple", label: "Harlem soul and jazz", blurb: "The Apollo, Sylvia's, Red Rooster, Minton's", photo: "harlem", prompt: "My partner and I on Friday in Harlem: the Apollo Theater, a late lunch at Sylvia's on Malcolm X Boulevard, a walk past the brownstones of Strivers' Row, dinner at Red Rooster, and live jazz at Minton's Playhouse." },
+  { who: "couple", label: "The 'Seinfeld' day", blurb: "Tom's Restaurant, the Soup Man, the Comedy Cellar", photo: "central-park", prompt: "My partner and I on Saturday, a Seinfeld day: breakfast at Tom's Restaurant (Monk's Café) at Broadway and 112th, a Central Park stroll, soup at The Original SoupMan on West 55th Street (the Soup Nazi), and a stand-up show at the Comedy Cellar in Greenwich Village." },
+  { who: "friends", label: "The 'Friends' day", blurb: "The apartment, Central Perk, Ross's museum, the fountain", photo: "west-village", prompt: "My friends and I, four of us, on Saturday, a Friends day: the Friends apartment building at 90 Bedford Street, The FRIENDS Experience and its Central Perk on East 23rd Street, the Natural History Museum where Ross worked, and the Cherry Hill Fountain in Central Park, the look-alike of the opening-credits fountain. Dinner in the West Village." },
+  { who: "friends", label: "The 'HIMYM' night", blurb: "The real MacLaren's, the Empire State, a burger", photo: "empire-state", prompt: "My friends and I, five of us, on Friday, a How I Met Your Mother day: the Empire State Building, a walk through Central Park, a burger at Corner Bistro in the West Village, and the evening at McGee's Pub on West 55th Street, the bar that inspired MacLaren's." },
+  { who: "friends", label: "Lower East Side food crawl", blurb: "Katz's, Russ & Daughters, knishes, Essex Market", photo: "katz", prompt: "My friends and I, three of us, on Sunday, a Lower East Side food crawl: Katz's Delicatessen, Russ & Daughters, Yonah Schimmel Knish Bakery, Economy Candy, Essex Market, the Tenement Museum, and dumplings in Chinatown." },
+  { who: "kids", label: "Dinosaurs and the park", blurb: "Natural History, playgrounds, Belvedere Castle", photo: "amnh", prompt: "Saturday with our kids, 6 and 9: the Natural History Museum (dinosaurs, the blue whale), lunch nearby, the Diana Ross Playground in Central Park, Belvedere Castle and the Bethesda Terrace. Relaxed pace, short walks." },
+  { who: "kids", label: "Ships and the harbor", blurb: "The Intrepid, the shuttle, the Staten Island Ferry", photo: "intrepid", prompt: "Family day on Sunday with our kids: the Intrepid Museum and the space shuttle Enterprise, lunch in Hell's Kitchen, the Staten Island Ferry past the Statue of Liberty, and pizza for dinner. Keep walking short." },
+  { who: "kids", label: "Beach day at Coney Island", blurb: "The Aquarium, Luna Park, the Wonder Wheel, Nathan's", photo: "coney-island", prompt: "A Saturday at Coney Island with my kids: the New York Aquarium, the beach and boardwalk, lunch at Nathan's Famous, Luna Park and Deno's Wonder Wheel. Subway there and back." },
+  { who: "kids", label: "A rainy day with kids", blurb: "Dinosaurs, the planetarium, the Temple of Dendur", photo: "met", prompt: "It might rain on Sunday. With our children: the Natural History Museum and its planetarium, lunch indoors, then the Met's Temple of Dendur and the arms and armor galleries. As little walking outside as possible." },
+  { who: "seniors", label: "Museum Mile, gently", blurb: "The Met, the Neue Galerie, Café Sabarsky, the Guggenheim", photo: "guggenheim", prompt: "With my elderly parents on Thursday: the Met, lunch at Café Sabarsky in the Neue Galerie, the Guggenheim, and a short stroll in Central Park. Slow pace, lots of rests, taxis for longer hops." },
+  { who: "seniors", label: "Harbor views, easy walking", blurb: "Liberty and Ellis Island, the Battery, Fraunces Tavern", photo: "statue-of-liberty", prompt: "Taking my grandparents out on Saturday: the Statue of Liberty and Ellis Island ferry, the Battery, lunch at Fraunces Tavern, and the 9/11 Memorial pools. Minimal walking, avoid crowds." },
+  { who: "seniors", label: "Grand Central and the Library", blurb: "The concourse, the Oyster Bar, the Reading Room, the Morgan", photo: "grand-central", prompt: "My older parents and I on Tuesday: Grand Central Terminal's main concourse, lunch at the Grand Central Oyster Bar, the Rose Main Reading Room at the New York Public Library, Bryant Park, and the Morgan Library. Short walks only." },
 ];
 
 
@@ -197,9 +218,12 @@ function dayAnnouncement(p: DayPlan): string {
   return `Your day is planned: ${n} ${n === 1 ? "stop" : "stops"}, ${clock(p.stops[0]?.startMin ?? p.request.startMin)} to ${clock(p.summary.finishMin)}, ${duration(p.summary.travelMin)} of travel.`;
 }
 
-function Logo() {
+/** The wordmark: in the planner, home is Build, where a day starts. */
+function Logo({ onHome }: { onHome: () => void }) {
   return (
-    <Link href="/" aria-label={`${BRAND.name} ${BRAND.suffix} home`} className="ed-wordmark ed-display">{BRAND.name}</Link>
+    <button type="button" onClick={onHome} aria-label={`${BRAND.name}: start a day`} className="ed-wordmark ed-display">
+      {BRAND.name}
+    </button>
   );
 }
 
@@ -244,6 +268,9 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [geometry, setGeometry] = useState<{ for: DayPlan | null; legs: KeyedLeg[] }>({ for: null, legs: [] });
   const [inspect, setInspect] = useState<InspectPlace | null>(null);
+  /** A place from the chat, being looked at on the map. */
+  const [ideaParty, setIdeaParty] = useState<Party | null>(null);
+  const [peek, setPeek] = useState<{ key: string; name: string; lat: number; lon: number } | null>(null);
   const [shareNote, setShareNote] = useState<string | null>(null);
   const savedRaw = useSyncExternalStore(subscribeSaved, readSavedRaw, () => "[]");
   const savedPlans = useMemo(() => parseSaved(savedRaw), [savedRaw]);
@@ -262,8 +289,12 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
   const [prompt, setPrompt] = useState(initialPrompt ?? "");
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const [thinking, setThinking] = useState(false);
-  const [assistant, setAssistant] = useState<{ reply: string; unresolved: string[] } | null>(null);
+  // What Roam AI said. Once it has built a day (`planned`), it's shown with the day, not in Build.
+  const [assistant, setAssistant] = useState<{ reply: string; unresolved: string[]; planned?: boolean } | null>(null);
   const [assistantError, setAssistantError] = useState<string | null>(null);
+  /** Pre-plan questions (when / who). The original prompt is kept so answers can be appended. */
+  const [followUpQs, setFollowUpQs] = useState<FollowUp[] | null>(null);
+  const pendingPrompt = useRef("");
   const [choices, setChoices] = useState<Choice[]>([]);
   const [forecast, setForecast] = useState<Forecast | null>(null);
   // Photos for searched places, looked up once each; catalog photos ship with the app.
@@ -288,7 +319,11 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
   const assistantHandle = useRef<AssistantHandle>(null);
   const onAssistantOpen = useCallback((open: boolean) => {
     assistantOpen.current = open;
-    if (open) setUnread(false);
+    if (open) {
+      setUnread(false);
+      // Back in the chat: the place it was showing leaves the map.
+      setPeek(null);
+    }
   }, []);
   // Until the reader drags the divider, the column is a reading column: a little over a quarter of the window, 400–560px.
   const [panelWidth, setPanelWidth] = useState<number | null>(null);
@@ -473,7 +508,7 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
     const url = URL.createObjectURL(new Blob([planToIcs(plan, link)], { type: "text/calendar;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `roam-nyc-${plan.request.date}.ics`;
+    a.download = `planyt-${plan.request.date}.ics`;
     a.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     note("Calendar file downloaded");
@@ -488,20 +523,33 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
   // --- assistant --------------------------------------------------------------
 
   const ask = useCallback(
-    async (text: string, current: Settings) => {
+    async (text: string, current: Settings, opts?: { skipQuestions?: boolean }) => {
       if (text.trim().length < 3) return;
       setThinking(true);
       setAssistantError(null);
       setAssistant(null);
+      if (!opts?.skipQuestions) setFollowUpQs(null);
       try {
         const res = await fetch("/api/assistant", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text, profile: profileRef.current }),
+          body: JSON.stringify({
+            text,
+            profile: profileRef.current,
+            skipQuestions: opts?.skipQuestions === true,
+          }),
         });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? "The assistant couldn't help with that.");
         const r = body as AssistantResult;
+        // When / who missing: ask before planning (empty stops until answered or skipped).
+        if (r.questions?.length) {
+          pendingPrompt.current = text;
+          setFollowUpQs(r.questions);
+          setAssistant({ reply: r.reply, unresolved: [] });
+          return;
+        }
+        setFollowUpQs(null);
         const next: Settings = {
           ...current,
           date: r.date ?? current.date,
@@ -521,7 +569,7 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
           storeProfile(nextProfile);
         }
         setSettings(next);
-        setAssistant({ reply: r.reply, unresolved: r.unresolved });
+        setAssistant({ reply: r.reply, unresolved: r.unresolved, planned: r.stops.length > 0 });
         // Catalog stops at their typical length take the traveler's pace.
         const pace = <T extends StopInput>(s: T): T => {
           const a = s.attractionId ? ATTRACTION_BY_ID.get(s.attractionId) : undefined;
@@ -632,6 +680,17 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
 
   function inspectStop(s: StopInput) {
     setInspect({ key: s.key, name: s.name, lat: s.lat, lon: s.lon, attractionId: s.attractionId, visitMin: s.visitMin });
+  }
+
+  /** A place picked on the 3D map: our catalog's entry when it's one of ours, else the place itself. */
+  function onPickPlace(place: { name: string; lat: number; lon: number }) {
+    const words = (s: string) => s.toLowerCase().replace(/^the\s+/, "");
+    const ours = ATTRACTIONS.find((a) => haversine(a, place) < 250 && (words(place.name).includes(words(a.name)) || words(a.name).includes(words(place.name))));
+    if (ours) return inspectAttraction(ours);
+    const inDay = stops.find((s) => haversine(s, place) < 60);
+    if (inDay) return inspectStop(inDay);
+    const key = `place-${place.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60)}`;
+    setInspect({ key, name: place.name, lat: place.lat, lon: place.lon, attractionId: null, visitMin: 60 });
   }
 
   function onPickAttraction(id: string) {
@@ -766,7 +825,7 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
   // ---------------------------------------------------------------------------
 
   return (
-    <main className="ed-planner" style={isPhone ? ({ "--sheet-h": `${sheetH}px` } as React.CSSProperties) : undefined}>
+    <main className="ed-planner ed-paper" style={isPhone ? ({ "--sheet-h": `${sheetH}px` } as React.CSSProperties) : undefined}>
       <a href="#planner-content" className="pl-skip">
         Skip to the planner
       </a>
@@ -774,13 +833,13 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
         {announce}
       </p>
       <header className="pl-mast">
-        <Logo />
+        <Logo onHome={() => setView("edit")} />
         <p className="pl-dateline pl-mono">The day planner · New York · {longDate}</p>
         <nav aria-label="Planner">
           {tabs}
-          <Link href="/" className="ed-navlink pl-mono">
+          <button type="button" onClick={() => setView("edit")} className="ed-navlink pl-mono">
             Home
-          </Link>
+          </button>
           <AccountMenu account={account} />
           <ThemeToggle className="ed-theme" />
         </nav>
@@ -834,6 +893,8 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
                     setView("edit");
                   }}
                   onAsk={() => assistantHandle.current?.open()}
+                  note={assistant?.planned ? assistant : null}
+                  onDismissNote={() => setAssistant(null)}
                   onSave={savePlan}
                   onShare={sharePlan}
                   onCalendar={downloadCalendar}
@@ -912,10 +973,24 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
                     </p>
                     <div aria-live="polite">
                       {assistantError && <p className="pl-flag mt-4">{assistantError}</p>}
-                      {assistant && (
+                      {assistant && !assistant.planned && (
                         <div className="pl-note mt-4">
                           <p>{assistant.reply}</p>
                           {assistant.unresolved.length > 0 && <p className="pl-muted mt-2">Couldn&apos;t find on the map: {assistant.unresolved.join(", ")}. Try naming them differently, or pick them yourself.</p>}
+                          {followUpQs && (
+                            <FollowUpQuestions
+                              questions={followUpQs}
+                              disabled={thinking}
+                              onDone={(answers) => {
+                                setFollowUpQs(null);
+                                void ask(withAnswers(pendingPrompt.current || prompt, answers), settings, { skipQuestions: true });
+                              }}
+                              onSkip={() => {
+                                setFollowUpQs(null);
+                                void ask(pendingPrompt.current || prompt, settings, { skipQuestions: true });
+                              }}
+                            />
+                          )}
                         </div>
                       )}
                     </div>
@@ -926,13 +1001,20 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
                       </Fold>
                     </div>
 
-                    {/* Ideas: a tap fills the prompt, ready to change or send. */}
+                    {/* Ideas: a tap fills the prompt, ready to change or send. Filtered by who's coming. */}
                     <section aria-labelledby="ideas-heading" className="pl-ideas">
                       <h2 id="ideas-heading" className="pl-mono pl-kicker">
                         Or start from an idea
                       </h2>
+                      <div className="pl-chips pl-idea-filter" role="group" aria-label="Ideas for">
+                        {([null, ...(Object.keys(PARTY_LABEL) as Party[])] as (Party | null)[]).map((p) => (
+                          <button key={p ?? "all"} type="button" aria-pressed={ideaParty === p} onClick={() => setIdeaParty(p)} className="pl-chip">
+                            {p ? PARTY_LABEL[p] : "Everyone"}
+                          </button>
+                        ))}
+                      </div>
                       <ul>
-                        {TRIP_STARTERS.map((idea) => {
+                        {TRIP_STARTERS.filter((idea) => !ideaParty || idea.who === ideaParty).map((idea) => {
                           const photo = catalogPhoto(idea.photo);
                           return (
                             <li key={idea.label}>
@@ -948,6 +1030,7 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
                                 <span className="pl-idea-photo">{photo && <img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" />}</span>
                                 <span className="min-w-0">
                                   <span className="pl-idea-title">{idea.label}</span>
+                                  <span className="pl-idea-who pl-mono">{PARTY_LABEL[idea.who]}</span>
                                   <span className="pl-idea-blurb">{idea.blurb}</span>
                                 </span>
                                 <ArrowRight className="pl-idea-arrow" aria-hidden />
@@ -1168,13 +1251,16 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
         {plan && (
           <div hidden={!showingPlan}>
             <Assistant unread={unread} onOpenChange={onAssistantOpen} handle={assistantHandle}>
-              <TripChat plan={plan} discover={discover} planning={planning || stale} onApply={applyChatPlan} onReply={() => !assistantOpen.current && setUnread(true)} />
+              <TripChat plan={plan} discover={discover} planning={planning || stale} onApply={applyChatPlan} onReply={() => !assistantOpen.current && setUnread(true)} onView={(place) => {
+                assistantHandle.current?.close();
+                setPeek(place);
+              }} />
             </Assistant>
           </div>
         )}
 
         <div className="pl-mobile-brand ed-paper">
-          <Logo />
+          <Logo onHome={() => setView("edit")} />
         </div>
         <figure className="pl-plate">
           <figcaption className="pl-caption pl-mono">
@@ -1190,6 +1276,7 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
               activeKey={activeKey}
               onPickAttraction={onPickAttraction}
               onPickStop={onPickStop}
+              onPickPlace={onPickPlace}
               player={player}
               onPlayerKey={followStop}
               bottomInset={isPhone ? sheetHeights[sheet] : 0}
@@ -1201,7 +1288,7 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
                 // Watching the day play out needs the map, not the list.
                 if (playing && isPhone) setSheet("peek");
               }}
-              focus={inspect ? { key: inspect.key, lat: inspect.lat, lon: inspect.lon } : null}
+              focus={inspect ? { key: inspect.key, lat: inspect.lat, lon: inspect.lon } : peek}
               showFilter={!showingPlan && mode === "pick"}
               className="size-full"
             />

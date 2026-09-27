@@ -134,7 +134,7 @@ export function PlanDemo() {
                 <div className="ed-row-name">{s.name}</div>
                 <div className="ed-row-why">{s.why}</div>
               </div>
-              <div className="ed-crowd" role="img" aria-label={`Crowds by hour at ${s.name}; Roam picked a quiet one`}>
+              <div className="ed-crowd" role="img" aria-label={`Crowds by hour at ${s.name}; PlaNYt picked a quiet one`}>
                 {s.crowd.map((h, j) => <b key={j} className={j === s.slot ? "on" : undefined} style={{ height: `${h * 11}%` }} />)}
               </div>
             </li>
@@ -151,7 +151,7 @@ export function PlanDemo() {
       <div className="ed-demo-map">
         <div ref={hostRef} className="ed-map-host" />
         <div className={`ed-callout${done ? " on" : ""}`}>
-          <span className="ed-mono ed-kicker">Roam&apos;s order</span>
+          <span className="ed-mono ed-kicker">PlaNYt&apos;s order</span>
           <strong>{plan.saving}</strong>
           <em>and every stop at its quiet hour</em>
         </div>

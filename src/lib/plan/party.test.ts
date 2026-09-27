@@ -22,6 +22,12 @@ describe("how many are going", () => {
     expect(partyFromText("with my two kids")).toEqual({ group: "family", people: 3 });
     expect(partyFromText("with my kids")).toEqual({ group: "family" });
   });
+  it("reads a sitcom named in the plan as a theme, not as friends coming along", () => {
+    expect(partyFromText("My partner and I on Saturday, a Friends-themed day")).toEqual({ group: "couple", people: 2 });
+    expect(partyFromText("My wife and I want to see the Friends apartment")).toEqual({ group: "couple", people: 2 });
+    expect(partyFromText("My partner and I, with our friends")).toEqual({});
+    expect(partyFromText("My friends and I, four of us, Friends locations")).toEqual({ people: 4 });
+  });
   it("counts what they said, else what the group means", () => {
     expect(partySize(DEFAULT_PROFILE)).toBeNull();
     expect(partySize({ group: "couple" })).toBe(2);

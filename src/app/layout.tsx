@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./editorial.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { BRAND } from "@/lib/plan/display";
 
 export const metadata: Metadata = {
-  title: "Roam NYC · Plan a day in New York around the crowds",
-  description: "Pick or describe the places you want to see. Roam orders them around travel time, opening hours and subway-ridership crowd levels.",
+  title: `${BRAND.name} · ${BRAND.tagline}`,
+  description: "Plan a day in New York around travel time, opening hours, and neighborhood crowds.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

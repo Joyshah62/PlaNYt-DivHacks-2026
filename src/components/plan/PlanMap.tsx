@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AttributionControl, LngLatBounds, Map as MapLibre, Marker, Popup, type GeoJSONSource } from "maplibre-gl";
-import { Box, Compass, Crosshair, Ellipsis, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
+import { Box, Compass, Crosshair, Ellipsis, Layers3, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { rangeToZoom, zoomToRange, type Camera } from "@/components/home/camera";
 import { readEnv } from "@/components/home/cityMap";
 import { MapThemeSwitcher } from "@/components/map/MapThemeSwitcher";
 import { STYLES, ensureWorker, keepAttributionCollapsed, prefersReducedMotion, resolveColors, resolveMissingStyleImages, useDarkScheme, useMapTheme } from "@/components/map/mapStyle";
-import { ATTRACTIONS } from "@/lib/plan/attractions";
+import { ATTRACTIONS, KIND_LABELS, type AttractionKind } from "@/lib/plan/attractions";
 import { positionAt, type Timeline } from "@/lib/plan/playback";
 import { clock } from "@/lib/plan/time";
 import type { LegMode, PointLabel } from "@/lib/plan/types";
@@ -42,12 +42,14 @@ export interface PlanMapProps {
   /** A catalog dot was tapped: show that place. */
   onPickAttraction: (id: string) => void;
   onPickStop: (key: string) => void;
+  /** A place picked on Google's 3D map (not a catalog dot): show it. */
+  onPickPlace?: (place: { name: string; lat: number; lon: number }) => void;
   /** The planned day, to play back hour by hour with the city's crowds. */
   player?: { timeline: Timeline; dow: number } | null;
   /** Playback reached a stop (or left it). */
   onPlayerKey?: (key: string | null) => void;
-  /** Fly here when it changes: the place being looked at. */
-  focus?: { key: string; lat: number; lon: number } | null;
+  /** Fly here when it changes: the place being looked at. With a name, and not in the day, it gets a pin. */
+  focus?: { key: string; lat: number; lon: number; name?: string } | null;
   /** Pixels at the bottom covered by something else (the panel as a sheet on phones). */
   bottomInset?: number;
   /** Places found by discovery: lettered pins, and the chosen one's detour through the day. */
@@ -62,6 +64,18 @@ export interface PlanMapProps {
 }
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
+/** One colour per kind of place, for the dots and the legend: distinct on the satellite and the street maps. */
+export const KIND_COLOR: Record<AttractionKind, string> = {
+  museum: "#3d5a98",
+  view: "#c8321f",
+  landmark: "#7b4fa6",
+  park: "#3f8a52",
+  food: "#d98a1c",
+  neighborhood: "#1f7f86",
+};
+const KINDS = Object.keys(KIND_LABELS) as AttractionKind[];
+const COUNT = Object.fromEntries(KINDS.map((k) => [k, ATTRACTIONS.filter((a) => a.kind === k).length])) as Record<AttractionKind, number>;
 /** A whole day plays back in about this many seconds. */
 const PLAY_SECONDS = 24;
 
@@ -85,7 +99,10 @@ function easeBearing(from: number, to: number, f: number): number {
  * MapLibre is driven imperatively from props, as in CityMap.
  */
 export function PlanMap(props: PlanMapProps) {
-  const [kindFilter, setKindFilter] = useState<string>("all");
+  // The legend: which kinds of place show, and whether it's open (by default, only while picking places).
+  const [hiddenKinds, setHiddenKinds] = useState<AttractionKind[]>([]);
+  const [legendOpen, setLegendOpen] = useState<boolean | null>(null);
+  const legendShown = legendOpen ?? !!props.showFilter;
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibre | null>(null);
   const readyRef = useRef(false);
@@ -462,12 +479,12 @@ export function PlanMap(props: PlanMapProps) {
         type: "circle",
         source: "catalog",
         paint: {
-          // Places to explore in the map's ink; the day's own stops carry the colour.
-          "circle-color": ink,
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.5, 15, 7],
-          "circle-opacity": ["case", ["get", "chosen"], 0.25, 0.9],
-          "circle-stroke-color": halo,
-          "circle-stroke-width": 1.5,
+          // Places to explore, coloured by kind (see the legend); ones already in the day step back.
+          "circle-color": ["match", ["get", "kind"], ...KINDS.flatMap((k) => [k, KIND_COLOR[k]]), ink] as never,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 4.5, 13, 6.5, 16, 9],
+          "circle-opacity": ["case", ["get", "chosen"], 0.35, 1],
+          "circle-stroke-color": "#f3ede1",
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 1.5, 15, 2.5],
         },
       });
       map.addLayer({
@@ -557,16 +574,16 @@ export function PlanMap(props: PlanMapProps) {
   };
 
   useEffect(() => run(applyCatalog), [props.chosen]);
+  const hiddenKey = hiddenKinds.join("|");
   useEffect(() => {
     run((map) => {
-      const filter = kindFilter === "all" ? null : ["==", ["get", "kind"], kindFilter];
-      map.setFilter("catalog", filter as never);
-      map.setFilter(
-        "catalog-label",
-        kindFilter === "all" ? ["!", ["get", "chosen"]] : (["all", ["!", ["get", "chosen"]], ["==", ["get", "kind"], kindFilter]] as never),
-      );
+      const shown = ["!", ["in", ["get", "kind"], ["literal", hiddenKinds]]];
+      map.setFilter("catalog", (hiddenKinds.length ? shown : null) as never);
+      map.setFilter("catalog-label", (hiddenKinds.length ? ["all", ["!", ["get", "chosen"]], shown] : ["!", ["get", "chosen"]]) as never);
     });
-  }, [kindFilter]);
+    // `hiddenKey` stands for the list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiddenKey]);
   useEffect(() => run(applyLegs), [props.legs]);
 
   // Discovery: draw the found places; frame them when they arrive, the detour when one is chosen.
@@ -596,12 +613,27 @@ export function PlanMap(props: PlanMapProps) {
   const frameKey = [...props.stops.map((s) => s.key), props.origin?.label ?? ""].join("|");
   useEffect(() => run(frame), [frameKey]);
 
-  // Fly to the place being looked at.
+  // Fly to the place being looked at; a place that isn't in the day is marked and named.
   const focusKey = props.focus?.key ?? null;
+  const focusPin = useRef<Marker | null>(null);
   useEffect(() => {
+    focusPin.current?.remove();
+    focusPin.current = null;
     const f = latest.current.focus;
     if (!f) return;
-    run((map) => map.easeTo({ center: [f.lon, f.lat], zoom: Math.max(map.getZoom(), 14.2), duration: prefersReducedMotion() ? 0 : 900 }));
+    run((map) => {
+      if (f.name && !latest.current.stops.some((s) => s.key === f.key)) {
+        const el = document.createElement("div");
+        el.className = "focus-pin";
+        el.textContent = f.name;
+        focusPin.current = new Marker({ element: el, anchor: "bottom" }).setLngLat([f.lon, f.lat]).addTo(map);
+      }
+      map.easeTo({ center: [f.lon, f.lat], zoom: Math.max(map.getZoom(), 15), duration: prefersReducedMotion() ? 0 : 900 });
+    });
+    return () => {
+      focusPin.current?.remove();
+      focusPin.current = null;
+    };
   }, [focusKey]);
 
   // Draw the playback state: the trail so far, the traveler.
@@ -738,28 +770,36 @@ export function PlanMap(props: PlanMapProps) {
           follow={playing && position ? position.at : null}
           camera={camera}
           traveler={engaged && position ? position.at : null}
+          focus={props.focus ?? null}
           onPickStop={(key) => latest.current.onPickStop(key)}
+          onPickPlace={(place) => latest.current.onPickPlace?.(place)}
           onFail={() => setGoogleOk(false)}
         />
       )}
 
       {/* Top left: what to show. Top right: how to look. Bottom: the day, played. */}
-      {props.showFilter && (
-        <div className="pl-mapbar pl-mapbar-kinds" role="group" aria-label="Show places by type">
-          {[
-            { id: "all", label: "All" },
-            { id: "view", label: "Views" },
-            { id: "food", label: "Food" },
-            { id: "museum", label: "Museums" },
-            { id: "park", label: "Parks" },
-            { id: "landmark", label: "Landmarks" },
-          ].map((item) => (
-            <button key={item.id} type="button" aria-pressed={kindFilter === item.id} onClick={() => setKindFilter(item.id)}>
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* The legend: what the dots are, and a switch for each kind. */}
+      <div className="pl-legend">
+        <button type="button" aria-expanded={legendShown} aria-controls="map-legend" onClick={() => setLegendOpen(!legendShown)} className="pl-legend-toggle">
+          <Layers3 aria-hidden /> Places
+        </button>
+        {legendShown && (
+          <ul id="map-legend" role="group" aria-label="Show places by type">
+            {KINDS.map((k) => {
+              const on = !hiddenKinds.includes(k);
+              return (
+                <li key={k}>
+                  <button type="button" aria-pressed={on} onClick={() => setHiddenKinds((list) => (on ? [...list, k] : list.filter((x) => x !== k)))}>
+                    <i style={{ background: KIND_COLOR[k] }} aria-hidden />
+                    <span>{KIND_LABELS[k]}</span>
+                    <span className="pl-muted">{COUNT[k]}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
 
       <div className="pl-maptools" style={{ top: "var(--s-1)", right: "var(--s-1)" }}>
         <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => (google3d ? map3d.current?.zoom(1) : mapRef.current?.zoomIn())} className="pl-maptool">

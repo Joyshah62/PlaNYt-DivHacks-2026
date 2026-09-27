@@ -24,7 +24,7 @@ export function AskRoam({ tripId, memberId, addedKeys, onAdd }: { tripId: string
     try {
       setResult(await tripApi<{ reply: string; items: SuggestionItem[]; usedAi: boolean }>(`/${tripId}/ask`, { memberId, text: q }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Roam couldn't answer that right now.");
+      setError(err instanceof Error ? err.message : "Roam AI couldn't answer that right now.");
     } finally {
       setBusy(false);
     }
@@ -45,10 +45,10 @@ export function AskRoam({ tripId, memberId, addedKeys, onAdd }: { tripId: string
           rows={2}
           maxLength={600}
           placeholder="Something artsy in the afternoon, then dessert near where we meet…"
-          aria-label="Ask Roam for places"
+          aria-label="Ask Roam AI for places"
         />
         <div className="tr-ask-foot">
-          <span className="ed-small ed-muted">Ask Roam: it knows your times, meeting spot and votes</span>
+          <span className="ed-small ed-muted">Ask Roam AI: it knows your times, meeting spot and votes</span>
           <button type="submit" disabled={busy || text.trim().length < 3} className="ed-btn">
             {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
             {busy ? "Thinking" : "Ask"}
@@ -66,7 +66,7 @@ export function AskRoam({ tripId, memberId, addedKeys, onAdd }: { tripId: string
           {result && (
             <p className="ed-small tr-ask-text">
               {result.reply}
-              {!result.usedAi && <span className="ed-muted">Roam&apos;s AI isn&apos;t available right now, so these match your words.</span>}
+              {!result.usedAi && <span className="ed-muted">Roam AI isn&apos;t available right now, so these match your words.</span>}
             </p>
           )}
           <SuggestionCarousel items={result?.items ?? []} addedKeys={addedKeys} onAdd={(item) => onAdd(item.stop)} loading={busy} error={error} emptyText="Nothing matched. Try other words." />

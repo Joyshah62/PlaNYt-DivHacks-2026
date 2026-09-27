@@ -11,7 +11,7 @@ const isAccountMember = (memberId: string | undefined) => !!memberId?.startsWith
 
 /**
  * Who a request acts as. A signed-in user always acts as themselves. Without
- * a session, a provider that has a sign-in page (Roam accounts) turns the
+ * a session, a provider that has a sign-in page (PlaNYt accounts) turns the
  * request away; a guest-only provider trusts the saved member id, except one
  * that belongs to an account.
  */

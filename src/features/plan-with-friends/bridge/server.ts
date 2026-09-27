@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { IdentityProvider } from "../identity";
 
-/** Roam accounts (Better Auth): a signed-in traveler takes part as themselves, on any device. */
+/** PlaNYt accounts (Better Auth): a signed-in traveler takes part as themselves, on any device. */
 export const accountIdentity: IdentityProvider = {
   async current(request) {
     const session = await auth.api.getSession({ headers: request.headers }).catch(() => null);

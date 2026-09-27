@@ -34,7 +34,7 @@ function stamp(date: string, min: number): string {
 export function planToIcs(plan: DayPlan, link: string): string {
   const { date } = plan.request;
   const now = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Roam NYC//Day planner//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PlaNYt//Day planner//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
   plan.stops.forEach((s, i) => {
     const place = s.attractionId ? ATTRACTION_BY_ID.get(s.attractionId) : undefined;
     const directions = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mapsPoint(s).query)}&travelmode=transit`;

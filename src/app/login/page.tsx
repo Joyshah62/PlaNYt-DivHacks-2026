@@ -8,7 +8,7 @@ import { getSession, safeNext } from "@/lib/session";
 import "./auth.css";
 
 export const metadata: Metadata = {
-  title: `Sign in · ${BRAND.name} ${BRAND.suffix}`,
+  title: `Sign in · ${BRAND.name}`,
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {

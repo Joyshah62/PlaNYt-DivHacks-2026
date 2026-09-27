@@ -5,12 +5,13 @@ import { MessageCircle, X } from "lucide-react";
 
 /**
  * The trip assistant, waiting in the map's bottom-right corner. It opens on a click, tap or
- * Enter (or through `handle.open()`, from the "Ask the planner" button in the day), and closes
- * with ×, Escape, or a click in the column. Clicks on the map leave it open, so the places it
- * found can be looked at. The chat stays mounted while closed, so the conversation is kept.
+ * Enter (or through `handle.open()`, from the "Ask Roam AI" button in the day), and closes
+ * with ×, Escape, or any click outside it. "View" on a place it found closes it too, so the
+ * map shows the place. The chat stays mounted while closed, so the conversation is kept.
  */
 export interface AssistantHandle {
   open: () => void;
+  close: () => void;
 }
 
 export function Assistant({ children, unread, onOpenChange, handle }: { children: ReactElement; unread: boolean; onOpenChange: (open: boolean) => void; handle: Ref<AssistantHandle> }) {
@@ -35,7 +36,7 @@ export function Assistant({ children, unread, onOpenChange, handle }: { children
     if (!open) return;
     const onDown = (e: PointerEvent) => {
       const target = e.target as Element;
-      if (!root.current?.contains(target) && !target.closest?.(".pl-frame")) setOpen(false);
+      if (!root.current?.contains(target)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeFromInside();
     window.addEventListener("pointerdown", onDown);
@@ -53,13 +54,13 @@ export function Assistant({ children, unread, onOpenChange, handle }: { children
     if (next === "launcher") launcher.current?.focus();
   }, [open, onOpenChange]);
   // Opened from elsewhere on the page.
-  useImperativeHandle(handle, () => ({ open: show }));
+  useImperativeHandle(handle, () => ({ open: show, close: () => setOpen(false) }));
 
   return (
     <div ref={root} className="pl-assist">
-      <div id="trip-assistant" role="dialog" aria-label="Ask the planner" hidden={!open} className="pl-assist-panel">
+      <div id="trip-assistant" role="dialog" aria-label="Roam AI" hidden={!open} className="pl-assist-panel">
         <div className="pl-assist-head">
-          <span className="pl-mono pl-kicker">Ask the planner</span>
+          <span className="pl-mono pl-kicker">Roam AI</span>
           <button type="button" onClick={closeFromInside} aria-label="Close the assistant" className="pl-icon">
             <X aria-hidden />
           </button>
@@ -76,7 +77,7 @@ export function Assistant({ children, unread, onOpenChange, handle }: { children
           className="pl-assist-launch"
         >
           <MessageCircle aria-hidden />
-          <span>Ask the planner</span>
+          <span>Ask Roam AI</span>
           {unread && <i className="pl-assist-dot" aria-label="New reply" />}
         </button>
       )}

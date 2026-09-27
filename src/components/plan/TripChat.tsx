@@ -21,6 +21,7 @@ export function TripChat({
   planning,
   onApply,
   onReply,
+  onView,
 }: {
   plan: DayPlan;
   discover: Discover;
@@ -28,6 +29,8 @@ export function TripChat({
   onApply: (plan: DayPlan) => void;
   /** The assistant answered: lets a closed panel show that something's waiting. */
   onReply?: () => void;
+  /** "View" on a found place: show it on the map. */
+  onView?: (place: { key: string; name: string; lat: number; lon: number }) => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -206,7 +209,7 @@ export function TripChat({
             {reply.discovery.note && <p className="pl-small pl-muted">{reply.discovery.note}</p>}
             {!activeResults && <p className="pl-small pl-muted">Earlier suggestions. Search again to check them against your current trip.</p>}
             <ul className="pl-reel">
-              {reply.discovery.results.map((r, index) => <ResultCard key={r.stop.key} r={r} index={index} best={index === 0 && !r.conflicts.length && !r.closed} active={activeResults && discover.selected === r.stop.key} busy={disabled || !activeResults} onSelect={() => { if (activeResults) discover.select(r.stop.key); }} onAdd={() => void send(`Add option ${index + 1}: ${r.name}`, { name: "preview_place", index: index + 1 })} />)}
+              {reply.discovery.results.map((r, index) => <ResultCard key={r.stop.key} r={r} index={index} best={index === 0 && !r.conflicts.length && !r.closed} active={activeResults && discover.selected === r.stop.key} busy={disabled || !activeResults} onSelect={() => { if (activeResults) discover.select(r.stop.key); onView?.({ key: r.stop.key, name: r.name, lat: r.lat, lon: r.lon }); }} onAdd={() => void send(`Add option ${index + 1}: ${r.name}`, { name: "preview_place", index: index + 1 })} />)}
             </ul>
           </>}
           {reply?.proposal && <div className="pl-proposal">

@@ -28,7 +28,7 @@ export function TripRoom({ id, viewer = null }: { id: string; viewer?: Viewer | 
   if (room.status === "missing") {
     return (
       <main className="ed-app ed-paper tr-page">
-        <AppBar />
+        <AppBar home="/plan" />
         <section className="ed-gut tr-state">
           <p className="tr-display">This trip has expired or the link is wrong.</p>
           <Link href="/start" className="ed-link">
@@ -41,7 +41,7 @@ export function TripRoom({ id, viewer = null }: { id: string; viewer?: Viewer | 
   if (!trip) {
     return (
       <main className="ed-app ed-paper tr-page">
-        <AppBar />
+        <AppBar home="/plan" />
         <section className="ed-gut tr-state">
           <p className="ed-mono ed-muted">Loading trip…</p>
         </section>
@@ -59,7 +59,7 @@ export function TripRoom({ id, viewer = null }: { id: string; viewer?: Viewer | 
 
   return (
     <main className="ed-app ed-paper tr-page tr-room">
-      <AppBar>
+      <AppBar home="/plan">
         <button type="button" className="ed-btn ed-btn--ghost" onClick={actions.copyInvite}>
           <Link2 aria-hidden /> {room.copied ? "Link copied" : "Copy invite link"}
         </button>

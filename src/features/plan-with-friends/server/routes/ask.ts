@@ -5,7 +5,7 @@ import { TripError } from "../service";
 import { getTripStore } from "../store";
 import { askRoom } from "../suggest";
 
-/** POST /api/trips/[id]/ask - Ask Roam with the room as context; returns places to add. */
+/** POST /api/trips/[id]/ask - Ask Roam AI with the room as context; returns places to add. */
 export async function POST(request: Request, ctx: RouteContext<"/api/trips/[id]/ask">) {
   return respond(async () => {
     const id = tripId((await ctx.params).id);

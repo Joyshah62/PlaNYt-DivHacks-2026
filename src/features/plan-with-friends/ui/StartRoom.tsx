@@ -35,7 +35,7 @@ export function StartRoom({ code, group }: { code: string | null; group: string 
     try {
       const { trip, memberId } = await tripApi<{ trip: Trip; memberId: string }>("", code ? { name, avatar, code } : { name, avatar, date });
       if (!storeIdentity(trip.id, { memberId })) {
-        setError("This browser can't remember you. Open Roam in a normal (not private) window to start a room.");
+        setError("This browser can't remember you. Open PlaNYt in a normal (not private) window to start a room.");
         setBusy(false);
         return;
       }
@@ -48,7 +48,7 @@ export function StartRoom({ code, group }: { code: string | null; group: string 
 
   return (
     <main className="ed-app ed-paper tr-page">
-      <AppBar />
+      <AppBar home="/plan" />
       <section className="ed-gut tr-spread">
         <div>
           <p className="ed-mono ed-kicker">{group === "family" ? "Family trip room" : "Trip room"}</p>

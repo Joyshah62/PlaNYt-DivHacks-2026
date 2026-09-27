@@ -1,4 +1,4 @@
-// The only way this feature reaches the rest of Roam. If app internals move, fix them here.
+// The only way this feature reaches the rest of PlaNYt. If app internals move, fix them here.
 export type { DayPlan, PlanRequest, Profile, StopInput } from "@/lib/plan/types";
 export { DEFAULT_PROFILE, isMealBreak } from "@/lib/plan/profile";
 export { PlanRequestSchema, StopSchema } from "@/lib/plan/schema";
