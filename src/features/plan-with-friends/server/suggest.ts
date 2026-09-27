@@ -1,7 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
 import { CATEGORIES, CATEGORY, CROWD_LABEL, clock, crowdBand, crowdProfile, weekdayOf, type StopInput } from "../bridge/index";
 import { inNycArea } from "../bridge/index";
-import { fallbackIntent, GEMINI_MODEL, geminiKey, resolveDestination, searchLocal, type DiscoverCandidate, type Intent } from "../bridge/server";
+import { fallbackIntent, geminiJson, geminiKey, resolveDestination, searchLocal, type DiscoverCandidate, type Intent } from "../bridge/server";
 import type { Point } from "../core/fairness";
 import type { SuggestionItem } from "../core/suggestions";
 import type { Idea, Trip } from "../core/types";
@@ -44,19 +43,11 @@ const WANTS_SCHEMA = {
   required: ["reply", "wants"],
 } as const;
 
-let client: GoogleGenAI | null = null;
-
 async function askGemini(system: string, text: string): Promise<{ reply: string; wants: Want[] } | null> {
-  const key = geminiKey();
-  if (!key) return null;
+  if (!geminiKey()) return null;
   try {
-    client ??= new GoogleGenAI({ apiKey: key });
-    const res = await client.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: text,
-      config: { systemInstruction: system, responseMimeType: "application/json", responseJsonSchema: WANTS_SCHEMA, abortSignal: AbortSignal.timeout(15_000) },
-    });
-    const parsed = JSON.parse(res.text ?? "{}") as { reply?: string; wants?: Want[] };
+    // The app's Gemini client (same model and key as the planner's assistant).
+    const parsed = ((await geminiJson(system, text, { name: "trip_wants", schema: WANTS_SCHEMA as unknown as Record<string, unknown> }, { timeoutMs: 15_000 })) ?? {}) as { reply?: string; wants?: Want[] };
     return parsed.wants?.length ? { reply: parsed.reply ?? "", wants: parsed.wants.slice(0, 3) } : null;
   } catch (error) {
     console.error("[trips/suggest]", error instanceof Error ? error.message : error);

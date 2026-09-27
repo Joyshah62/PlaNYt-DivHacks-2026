@@ -23,10 +23,12 @@ export function Budget({ request, people, onPeople }: {
   onPeople: (people: number) => void;
 }) {
   const [picking, setPicking] = useState(false);
+  const [requested, setRequested] = useState(false);
   const key = JSON.stringify(request);
   const [result, setResult] = useState<{ key: string; budget: DayBudget | null } | null>(null);
 
   useEffect(() => {
+    if (!requested) return;
     const abort = new AbortController();
     fetch("/api/budget", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ request: JSON.parse(key) }), signal: abort.signal })
       .then((res) => (res.ok ? res.json() : null))
@@ -35,7 +37,13 @@ export function Budget({ request, people, onPeople }: {
         if (!abort.signal.aborted) setResult({ key, budget: null });
       });
     return () => abort.abort();
-  }, [key]);
+  }, [key, requested]);
+
+  if (!requested) return <section className="mt-5 rounded-2xl border border-border bg-card p-4">
+    <p className="text-sm font-semibold">Want a cost estimate?</p>
+    <p className="mt-1 text-xs text-muted-foreground">Check typical costs per person. No spending limit or group size is assumed.</p>
+    <button type="button" onClick={() => setRequested(true)} className="mt-3 rounded-full bg-brand px-3 py-2 text-xs font-semibold text-on-color">Estimate costs</button>
+  </section>;
 
   const budget = result?.key === key ? result.budget : undefined;
   if (budget === null) return null;
@@ -45,7 +53,7 @@ export function Budget({ request, people, onPeople }: {
     <section aria-labelledby="budget-heading" className="mt-5 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <h2 id="budget-heading" className="flex items-center gap-1.5 text-sm font-semibold">
-          <Wallet className="size-4 text-brand" aria-hidden /> Your day&apos;s budget
+          <Wallet className="size-4 text-brand" aria-hidden /> Estimated costs
         </h2>
         {budget ? (
           <p className="text-right">

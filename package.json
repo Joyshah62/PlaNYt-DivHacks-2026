@@ -14,7 +14,8 @@
     "postinstall": "node scripts/copy-maplibre-worker.mjs",
     "crowd-data": "node scripts/build-crowd-data.mjs",
     "poi-data": "node scripts/build-poi-data.mjs",
-    "imessage": "tsx --env-file-if-exists=.env scripts/imessage.mts"
+    "imessage": "tsx --env-file-if-exists=.env scripts/imessage.mts",
+    "db:check": "tsx --env-file-if-exists=.env scripts/db-check.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

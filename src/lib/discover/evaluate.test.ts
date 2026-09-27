@@ -38,7 +38,7 @@ describe("ranking", () => {
   });
 });
 
-describe("refining without Grok", () => {
+describe("refining without Gemini", () => {
   it("keeps the search and changes only what the follow-up says", () => {
     const next = fallbackIntent("cheaper", intent);
     expect(next).toMatchObject({ category: "restaurant", cuisine: "korean", meal: "dinner", price: "cheap", sort: "cheaper" });
@@ -46,14 +46,14 @@ describe("refining without Grok", () => {
   });
 });
 
-describe("reading requests without Grok", () => {
+describe("reading requests without Gemini", () => {
   it("knows a café when it sees one, accents and all", () => {
     expect(fallbackIntent("A quiet café after the Met", null)).toMatchObject({ category: "cafe", quiet: true });
     expect(fallbackIntent("coffee after Central Park", null).category).toBe("cafe");
   });
 });
 
-describe("reading the plan without Grok", () => {
+describe("reading the plan without Gemini", () => {
   const plan = {
     request: { stops: [], origin: null },
     stops: [

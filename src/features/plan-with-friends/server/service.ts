@@ -50,7 +50,24 @@ function upgradeMember(memberId: string, stored: StoredMember): Member {
   return typeof stored === "string" ? { name: stored, avatar: defaultAvatar(memberId), joinedAt: 0 } : stored;
 }
 
-export function createTripService(db: TripBackend, now: () => number = Date.now) {
+/** What a trip room tells the rest of the app. */
+export interface TripHooks {
+  /** The group agreed and the day is final: called once per trip, with every member's id. */
+  onLock?(trip: { id: string; title: string; code: string; memberIds: string[] }): Promise<void> | void;
+}
+
+/** A trip as listed on someone's account. */
+export interface TripSummary {
+  id: string;
+  title: string;
+  date: string;
+  createdAt: number;
+  members: number;
+  decided: boolean;
+  hosting: boolean;
+}
+
+export function createTripService(db: TripBackend, now: () => number = Date.now, hooks: TripHooks = {}) {
   async function read(id: string): Promise<{ meta: TripMeta; trip: Trip; basis: string }> {
     const stored = await db.getMeta(id);
     if (!stored) throw new TripError(404, "This trip has expired or the link is wrong.");
@@ -96,7 +113,13 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
     // Group agreement locks the plan the first time anyone looks after it's reached.
     if (!lockedCode && c.shouldLock && draft) {
       const code = encodePlan(draft);
-      lockedCode = (await db.lock(id, code)) ? code : ((await db.getMeta(id))?.lockedCode ?? code);
+      if (await db.lock(id, code)) {
+        lockedCode = code;
+        // Only the request that locked it tells anyone, so this runs once; a failure never blocks the room.
+        Promise.resolve(hooks.onLock?.({ id, title: meta.title, code, memberIds: Object.keys(members) })).catch((error: unknown) => {
+          console.error("[trips] after locking:", error instanceof Error ? error.message : error);
+        });
+      } else lockedCode = (await db.getMeta(id))?.lockedCode ?? code;
     }
     const trip: Trip = { ...partial, ideas: ideaList.ideas, deadline: meta.deadline, confirmations, consensus: c, draft, fairness, window, itinerary, lockedCode };
     return { meta, trip, basis };
@@ -116,6 +139,13 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
   }
 
   return {
+    /** The trips a member is in, newest first. */
+    async mine(memberId: string, limit = 20): Promise<TripSummary[]> {
+      return (await db.tripsFor(memberId, limit)).map(({ meta: stored, memberCount }) => {
+        const meta = upgradeMeta(stored);
+        return { id: meta.id, title: meta.title, date: meta.settings.date, createdAt: meta.createdAt, members: memberCount, decided: !!meta.lockedCode, hosting: meta.hostId === memberId };
+      });
+    },
     async create(input: CreateTripInput) {
       const id = newId(8).slice(0, 10);
       const memberId = input.memberId ?? newId(9);

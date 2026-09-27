@@ -82,7 +82,7 @@ describe("the iMessage conversation", () => {
     await bot.handle(thread, "stop");
     expect(thread.muted).toBe(true);
     await bot.handle(thread, "new trip: Brooklyn on Sunday");
-    expect(roam.assistant).toHaveBeenLastCalledWith("Brooklyn on Sunday", DEFAULT_PROFILE, expect.objectContaining({ skipQuestions: false }));
+    expect(roam.assistant).toHaveBeenLastCalledWith("Brooklyn on Sunday", expect.objectContaining(DEFAULT_PROFILE), expect.objectContaining({ skipQuestions: false }));
   });
 });
 

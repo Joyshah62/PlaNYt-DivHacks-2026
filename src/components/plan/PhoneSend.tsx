@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Loader2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatPhone } from "@/lib/phone";
 
 const STORAGE_KEY = "roam.phone";
 
@@ -15,7 +16,7 @@ function readHandle(): string {
 }
 
 /** "Text it to me": the plan goes to iMessage, where it can be changed by text and nudges come on the day. */
-export function PhoneSend({ planCode }: { planCode: string }) {
+export function PhoneSend({ planCode, defaultHandle = null }: { planCode: string; /** The account's number, used until they text a different one. */ defaultHandle?: string | null }) {
   const [open, setOpen] = useState(false);
   const [handle, setHandle] = useState("");
   const [busy, setBusy] = useState(false);
@@ -49,7 +50,7 @@ export function PhoneSend({ planCode }: { planCode: string }) {
         variant="outline"
         aria-expanded={open}
         onClick={() => {
-          if (!open && !handle) setHandle(readHandle());
+          if (!open && !handle) setHandle(readHandle() || (defaultHandle ? formatPhone(defaultHandle) : ""));
           setOpen((v) => !v);
         }}
         className="rounded-full"

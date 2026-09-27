@@ -5,6 +5,7 @@ import type { DayPlan, Leg } from "@/lib/plan/types";
 import { WEATHER_LABEL, weatherKind, type DayWeather } from "@/lib/plan/weatherCodes";
 import type { ChatReply } from "@/lib/discover/chat";
 import { partyTotal, type DayBudget } from "@/lib/plan/budget";
+import { normalizePhone } from "@/lib/phone";
 
 /** iMessage has no markdown, so everything here is plain lines and a few emoji. */
 
@@ -143,9 +144,5 @@ export function parseCommand(raw: string, ctx: { proposal: boolean; offers: numb
 export function normalizeHandle(input: string): string | null {
   const s = input.trim();
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return s.toLowerCase();
-  const digits = s.replace(/\D/g, "");
-  if (s.startsWith("+")) return digits.length >= 8 && digits.length <= 15 ? `+${digits}` : null;
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
-  return null;
+  return normalizePhone(s);
 }

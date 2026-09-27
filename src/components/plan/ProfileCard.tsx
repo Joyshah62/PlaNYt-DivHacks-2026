@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 /** One line that says what the profile is doing, so it can stay collapsed. */
 export function profileSummary(p: Profile): string {
   const people = partySize(p);
-  const parts = [PACE[p.pace].label, GROUP[p.group].label, people && people > 2 ? `${people} people` : null, p.walkMax ? `walks up to ${p.walkMax} min` : null, ...p.interests.map((i) => INTERESTS[i].label)];
+  const parts = [PACE[p.pace].label, p.group !== "unspecified" ? GROUP[p.group].label : null, people && (people > 2 || p.group === "unspecified") ? `${people} ${people === 1 ? "person" : "people"}` : null, p.walkMax ? `walks up to ${p.walkMax} min` : null, ...p.interests.map((i) => INTERESTS[i].label)];
   return parts.filter(Boolean).join(" · ");
 }
 

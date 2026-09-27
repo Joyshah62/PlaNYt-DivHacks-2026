@@ -6,6 +6,8 @@ export interface TripDoc {
   _id: string;
   meta: StoredMeta;
   members: Record<string, StoredMember>;
+  /** The members' ids again, as an indexed list, so "my trips" is one lookup. */
+  memberIds?: string[];
   confirmations?: Record<string, string>;
   candidates: (CandidateRecord & { votes: string[] })[];
   expiresAt: Date;
@@ -22,6 +24,7 @@ export function mongoBackend(db: () => Promise<Db>): TripBackend {
       .then(async (d) => {
         const col = d.collection<TripDoc>("trips");
         await col.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+        await col.createIndex({ memberIds: 1, "meta.createdAt": -1 });
         return col;
       })
       .catch((error: unknown) => {
@@ -68,7 +71,7 @@ export function mongoBackend(db: () => Promise<Db>): TripBackend {
       return (await load(id))?.members ?? {};
     },
     async setMember(id, memberId, member: Member) {
-      await (await trips()).updateOne({ _id: id }, { $set: { [`members.${memberId}`]: member, expiresAt: expiry() } });
+      await (await trips()).updateOne({ _id: id }, { $set: { [`members.${memberId}`]: member, expiresAt: expiry() }, $addToSet: { memberIds: memberId } });
     },
     async getConfirmations(id) {
       return (await load(id))?.confirmations ?? {};
@@ -122,6 +125,15 @@ export function mongoBackend(db: () => Promise<Db>): TripBackend {
     async linkIdea(id, ideaId, placeKey) {
       const r = await (await ideas()).updateOne({ _id: `${id}:${ideaId}` }, { $set: { placeKey } });
       return r.matchedCount === 1;
+    },
+    async tripsFor(memberId, limit) {
+      // Trips from before memberIds existed are found by their members map.
+      const docs = await (await trips())
+        .find({ $or: [{ memberIds: memberId }, { [`members.${memberId}`]: { $exists: true } }] }, { projection: { meta: 1, members: 1 } })
+        .sort({ "meta.createdAt": -1 })
+        .limit(limit)
+        .toArray();
+      return docs.map((d) => ({ meta: d.meta, memberCount: Object.keys(d.members ?? {}).length }));
     },
   };
 }

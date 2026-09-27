@@ -102,5 +102,12 @@ export function memoryBackend(trips: Map<string, MemoryEntry> = shared()): TripB
       idea.placeKey = placeKey;
       return true;
     },
+    async tripsFor(memberId, limit) {
+      return [...trips.values()]
+        .filter((t) => t.members.has(memberId))
+        .sort((a, b) => b.meta.createdAt - a.meta.createdAt)
+        .slice(0, limit)
+        .map((t) => ({ meta: structuredClone(t.meta), memberCount: t.members.size }));
+    },
   };
 }

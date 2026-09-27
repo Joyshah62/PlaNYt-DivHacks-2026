@@ -51,4 +51,6 @@ export interface TripBackend {
   addIdea(id: string, idea: Idea): Promise<void>;
   setIdeaVote(id: string, ideaId: string, memberId: string, on: boolean): Promise<boolean>;
   linkIdea(id: string, ideaId: string, placeKey: string): Promise<boolean>;
+  /** The trips a member is in, newest first, with how many people are in each. */
+  tripsFor(memberId: string, limit: number): Promise<{ meta: StoredMeta; memberCount: number }[]>;
 }

@@ -1,19 +1,50 @@
 import { after } from "next/server";
 import { chat, ChatError, ChatInput } from "@/lib/discover/chat";
-import { memoryFor, remember } from "@/lib/memory/backboard";
+import { remember } from "@/lib/memory/backboard";
+import { travelerMemory } from "@/lib/memory/traveler";
+import { progressResponse, type Progress } from "@/lib/progress";
+import { outsideTravelScope, SCOPE_REPLY } from "@/lib/discover/scope";
+import { auth } from "@/lib/auth";
+import { conversationOwner, loadConversation, saveConversationTurn } from "@/lib/chat/conversations";
+import { randomUUID } from "node:crypto";
+
+export async function GET(req: Request) {
+  const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
+  const requestedId = new URL(req.url).searchParams.get("conversationId");
+  if (requestedId && !/^[0-9a-f-]{36}$/i.test(requestedId)) return Response.json({ error: "Invalid conversation." }, { status: 400 });
+  if (!session && !requestedId) return Response.json({ conversation: null });
+  const owner = conversationOwner(session?.user.id ?? null, requestedId ?? "");
+  const conversation = await loadConversation(owner, requestedId);
+  return Response.json({ conversation });
+}
 
 export async function POST(req: Request) {
+  return progressResponse(req, (progress) => respond(req, progress));
+}
+
+async function respond(req: Request, progress: Progress) {
+  progress("Reading your message…");
   let body: unknown;
   try { body = await req.json(); }
   catch { return Response.json({ error: "Expected a JSON body." }, { status: 400 }); }
   const parsed = ChatInput.safeParse(body);
   if (!parsed.success) return Response.json({ error: "Please refresh your trip and try that request again." }, { status: 400 });
+  const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
+  const conversationId = parsed.data.conversationId ?? randomUUID();
+  const owner = conversationOwner(session?.user.id ?? null, conversationId);
+  if (outsideTravelScope(parsed.data.message)) {
+    await saveConversationTurn(owner, conversationId, parsed.data.message, SCOPE_REPLY);
+    return Response.json({ message: SCOPE_REPLY, choices: [], conversationId });
+  }
   try {
-    const memoryId = await memoryFor(parsed.data.memoryId);
-    const reply = await chat({ ...parsed.data, memoryId });
+    progress("Loading your trip…");
+    const { memoryId, onAccount } = await travelerMemory(req, parsed.data.memoryId);
+    const reply = await chat({ ...parsed.data, memoryId }, progress);
+    await saveConversationTurn(owner, conversationId, parsed.data.message, reply.message);
     // Their own words, not a button's; kept after the reply goes out, since it takes a few seconds.
     if (!parsed.data.action) after(() => remember(memoryId, parsed.data.message));
-    return Response.json({ ...reply, ...(memoryId && { memoryId }) });
+    // An account's memory stays on the server; only a text thread keeps its own id.
+    return Response.json({ ...reply, conversationId, ...(memoryId && !onAccount && { memoryId }) });
   }
   catch (error) {
     console.error("[trip-chat]", error instanceof Error ? error.message : "Failed");

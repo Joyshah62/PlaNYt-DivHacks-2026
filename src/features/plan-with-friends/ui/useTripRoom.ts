@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { StopInput } from "../bridge/index";
 import type { Avatar } from "../core/avatars";
 import type { Member, Trip } from "../core/types";
-import { identity } from "../identity";
 import { tripApi, TripApiError } from "./client";
 import { clearIdentity, parseIdentity, readIdentityRaw, storeIdentity, subscribeIdentity, type TripIdentity } from "./local";
 import { useDraftPlan } from "./useDraftPlan";
@@ -13,8 +12,14 @@ const POLL_MS = 3000;
 
 export type RoomStatus = "loading" | "missing" | "ready";
 
+/** The signed-in traveler, as this trip knows them (from the server; the same on every device). */
+export interface Viewer {
+  memberId: string;
+  name: string;
+}
+
 /** Everything the trip room UI needs. Swap the components freely; keep this contract. */
-export function useTripRoom(id: string) {
+export function useTripRoom(id: string, viewer: Viewer | null = null) {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [status, setStatus] = useState<RoomStatus>("loading");
   const [offline, setOffline] = useState(false);
@@ -24,7 +29,8 @@ export function useTripRoom(id: string) {
   const [copied, setCopied] = useState(false);
 
   const raw = useSyncExternalStore(subscribeIdentity, () => readIdentityRaw(id), () => "");
-  const saved = parseIdentity(raw) ?? sessionIdentity;
+  // An account is the same member everywhere; a guest is whoever this browser saved.
+  const saved = viewer ? { memberId: viewer.memberId } : (parseIdentity(raw) ?? sessionIdentity);
   const memberId = saved && trip && saved.memberId in trip.members ? saved.memberId : null;
   const me: (Member & { id: string }) | null = memberId && trip ? { id: memberId, ...trip.members[memberId] } : null;
   const locked = !!trip?.lockedCode;
@@ -47,11 +53,7 @@ export function useTripRoom(id: string) {
   );
 
   useEffect(() => {
-    const login = identity.loginUrl(`/trip/${id}`);
-    if (login && !readIdentityRaw(id)) {
-      window.location.assign(login);
-      return;
-    }
+    // Sign-in is checked on the server before this page renders (app/trip/[id]/page.tsx).
     refresh();
     if (locked) return;
     const timer = window.setInterval(refresh, POLL_MS);
@@ -78,7 +80,7 @@ export function useTripRoom(id: string) {
       try {
         const result = await tripApi<{ trip: Trip; memberId: string }>(`/${id}/join`, { name, avatar });
         setTrip(result.trip);
-        if (!storeIdentity(id, { memberId: result.memberId })) setSessionIdentity({ memberId: result.memberId });
+        if (!viewer && !storeIdentity(id, { memberId: result.memberId })) setSessionIdentity({ memberId: result.memberId });
       } catch (e) {
         setError(e instanceof Error ? e.message : "Couldn't join.");
       }
@@ -110,7 +112,7 @@ export function useTripRoom(id: string) {
     },
   };
 
-  return { trip, me, draft, status, offline, error, busy, copied, locked, rememberWarning: !!sessionIdentity, actions };
+  return { trip, me, draft, status, offline, error, busy, copied, locked, viewer, rememberWarning: !viewer && !!sessionIdentity, actions };
 }
 
 export type TripRoomState = ReturnType<typeof useTripRoom>;

@@ -16,12 +16,12 @@ import { IdeasPanel } from "./IdeasPanel";
 import { JoinCard } from "./JoinCard";
 import { PlacesPanel } from "./PlacesPanel";
 import { StartPointCard } from "./StartPointCard";
-import { useTripRoom } from "./useTripRoom";
+import { useTripRoom, type Viewer } from "./useTripRoom";
 
 type Tab = "places" | "ideas" | "day";
 
-export function TripRoom({ id }: { id: string }) {
-  const room = useTripRoom(id);
+export function TripRoom({ id, viewer = null }: { id: string; viewer?: Viewer | null }) {
+  const room = useTripRoom(id, viewer);
   const [tab, setTab] = useState<Tab>("places");
   const { trip, me, draft, actions } = room;
 
@@ -75,7 +75,7 @@ export function TripRoom({ id }: { id: string }) {
         </div>
       )}
 
-      {!me && !room.locked && <JoinCard hostName={host} onJoin={actions.join} />}
+      {!me && !room.locked && <JoinCard hostName={host} accountName={viewer?.name ?? null} onJoin={actions.join} />}
 
       <div className="flex gap-1 rounded-full border border-border bg-card p-1 lg:hidden" role="tablist" aria-label="Trip room sections">
         {(["places", "ideas", "day"] as Tab[]).map((t) => (

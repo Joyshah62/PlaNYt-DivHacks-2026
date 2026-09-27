@@ -90,6 +90,49 @@ async function withScheduler(run: () => Promise<void>) {
 }
 
 describe("conversational trip tools", () => {
+  it.each([false, true])("keeps a requested 7pm dinner when adding a place (already present: %s)", (present) => withScheduler(async () => {
+    const restaurant = { key: "tavern", name: "Tavern On the Green", lat: 40.767, lon: -73.977, attractionId: null, visitMin: 60 };
+    const day = { ...request, endMin: 1260, meals: { lunch: false, dinner: false }, stops: present ? [...request.stops, restaurant] : request.stops };
+    const dinner = { ...input, request: day, message: "okay add tavern cafe to my dinner schedule around 7pm", offers: [{ name: restaurant.name, nextStops: [...request.stops, restaurant] }] };
+    const result = await executeChatTool("add_place", { name: restaurant.name, afterStopKey: null, visitMin: null }, dinner);
+    const { reply } = await settle(result, dinner);
+    expect(reply.resolution).toBe("apply");
+    expect(reply.proposal!.plan.stops.find((s) => s.key === "tavern")?.startMin).toBe(1140);
+    expect(reply.proposal!.plan.request.stops.find((s) => s.key === "tavern")).toMatchObject({ fixedStartMin: 1140, mealFor: "dinner" });
+    expect(reply.proposal!.plan.stops.some((s) => s.key === "meal-dinner")).toBe(false);
+  }));
+
+  it("does not auto-apply a dinner time beyond the day's end", () => withScheduler(async () => {
+    const dinner = { ...input, message: "Add Times Square at 7pm", request: { ...request, endMin: 1080 } };
+    const result = await executeChatTool("add_place", { name: "Times Square", afterStopKey: null, visitMin: 60, startMin: 1140 }, dinner);
+    const { reply, problems } = await settle(result, dinner);
+    expect(reply.resolution).not.toBe("apply");
+    expect(problems.length).toBeGreaterThan(0);
+    expect(reply.proposal!.plan.request.stops.find((s) => s.key === "times-square")?.fixedStartMin).toBe(1140);
+  }));
+
+  it.each(["lunch", "dinner"] as const)("removes a generated %s break while keeping the only place and other meal", (meal) => withScheduler(async () => {
+    const day = { ...request, endMin: 1260, meals: { lunch: true, dinner: true } };
+    const before = await buildPlan(day);
+    expect(before.stops.some((s) => s.key === `meal-${meal}`)).toBe(true);
+    const removal = { ...input, request: day, message: `Remove the ${meal} break` };
+    const result = await executeChatTool("remove_stop", { key: `meal-${meal}` }, removal);
+    const { reply } = await settle(result, removal);
+    expect(reply.resolution).toBe("apply");
+    const next = reply.proposal!.plan;
+    expect(next.request.stops).toEqual(day.stops);
+    expect(next.request.meals).toEqual({ lunch: true, dinner: true, [meal]: false });
+    expect(next.stops.some((s) => s.key === `meal-${meal}`)).toBe(false);
+    const rebuilt = await buildPlan(next.request);
+    expect(rebuilt.stops.some((s) => s.key === `meal-${meal}`)).toBe(false);
+    const repeated = await executeChatTool("remove_stop", { key: `meal-${meal}` }, { ...removal, request: next.request });
+    expect(repeated.proposal).toBeUndefined();
+  }));
+
+  it("still rejects an unknown place key", async () => {
+    await expect(executeChatTool("remove_stop", { key: "missing-place" }, input)).rejects.toThrow("no longer in your trip");
+  });
+
   it("returns clickable answers without changing the trip", async () => {
     const reply = await executeChatTool("reply_with_choices", { message: "Quick bite or sit-down?", choices: [{ label: "Quick bite", message: "A quick bite" }, { label: "Sit-down", message: "A sit-down meal" }] }, input);
     expect(reply.choices).toHaveLength(2);
@@ -444,7 +487,7 @@ describe("everything the traveler could change", () => {
   const two = { ...input, request: { ...request, stops: [...request.stops, { key: "b", name: "MoMA", lat: 40.7614, lon: -73.9776, attractionId: "moma", visitMin: 120, fixedStartMin: 900 }] } };
 
   it("moves the day, sets where it starts and who's going, and lets the planner reorder", async () => {
-    const reply = await executeChatTool("update_preferences", { date: "2099-10-03", origin: "Times Square", returnToOrigin: true, group: "family", interests: ["art"], optimizeOrder: true }, input);
+    const reply = await executeChatTool("update_preferences", { date: "2099-10-03", origin: "Times Square", returnToOrigin: true, group: "family", interests: ["art"], optimizeOrder: true }, { ...input, message: "Plan for my family with kids, on October 3, starting at Times Square; we like art. Optimize the order." });
     expect(reply.proposal?.plan.request).toMatchObject({
       date: "2099-10-03",
       origin: { label: "Times Square" },

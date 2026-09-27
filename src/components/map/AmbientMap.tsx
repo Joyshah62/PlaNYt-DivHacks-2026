@@ -16,17 +16,23 @@ export function AmbientMap({ className }: { className?: string }) {
   useEffect(() => {
     if (!container.current) return;
     ensureWorker();
-    const map = new MapLibre({
-      container: container.current,
-      style: dark ? STYLES.dark : STYLES.light,
-      center: [-73.992, 40.728],
-      zoom: 13.4,
-      pitch: 58,
-      bearing: -28,
-      interactive: false,
-      attributionControl: false,
-      fadeDuration: 0,
-    });
+    let map: MapLibre;
+    try {
+      map = new MapLibre({
+        container: container.current,
+        style: dark ? STYLES.dark : STYLES.light,
+        center: [-73.992, 40.728],
+        zoom: 13.4,
+        pitch: 58,
+        bearing: -28,
+        interactive: false,
+        attributionControl: false,
+        fadeDuration: 0,
+      });
+    } catch {
+      // No WebGL (an old device, a locked-down browser): the backdrop is decoration, so go without it.
+      return;
+    }
     resolveMissingStyleImages(map);
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
 

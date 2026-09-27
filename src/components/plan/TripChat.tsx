@@ -8,13 +8,14 @@ import type { DiscoverResponse } from "@/lib/discover/types";
 import type { DayPlan } from "@/lib/plan/types";
 import { clock, duration } from "@/lib/plan/time";
 import { locate, NEAR_ME } from "@/lib/plan/here";
-import { loadMemoryId, storeMemoryId } from "@/lib/memory/local";
+import { readProgress } from "@/lib/progress";
 import { ResultCard, type Discover } from "./Discover";
 
 /** A position is reused for a few minutes, so a follow-up doesn't ask again. */
 const HERE_MAX_AGE_MS = 5 * 60_000;
 
 type Message = { id: number; role: "user" | "assistant"; text: string; reply?: ChatReply; tripKey: string };
+const CONVERSATION_STORAGE_KEY = "roam-chat-conversation-v1";
 const starters = [
   { label: "Find food", message: "Help me choose something to eat along my trip" },
   { label: "A café break", message: "Find a café for a break along my route" },
@@ -44,7 +45,9 @@ export function TripChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const [lastAttempt, setLastAttempt] = useState<{ text: string; action?: { name: "preview_place"; index: number }; tripKey: string } | null>(null);
+  const [restoring, setRestoring] = useState(true);
+  const [progress, setProgress] = useState("Reading your message…");
+  const [lastAttempt, setLastAttempt] = useState<{ text: string; action?: { name: "preview_place"; index: number }; tripKey: string; messageId: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(true);
   // Results searched on top of a proposed change stay good for the trip before and after it's applied.
@@ -56,10 +59,11 @@ export function TripChat({
   const section = useRef<HTMLElement>(null);
   const controller = useRef<AbortController | null>(null);
   const sequence = useRef(0);
+  const conversationId = useRef<string | null>(null);
   const here = useRef<{ lat: number; lon: number; at: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const tripKey = JSON.stringify(plan.request);
-  const disabled = busy || planning;
+  const disabled = busy || planning || restoring;
   const foundCurrent = found?.tripKeys.includes(tripKey) ?? false;
   const offers = foundCurrent ? found!.data.results : [];
   const currentPending = pending?.tripKey === tripKey ? pending : null;
@@ -67,19 +71,49 @@ export function TripChat({
   useEffect(() => {
     viewport.current?.scrollTo({ top: viewport.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const localId = window.localStorage.getItem(CONVERSATION_STORAGE_KEY);
+        const res = await fetch(`/api/trip-chat${localId ? `?conversationId=${encodeURIComponent(localId)}` : ""}`);
+        if (!res.ok) return;
+        const data = await res.json() as { conversation: null | { conversationId: string; messages: { role: "user" | "assistant"; text: string }[] } };
+        if (cancelled) return;
+        const conversation = data.conversation;
+        if (conversation) {
+          conversationId.current = conversation.conversationId;
+          window.localStorage.setItem(CONVERSATION_STORAGE_KEY, conversation.conversationId);
+          const restored = conversation.messages.map((m, i) => ({ id: i + 1, role: m.role, text: m.text, tripKey: "" } satisfies Message));
+          sequence.current = restored.length;
+          setMessages((current) => current.length ? current : restored);
+        } else if (localId) {
+          // The saved id may belong to a different signed-in account.
+          const id = crypto.randomUUID();
+          conversationId.current = id;
+          window.localStorage.setItem(CONVERSATION_STORAGE_KEY, id);
+        }
+      } catch { /* Chat remains available when storage or MongoDB is unavailable. */ }
+      finally { if (!cancelled) setRestoring(false); }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   useEffect(() => () => { controller.current?.abort(); sequence.current++; }, []);
   // A trip edited elsewhere invalidates any pending answer about the old day.
   const latestTrip = useRef(tripKey);
   useEffect(() => { latestTrip.current = tripKey; }, [tripKey]);
 
-  async function send(text: string, action?: { name: "preview_place"; index: number }) {
+  async function send(text: string, action?: { name: "preview_place"; index: number }, retryMessageId?: number) {
     if (disabled || !text.trim()) return;
     const id = ++sequence.current;
+    conversationId.current ??= crypto.randomUUID();
+    try { window.localStorage.setItem(CONVERSATION_STORAGE_KEY, conversationId.current); } catch { /* The server still saves this turn. */ }
     controller.current?.abort();
     const abort = new AbortController(); controller.current = abort;
-    setMessages((list) => [...list, { id: id * 2, role: "user", text, tripKey }]);
-    setLastAttempt({ text, action, tripKey });
-    setDraft(""); setBusy(true); setError(null); setOpen(true);
+    const messageId = retryMessageId ?? id * 2;
+    if (retryMessageId === undefined) setMessages((list) => [...list, { id: messageId, role: "user", text, tripKey }]);
+    setLastAttempt({ text, action, tripKey, messageId });
+    setDraft(""); setBusy(true); setProgress("Reading your message…"); setError(null); setOpen(true);
     onEngage?.();
     // The box sits at the bottom of the panel; bring the conversation up to meet it.
     window.requestAnimationFrame(() => section.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
@@ -92,11 +126,11 @@ export function TripChat({
         if (p) here.current = { ...p, at: Date.now() };
       }
       const res = await fetch("/api/trip-chat", {
-        method: "POST", headers: { "content-type": "application/json" }, signal: abort.signal,
+        method: "POST", headers: { "content-type": "application/json", accept: "application/x-ndjson" }, signal: abort.signal,
         body: JSON.stringify({
-          request: plan.request, message: text, action,
+          request: plan.request, message: text, action, conversationId: conversationId.current,
           pending: currentPending?.reply?.proposal ? { request: currentPending.reply.proposal.plan.request, title: currentPending.reply.proposal.title } : null,
-          history: messages.slice(-20).map((m) => ({ role: m.role, text: [
+          history: messages.filter((m) => m.id !== retryMessageId).slice(-20).map((m) => ({ role: m.role, text: [
             m.text,
             m.reply?.choices.length ? `Suggested answers: ${m.reply.choices.map((c, i) => `${i + 1}. ${c.label}: ${c.message}`).join("; ")}` : "",
             m.reply?.proposal ? `${applied.includes(m.id) ? "Applied change" : "Proposed change"}: ${m.reply.proposal.title}` : "",
@@ -105,15 +139,16 @@ export function TripChat({
           previousArea: foundCurrent ? found!.data.area : undefined,
           here: here.current && Date.now() - here.current.at <= HERE_MAX_AGE_MS ? { lat: here.current.lat, lon: here.current.lon } : null,
           previous: foundCurrent ? found!.data.intent : null,
-          memoryId: loadMemoryId(),
         }),
       });
-      const body = await res.json();
+      const body = await readProgress<ChatReply>(res, (message) => { if (id === sequence.current) setProgress(message); });
       if (id !== sequence.current) return;
       if (latestTrip.current !== tripKey) throw new Error("Your trip changed while I was working. Send your request again for the updated trip.");
-      if (!res.ok) throw new Error(body.error ?? "Couldn't complete that request.");
-      const reply = body as ChatReply;
-      storeMemoryId(reply.memoryId);
+      const reply = body as ChatReply & { conversationId?: string };
+      if (reply.conversationId) {
+        conversationId.current = reply.conversationId;
+        try { window.localStorage.setItem(CONVERSATION_STORAGE_KEY, reply.conversationId); } catch { /* MongoDB already has it. */ }
+      }
       const responseMessage: Message = { id: id * 2 + 1, role: "assistant", text: reply.message, reply, tripKey };
       if (reply.resolution === "apply" && reply.proposal) {
         // Roam's change worked on the planner, so it's in; Undo is below.
@@ -212,10 +247,10 @@ export function TripChat({
             {reply && current && i === messages.length - 1 && <div className="flex flex-wrap gap-2">{reply.choices.map((c) => <button key={c.message} type="button" disabled={disabled} onClick={() => void send(c.message)} className="rounded-full border border-brand/25 bg-brand-soft px-3 py-2 text-xs font-medium text-brand hover:bg-brand/15 disabled:opacity-40">{c.label}</button>)}</div>}
           </div>;
         })}
-        {busy && <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="size-4 animate-spin" aria-hidden /> {locating ? "Finding where you are…" : "Checking your trip and finding the next step…"}</p>}
-        {error && <div role="alert" className="text-sm text-sev-c"><p>{error}</p>{lastAttempt && <button type="button" disabled={disabled} onClick={() => void send(lastAttempt.text, lastAttempt.tripKey === tripKey ? lastAttempt.action : undefined)} className="mt-2 rounded-full border border-border px-3 py-1 text-xs text-foreground disabled:opacity-40">Try again</button>}</div>}
+        {busy && <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="size-4 animate-spin" aria-hidden /> {locating ? "Finding where you are…" : progress}</p>}
+        {error && <div role="alert" className="text-sm text-sev-c"><p>{error}</p>{lastAttempt && <button type="button" disabled={disabled} onClick={() => void send(lastAttempt.text, lastAttempt.tripKey === tripKey ? lastAttempt.action : undefined, lastAttempt.messageId)} className="mt-2 rounded-full border border-border px-3 py-1 text-xs text-foreground disabled:opacity-40">Try again</button>}</div>}
       </div>
-      {messages.length > 0 && <button type="button" disabled={disabled} onClick={() => { controller.current?.abort(); sequence.current++; setMessages([]); setPending(null); setFound(null); setDraft(""); setError(null); setLastAttempt(null); discover.clear(); }} className="mx-4 mb-3 text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-40">New conversation</button>}
+      {messages.length > 0 && <button type="button" disabled={disabled} onClick={() => { controller.current?.abort(); sequence.current++; const id = crypto.randomUUID(); conversationId.current = id; try { window.localStorage.setItem(CONVERSATION_STORAGE_KEY, id); } catch { /* The new chat can still start. */ } setMessages([]); setPending(null); setFound(null); setDraft(""); setError(null); setLastAttempt(null); discover.clear(); }} className="mx-4 mb-3 text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-40">New conversation</button>}
       {undo && undo.after === tripKey && <button type="button" disabled={disabled} onClick={() => { discover.clear(); setPending(null); setFound(null); onApply(undo.before); setUndo(null); setMessages((list) => [...list, { id: ++sequence.current * 2, role: "assistant", text: "Undid the last change. Your previous trip is restored.", tripKey: JSON.stringify(undo.before.request) }]); }} className="mx-4 mb-3 inline-flex items-center gap-1 text-xs font-medium text-brand"><RotateCcw className="size-3" aria-hidden /> Undo last trip change</button>}
       {!composerTarget && <div className="border-t border-border p-3">{composer}</div>}
     </div>

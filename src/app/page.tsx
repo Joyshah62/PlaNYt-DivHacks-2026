@@ -23,7 +23,7 @@ const FEATURES = [
   {
     icon: Sparkles,
     title: "Just describe it",
-    body: "“A chill Sunday in Brooklyn, a museum and good pizza.” Grok turns it into stops; the planner does the math.",
+    body: "“A chill Sunday in Brooklyn, a museum and good pizza.” Gemini turns it into stops; the planner does the math.",
   },
 ];
 

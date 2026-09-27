@@ -1,5 +1,5 @@
 import { readBody, respond, tripId } from "../http";
-import { resolveMember } from "../member";
+import { actingMember } from "../member";
 import { StartBody } from "../schema";
 import { getTripStore } from "../store";
 
@@ -8,7 +8,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/trips/[id]/
   return respond(async () => {
     const id = tripId((await ctx.params).id);
     const { memberId: claimed, point } = await readBody(request, StartBody);
-    const { memberId = claimed } = await resolveMember(request, claimed);
+    const memberId = await actingMember(request, claimed);
     return getTripStore().setStart(id, memberId, point);
   });
 }

@@ -46,9 +46,9 @@ export function fromAssistant(
   };
   // A group named in the text brings its walking limit unless the text set one.
   const groupWalk = r.profile.group && r.profile.walkMax === undefined ? { walkMax: GROUP[r.profile.group].walkMax } : {};
-  // A new group without a count means the old count no longer applies.
-  const groupCount = r.profile.group && r.profile.people === undefined ? { people: groupPeople(r.profile.group) } : {};
-  const next: Profile = { ...profile, ...r.profile, ...groupWalk, ...groupCount };
+  // Each day has its own party: what this request says, else what the group means
+  // (one, two, or unknown). A count from another trip never carries over.
+  const next: Profile = { ...profile, ...r.profile, ...groupWalk, group: r.profile.group ?? "unspecified", people: r.profile.people ?? groupPeople(r.profile.group ?? "unspecified") };
   if (next.people === undefined) delete next.people;
   const pace = <T extends StopInput>(s: T): T => {
     const a = s.attractionId ? ATTRACTION_BY_ID.get(s.attractionId) : undefined;
@@ -57,7 +57,7 @@ export function fromAssistant(
   return {
     settings,
     profile: next,
-    profileChanged: Object.keys(r.profile).length > 0,
+    profileChanged: Object.keys(r.profile).length > 0 || next.people !== profile.people || next.group !== profile.group,
     stops: r.stops.map(pace),
     choices: (r.choices ?? []).map((c) => ({ ...c, options: c.options.map(pace) })),
   };

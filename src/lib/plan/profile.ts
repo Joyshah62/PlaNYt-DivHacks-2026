@@ -1,7 +1,7 @@
 import { ATTRACTIONS, windowOn, type Attraction, type AttractionKind } from "./attractions";
 import type { Group, Interest, MealKind, Pace, Profile } from "./types";
 
-export const DEFAULT_PROFILE: Profile = { pace: "balanced", group: "solo", walkMax: null, interests: [] };
+export const DEFAULT_PROFILE: Profile = { pace: "balanced", group: "unspecified", walkMax: null, interests: [] };
 
 export const PACE: Record<Pace, { label: string; hint: string; visitFactor: number; bufferMin: number }> = {
   relaxed: { label: "Relaxed", hint: "Longer visits, a breather between stops", visitFactor: 1.25, bufferMin: 15 },
@@ -10,6 +10,7 @@ export const PACE: Record<Pace, { label: string; hint: string; visitFactor: numb
 };
 
 export const GROUP: Record<Group, { label: string; walkMax: number | null }> = {
+  unspecified: { label: "Not specified", walkMax: null },
   solo: { label: "Solo", walkMax: null },
   couple: { label: "Couple", walkMax: null },
   family: { label: "With kids", walkMax: 15 },

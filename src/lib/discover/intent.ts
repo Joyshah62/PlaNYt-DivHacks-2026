@@ -1,4 +1,4 @@
-import { grokJson, grokKey } from "@/lib/llm/grok";
+import { geminiJson, geminiKey } from "@/lib/llm/gemini";
 import { z } from "zod";
 import { isMealBreak } from "@/lib/plan/profile";
 import { clock } from "@/lib/plan/time";
@@ -8,7 +8,7 @@ import type { Area, Intent } from "./types";
 
 /**
  * Turning "Korean food for dinner without a big detour" or a follow-up like
- * "cheaper" into a structured search. Grok only reads the words; which places
+ * "cheaper" into a structured search. Gemini only reads the words; which places
  * come back, and why, is decided from data by the search and the planner.
  */
 
@@ -60,9 +60,9 @@ function planContext(plan: DayPlan): string {
 }
 
 export async function parseIntent(query: string, plan: DayPlan, previous: Intent | null): Promise<{ intent: Intent; area: Partial<Area> | null }> {
-  if (grokKey()) {
+  if (geminiKey()) {
     try {
-      const answer = await grokJson(SYSTEM, `${planContext(plan)}\n\n${previous ? `Previous search: ${JSON.stringify(previous)}\n\nFollow-up: ` : "Request: "}${query}`, { name: "search_intent", schema: SCHEMA }, { effort: "low" });
+      const answer = await geminiJson(SYSTEM, `${planContext(plan)}\n\n${previous ? `Previous search: ${JSON.stringify(previous)}\n\nFollow-up: ` : "Request: "}${query}`, { name: "search_intent", schema: SCHEMA }, { effort: "low" });
       const parsed = IntentSchema.safeParse(answer);
       if (parsed.success) return clean(parsed.data, plan, query, previous);
       console.error("[discover] unusable intent", parsed.error.issues[0]?.message);
@@ -104,7 +104,7 @@ function clean(p: Parsed, plan: DayPlan, query: string, previous: Intent | null)
   return { intent, area: { kind: area.kind, stopKey: area.stopKey ?? undefined, neighborhood: area.neighborhood ?? undefined } };
 }
 
-// --- without Grok ---------------------------------------------------------------
+// --- without Gemini ---------------------------------------------------------------
 
 // Word edges that also work next to accented letters ("café"), which \b doesn't.
 const W = (alternatives: string) => new RegExp(`(?<![\\p{L}])(?:${alternatives})(?![\\p{L}])`, "u");

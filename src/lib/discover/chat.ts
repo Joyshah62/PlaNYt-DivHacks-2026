@@ -1,4 +1,4 @@
-import { GROK_FALLBACK_MODEL, grokChat, grokKey, transient, type GrokMessage, type GrokTool } from "@/lib/llm/grok";
+import { GEMINI_FALLBACK_MODEL, geminiChat, geminiKey, transient, type GeminiMessage, type GeminiTool } from "@/lib/llm/gemini";
 import { z } from "zod";
 import { PlanRequestSchema, StopSchema } from "@/lib/plan/schema";
 import { buildPlan, type LegSource } from "@/lib/plan/build";
@@ -11,7 +11,10 @@ import { webSearch, webSearchEnabled } from "@/lib/web/tavily";
 import { recall, rememberedFacts } from "@/lib/memory/backboard";
 import { budgetFor } from "@/lib/web/prices";
 import { money } from "@/lib/plan/budget";
-import { GROUP, isMealBreak, visitFor } from "@/lib/plan/profile";
+import type { Progress } from "@/lib/progress";
+import { partyFromText } from "@/lib/plan/party";
+import { outsideTravelScope, SCOPE_REPLY, TRAVEL_SCOPE } from "./scope";
+import { GROUP, isMealBreak, mealBreakKey, visitFor } from "@/lib/plan/profile";
 import { CROWD_LABEL } from "@/lib/plan/display";
 import { ATTRACTIONS, searchAttractions } from "@/lib/plan/attractions";
 import { inNycArea } from "@/lib/osm/geo";
@@ -26,6 +29,7 @@ import type { DayPlan, PlannedStop } from "@/lib/plan/types";
 
 const choice = z.object({ label: z.string().min(1).max(55), message: z.string().min(1).max(300) });
 export const ChatInput = z.object({
+  conversationId: z.string().uuid().nullable().optional(),
   request: PlanRequestSchema,
   pending: z.object({ request: PlanRequestSchema, title: z.string().max(1200) }).nullable().optional(),
   message: z.string().trim().min(1).max(600),
@@ -45,7 +49,7 @@ export const ChatInput = z.object({
 const schemas = {
   lookup_place: z.object({ query: z.string().trim().min(2).max(300), category: z.enum(CATEGORIES), afterStopKey: z.string().max(80).nullable(), replaceKey: z.string().max(80).nullable().default(null), visitMin: z.number().int().min(10).max(480).nullable().default(null) }),
   search_places: z.object({ query: z.string().min(2).max(300), refine: z.boolean(), afterStopKey: z.string().nullable(), preferredStartMin: z.number().int().min(0).max(1439).nullable(), nearMe: z.boolean().default(false) }),
-  add_place: z.object({ name: z.string().trim().min(2).max(120), afterStopKey: z.string().max(80).nullable(), visitMin: z.number().int().min(10).max(480).nullable(), avoidCrowds: z.boolean().default(false), replaceKey: z.string().max(80).nullable().default(null) }),
+  add_place: z.object({ startMin: z.number().int().min(0).max(1439).nullable().default(null), meal: z.enum(["lunch", "dinner"]).nullable().default(null), name: z.string().trim().min(2).max(120), afterStopKey: z.string().max(80).nullable(), visitMin: z.number().int().min(10).max(480).nullable(), avoidCrowds: z.boolean().default(false), replaceKey: z.string().max(80).nullable().default(null) }),
   preview_place: z.object({ index: z.number().int().min(1).max(6), replaceKey: z.string().max(80).nullable().default(null) }),
   remove_stop: z.object({ key: z.string().max(80) }),
   reschedule_stop: z.object({ key: z.string().max(80), avoidCrowds: z.boolean(), startMin: z.number().int().min(0).max(1439).nullable(), afterStopKey: z.string().max(80).nullable() }),
@@ -75,9 +79,9 @@ const schemas = {
 const descriptions: Record<keyof typeof schemas, string> = {
   lookup_place: "Identify a particular place from the traveler's original description, such as a chef's restaurant, a venue from a movie, or an uncertain name. Copy their description into query; NEVER substitute a venue name from memory. Searches real listings across NYC and asks them to choose before adding. Preserve the requested afterStopKey, replaceKey and visitMin. Use before add_place whenever the traveler did not name the business. If 'after the museum' could mean multiple stops, ask which museum first.",
   search_places: "Search real places of a kind (a café, pizza, a rooftop bar) and calculate where each fits. Rewrite the query with conversation context. Refine true preserves the previous search's filters. Include any chosen neighborhood in the query. nearMe is true when they want places near where they are right now (\"near me\", \"nearby\", \"around here\"); otherwise it searches along the trip. afterStopKey must be a current trip key, or \"new:1\" for the first place added by add_place in this same turn (\"new:2\" for the second); preferredStartMin is minutes after midnight or null for automatic timing.",
-  add_place: "Preview adding one specific, named place or address (Times Square, the Whitney, 350 5th Ave). If the place is already in the trip, this moves it instead: use it for 'move', 'reschedule' or 'change the time of' a stop. afterStopKey is a current trip key to place it after, or null to let the planner find the best spot. visitMin is null for a typical visit. avoidCrowds is true when they want to skip peak or busy times; the planner then picks the quietest spot in the day for it. replaceKey is the key of a current stop this place goes in place of (\"X instead of Y\", \"swap Y for X\", \"replace Y with X\"): it takes that stop's spot, so a swap is this one call, never remove_stop. If the name matches a numbered option, that option is used. For a kind of place rather than a named one, use search_places.",
+  add_place: "Preview adding one specific, named place or address (Times Square, the Whitney, 350 5th Ave). If the place is already in the trip, this moves it instead: use it for 'move', 'reschedule' or 'change the time of' a stop. afterStopKey is a current trip key to place it after, or null to let the planner find the best spot. visitMin is null for a typical visit. startMin is the requested arrival time in minutes after midnight (7pm = 1140), or null; preserve approximate times such as around 7pm. meal is lunch or dinner when requested, otherwise null. Always include both timing and meal when adding a restaurant for dinner at a chosen time. avoidCrowds is true when they want to skip peak or busy times; the planner then picks the quietest spot in the day for it. replaceKey is the key of a current stop this place goes in place of (\"X instead of Y\", \"swap Y for X\", \"replace Y with X\"): it takes that stop's spot, so a swap is this one call, never remove_stop. If the name matches a numbered option, that option is used. For a kind of place rather than a named one, use search_places.",
   preview_place: "Preview adding a numbered option from the latest offers. Use for 'add the second one'. Never invent an index. replaceKey is the key of a current stop it goes in place of ('the second one instead of Cafe Reggio'), or null. User applies the preview using a button.",
-  remove_stop: "Preview removing a current trip stop, identified by its key, when they only want it gone. For swapping one place for another, use add_place or preview_place with replaceKey instead. Ask first if ambiguous.",
+  remove_stop: "Preview removing a current trip stop, identified by its key, when they only want it gone. Generated meal breaks use meal-lunch or meal-dinner; removing one disables that break. For swapping one place for another, use add_place or preview_place with replaceKey instead. Ask first if ambiguous.",
   reschedule_stop: "Move an EXISTING stop using its exact trip key, preserving its identity and visit length. Use for 'change the time', 'avoid peak time', or 'move it earlier'. avoidCrowds true finds a feasible quieter time. startMin is an explicitly chosen time in minutes after midnight, else null. afterStopKey places it after another stop, else null. Never use a self-swap to change a time. If the requested time requires changing the day's hours, ask first, then combine update_preferences with this tool after the user chooses.",
   update_preferences: "Change only the day settings the traveler chose: date (YYYY-MM-DD, today or later; moving the day can change hours and closures), origin (where the day starts: a hotel, address or neighborhood, \"my location\" for where they are now, or null to clear it), returnToOrigin, group (solo, couple, family, seniors), interests, optimizeOrder (true lets the planner choose the best order again; false keeps the current order), travel mode, pace, crowd preference, day start/end in minutes after midnight (6:30pm is 1110, 9pm is 1260; a bare hour on an evening day is pm), longest comfortable walk (null for no limit), lunch or dinner breaks. Send only the fields that change; leave the rest out. Relaxed pace means longer visits and buffers, not necessarily an earlier finish. For fewer stops, ask which they want to keep before removing any.",
   edit_stop: "Change one stop's visit: visitMin sets how long to spend there (\"3 hours at the Met\" is 180); clearStartTime true removes its set start time (a booking they cancelled). Use reschedule_stop to give it a time.",
@@ -88,7 +92,7 @@ const descriptions: Record<keyof typeof schemas, string> = {
   web_search: "Look up current facts on the web that the trip facts don't cover: whether a place is open today or closed, ticket prices, free days, reservations, what's showing or on now, events, or what a named place is like. The results come back to you; answer briefly from them. query is a precise web search naming the place and NYC, e.g. \"MoMA free admission Friday hours\". recent is true for events, exhibits or news. Not for finding places to add: use search_places or lookup_place for that.",
   reply_with_choices: "Ask one short clarifying question, grounded in the trip facts, when a request is too vague to act on without guessing. Plain text, no markdown. Always provide 2–5 short clickable answers; tapping one sends its message as the user, so write each message in the user's own words (\"Add dinner after the 9/11 Memorial\"), never as your reply. Do not claim a change was applied or invent place facts.",
 };
-const declarations: GrokTool[] = Object.entries(schemas).map(([name, schema]) => {
+const declarations: GeminiTool[] = Object.entries(schemas).map(([name, schema]) => {
   const parameters = z.toJSONSchema(schema) as Record<string, unknown>;
   delete parameters.$schema;
   return { type: "function", function: { name, description: descriptions[name as keyof typeof schemas], parameters } };
@@ -120,16 +124,15 @@ const suggestions = [
  */
 const CALL_TIMEOUT_MS = 15_000;
 /**
- * A stalled or failed call is tried once more on the fast model, which answers
- * in about a second: a slow spell at xAI shouldn't cost the traveler an answer.
+ * A transient failure gets one retry on the configured Gemini model.
  */
 async function withFallback<T>(call: (model: string | undefined) => Promise<T>): Promise<T> {
   try {
-    return await call(undefined);
+    return await call(GEMINI_FALLBACK_MODEL);
   } catch (error) {
     if (!transient(error)) throw error;
-    console.warn("[trip-chat] model stalled, answering with the fast model:", error instanceof Error ? error.message : error);
-    return call(GROK_FALLBACK_MODEL);
+    console.warn("[trip-chat] model stalled, retrying Gemini:", error instanceof Error ? error.message : error);
+    return call(undefined);
   }
 }
 
@@ -261,12 +264,15 @@ async function change(name: string, args: unknown, request: Request, input: Inpu
     // Keep the original identity, coordinates and duration when moving a named stop.
     const named = request.stops.find((s) => s.name.toLowerCase() === a.name.toLowerCase());
     // A place on one of the cards is that place, not whatever the geocoder finds for its name.
-    const stop = named ?? offeredStop(input, request, a.name) ?? (await findPlace(a.name, a.visitMin));
+    const found = named ?? offeredStop(input, request, a.name) ?? (await findPlace(a.name, a.visitMin));
+    const startMin = a.startMin === null ? null : meantTime(a.startMin, input.message, request);
+    const stop = { ...found, ...(startMin !== null && { fixedStartMin: startMin }), ...(a.meal && { mealFor: a.meal }) };
+    if (a.meal) request = { ...request, meals: { ...request.meals, [a.meal]: true } };
     const existing = request.stops.find((s) => s.key === stop.key || (s.attractionId && s.attractionId === stop.attractionId));
     if (a.avoidCrowds) turn.quiet.add(existing?.key ?? stop.key);
     // Models sometimes express a reschedule as replacing a place with itself.
     if (existing && (!a.replaceKey || a.replaceKey === existing.key)) {
-      return move(request, { ...existing, visitMin: a.visitMin ?? existing.visitMin }, a, added);
+      return move(request, { ...existing, ...(startMin !== null && { fixedStartMin: startMin }), ...(a.meal && { mealFor: a.meal }), visitMin: a.visitMin ?? existing.visitMin }, a, added);
     }
     if (a.replaceKey) {
       if (request.stops.some((s) => s.key === stop.key && s.key !== a.replaceKey)) throw new ChatError(`${stop.name} is already in your trip.`);
@@ -281,7 +287,7 @@ async function change(name: string, args: unknown, request: Request, input: Inpu
     if (a.avoidCrowds && at === -1) return { request: await quietestSlot(request, stop), title: `Add ${stop.name} at a quiet time` };
     const stops = at === -1 ? [...request.stops, stop] : [...request.stops.slice(0, at + 1), stop, ...request.stops.slice(at + 1)];
     // Placed after a named stop, the order is kept; otherwise the planner finds its spot.
-    return { request: { ...request, stops, keepOrder: at === -1 ? request.keepOrder : true }, title: `Add ${stop.name}` };
+    return { request: { ...request, stops, keepOrder: at === -1 ? request.keepOrder : true }, title: `Add ${stop.name}${a.meal ? ` for ${a.meal}` : ""}${startMin !== null ? ` at ${clock(startMin)}` : ""}` };
   }
   if (name === "reschedule_stop") {
     const parsed = schemas.reschedule_stop.parse(args);
@@ -295,13 +301,21 @@ async function change(name: string, args: unknown, request: Request, input: Inpu
       added.push(stop.key);
       return { request: await quietestSlot(rest, { ...stop, fixedStartMin: a.startMin }), title: `Move ${stop.name} to ${clock(a.startMin)}` };
     }
-    return move(request, stop, { name: stop.name, afterStopKey: a.afterStopKey, visitMin: null, avoidCrowds: a.avoidCrowds, replaceKey: null }, added);
+    return move(request, stop, { name: stop.name, afterStopKey: a.afterStopKey, visitMin: null, avoidCrowds: a.avoidCrowds, replaceKey: null, startMin: null, meal: null }, added);
   }
   if (name === "remove_stop") {
     const { key } = schemas.remove_stop.parse(args);
     // Already swapped out by another change in this message.
     if (turn.gone.has(key)) return null;
     const stop = request.stops.find((s) => s.key === key);
+    // Generated breaks belong to the schedule, not the requested place list.
+    // Disable the meal so rebuilding the day cannot insert it again.
+    const meal = !stop && (["lunch", "dinner"] as const).find((kind) => key === mealBreakKey(kind));
+    if (meal) {
+      if (!request.meals[meal]) return null;
+      turn.gone.add(key);
+      return { request: { ...request, meals: { ...request.meals, [meal]: false } }, title: `Remove the ${meal} break` };
+    }
     if (!stop) throw new ChatError("That stop is no longer in your trip.");
     turn.gone.add(key);
     if (request.stops.length === 1) throw new ChatError("Keep at least one stop in your trip, or replace it with another place.");
@@ -326,6 +340,7 @@ async function change(name: string, args: unknown, request: Request, input: Inpu
   }
   if (name === "update_preferences") {
     const sent = schemas.update_preferences.parse(args);
+    if (sent.group && partyFromText(input.message).group !== sent.group) delete sent.group;
     if (!Object.values(sent).some((v) => v !== undefined)) throw new ChatError("Tell me which part of the day you'd like to change.");
     if (sent.startMin !== undefined) sent.startMin = meantTime(sent.startMin, input.message, request);
     if (sent.endMin !== undefined) sent.endMin = meantTime(sent.endMin, input.message, { startMin: sent.startMin ?? request.startMin }, true);
@@ -489,6 +504,10 @@ function worsensSchedule(before: DayPlan, after: DayPlan): boolean {
 /** A stop already in the day, to a quieter time or after another stop; the rest keeps its order. */
 async function move(request: Request, stop: z.infer<typeof StopSchema>, a: z.infer<typeof schemas.add_place>, added: string[]): Promise<{ request: Request; title: string }> {
   const rest: Request = { ...request, stops: request.stops.filter((s) => s.key !== stop.key) };
+  if (a.startMin !== null) {
+    added.push(stop.key);
+    return { request: await quietestSlot(rest, stop), title: `Move ${stop.name} to ${clock(stop.fixedStartMin!)}` };
+  }
   // A set start time would pin it where it is.
   const free = { ...stop, fixedStartMin: null };
   added.push(stop.key);
@@ -531,7 +550,9 @@ const foundLine = (found: DiscoverResponse) => found.results.length ? `Here are 
  * and a search runs against the trip with those changes, so "add Times Square
  * and a café there" looks around Times Square and its cards include both.
  */
-export async function runTools(calls: ToolCall[], input: Input): Promise<ChatReply> {
+export async function runTools(calls: ToolCall[], input: Input, progress: Progress = () => {}): Promise<ChatReply> {
+  if (calls.some((c) => c.name === "lookup_place" || c.name === "search_places")) progress("Searching places…");
+  else if (calls.some((c) => c.name && CHANGES.has(c.name))) progress("Building and checking your updated plan…");
   // If the model still needs an answer, no guessed edits should accompany the question.
   const ask = calls.find((c) => c.name === "reply_with_choices");
   if (ask) {
@@ -582,6 +603,20 @@ export async function runTools(calls: ToolCall[], input: Input): Promise<ChatRep
   // A picked option is a whole stop list built on the trip as it was, so it goes first; removals go
   // last, so "drop Reggio, add Sipsteria" never passes through an empty day.
   const ORDER: Record<string, number> = { preview_place: 0, update_preferences: 1, add_place: 2, reschedule_stop: 2, edit_stop: 2, remove_stop: 3, reorder_stops: 4 };
+  // Retain a single explicit clock time even if the model omits the tool field.
+  // Multiple additions/times need the model's per-place assignments.
+  const additions = asked.filter((c) => c.name === "add_place");
+  if (additions.length === 1) {
+    const times = [...input.message.matchAll(/\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/gi)];
+    const a = schemas.add_place.parse(additions[0].args);
+    if (a.startMin === null && times.length === 1) {
+      const [, hour, minute, period] = times[0];
+      a.startMin = (Number(hour) % 12) * 60 + Number(minute ?? 0) + (period.toLowerCase() === "pm" ? 720 : 0);
+    }
+    const meals = input.message.match(/\b(lunch|dinner)\b/gi) ?? [];
+    if (a.meal === null && meals.length === 1) a.meal = meals[0].toLowerCase() as "lunch" | "dinner";
+    additions[0].args = a;
+  }
   const changes = asked
     .map((c, asked) => ({ ...c, asked }))
     .filter((c) => CHANGES.has(c.name))
@@ -635,8 +670,10 @@ export async function runTools(calls: ToolCall[], input: Input): Promise<ChatRep
     message = `Below is a preview to ${titles.map((t) => t[0].toLowerCase() + t.slice(1)).join(" and ")}.${conflicts} ${foundLine(discovery)}${discovery.results.length ? " Adding one of these includes that change too, or apply it on its own first." : ""}`;
   } else if (proposal) {
     message = `${landed ? `${landed} ` : ""}I've worked out a change to ${titles.map((t) => t[0].toLowerCase() + t.slice(1)).join(" and ")}. ${proposal.warnings.length ? "It has timing conflicts. Would you like to adjust it, or keep your current trip?" : "Does this work for you? Apply it below, or tell me what you'd like to adjust."}`;
+  } else if (discovery) {
+    message = discovery.results.length ? `${foundLine(discovery)} Which feels right? Pick a place below, or tell me what you'd change about these options.` : foundLine(discovery);
   } else {
-    message = discovery!.results.length ? `${foundLine(discovery!)} Which feels right? Pick a place below, or tell me what you'd change about these options.` : foundLine(discovery!);
+    message = "Your trip already matches that request. No further changes were needed.";
   }
   return { message, choices: [...(discovery && !proposal ? suggestions : []), ...later], ...(discovery && { discovery }), ...(proposal && { proposal }) };
 }
@@ -650,8 +687,11 @@ export function executeChatTool(name: string, args: unknown, input: Input): Prom
 const PERSONA = `You are Roam, a friendly NYC trip planner chatting with a traveler about the day they've planned. Talk like a helpful local friend: warm, brief (one to three short sentences), plain text with no markdown.
 
 Conversation:
+- Party size, companions and spending limits are unknown unless explicitly stated for this trip. Never infer them from "I", "we", a default profile, or memories of another day. Ask if they matter. Don't create a budget or volunteer cost totals unless asked; per-person cost estimates are not a spending limit.
 - Never infer a real business's name from memory. For descriptions involving a chef, owner, show, movie, award or similar relationship (e.g. "Vikas Khanna's restaurant"), use lookup_place with the ORIGINAL description, then let the traveler identify the returned listing. Do not invent or substitute a venue name, even if it sounds familiar. A map coordinate alone does not prove that the place matches the description. Keep "after the museum" attached to the lookup; ask which museum if more than one could match.
+- Sound like a thoughtful, warm local trip-planning companion: natural contractions, brief empathy when it fits, and specific observations about their day. Don't sound like a form, customer-service script, or a person pretending to have human experiences or feelings. Avoid repeated catchphrases and filler.
 - Acknowledge what the traveler wants, then help them choose. Use their earlier answers, the last question and its answer choices to understand short replies like "the second one", "cheap", "yes", or "you pick". The second answer to a question is not the second place in search results.
+- When a remembered preference materially shaped your suggestion, tell them briefly and naturally ("I remembered you prefer quieter spots, so I looked for one away from the rush"). Don't cite memory if it didn't affect this answer, don't repeat the same formula every time, and gently invite correction when a remembered preference may have changed.
 - Honor the selected alternative, not all the alternatives you offered. If they choose "shorten the day" and say "finish by 3pm", change only endMin to 900; do NOT also change pace, mode, stops or walking limits. "I'm tired" does not authorize those extra edits after the traveler chooses a specific solution. Keep every unmentioned preference unchanged.
 - Ask the single most useful missing question, with reply_with_choices, BEFORE searching or editing when the answer would materially change your choice. Food: meal/snack or cuisine; an outing: interests; a tired traveler: shorter day, less walking or a break. Do not ask about information they already gave. Once you know enough, act; don't turn the conversation into a questionnaire.
 - Carry chosen budget, cuisine, dietary needs, neighborhood, timing and placement into EVERY relevant search query. Refine existing searches to keep their filters unless the traveler changes direction. Do not promise a dietary guarantee from a search result.
@@ -716,7 +756,7 @@ function tripFacts(plan: DayPlan, input: z.infer<typeof ChatInput>): string {
 }
 
 /** The chat so far as real turns, so an answer to a question lands as the answer to that question. */
-export function conversation(history: z.infer<typeof ChatInput>["history"], message: string): GrokMessage[] {
+export function conversation(history: z.infer<typeof ChatInput>["history"], message: string): GeminiMessage[] {
   const turns: { role: "user" | "assistant"; content: string }[] = [];
   for (const h of [...history, { role: "user" as const, text: message }]) {
     const last = turns[turns.length - 1];
@@ -771,12 +811,17 @@ export async function settle(result: ChatReply, input: Input): Promise<{ reply: 
   return { reply: result, problems: problems.length ? problems : ["it makes the day's timing worse"] };
 }
 
-export async function chat(input: z.infer<typeof ChatInput>): Promise<ChatReply> {
+export async function chat(input: z.infer<typeof ChatInput>, progress: Progress = () => {}): Promise<ChatReply> {
+  if (outsideTravelScope(input.message)) return { message: SCOPE_REPLY, choices: [] };
+  progress("Checking your trip…");
   // A card's Add button is a clear choice: it goes in when it works.
-  if (input.action) return (await settle(await executeChatTool(input.action.name, input.action, input), input)).reply;
-  if (!grokKey()) {
+  if (input.action) {
+    progress("Building and checking your updated plan…");
+    return (await settle(await executeChatTool(input.action.name, input.action, input), input)).reply;
+  }
+  if (!geminiKey()) {
     if (/\b(add|remove|replace|delete|change|update)\b/i.test(input.message)) return {
-      message: "Conversational editing needs a Grok API key. You can still search by place type and use the cards to add a place.",
+      message: "Conversational editing needs a Gemini API key. You can still search by place type and use the cards to add a place.",
       choices: [{ label: "Find pizza", message: "pizza" }, { label: "Find cafés", message: "coffee" }],
     };
     const reply = await executeChatTool("search_places", { query: input.message.slice(0, 300), refine: input.previous !== null, afterStopKey: null, preferredStartMin: null }, input);
@@ -784,25 +829,27 @@ export async function chat(input: z.infer<typeof ChatInput>): Promise<ChatReply>
   }
   // What they said before about themselves, found by what they're asking now and just before.
   const lastAsked = input.history.filter((h) => h.role === "user").at(-1)?.text ?? "";
-  const [currentPlan, remembered] = await Promise.all([buildPlan(input.request), recall(input.memoryId, `${lastAsked}\n${input.message}`)]);
-  const draft = input.pending ? await buildPlan(input.pending.request) : null;
+  const [currentPlan, remembered, draft] = await Promise.all([buildPlan(input.request), recall(input.memoryId, `${lastAsked}\n${input.message}`), input.pending ? buildPlan(input.pending.request) : Promise.resolve(null)]);
   // Prices already looked up for the itinerary's budget card; the chat never waits on a lookup.
-  const budget = await budgetFor(currentPlan, true).catch(() => null);
+  const budget = /\b(budget|cost|price|prices|expensive|cheaper|afford|spend)\b/i.test(input.message) ? await budgetFor(currentPlan, true).catch(() => null) : null;
   const costs = budget ? `\nBUDGET per person (estimates, ~ = typical): ${budget.lines.map((l) => `${l.name} ${money(l)}${l.bookAhead ? " (book ahead)" : ""}`).join("; ")}; ${budget.transit.rides ? `subway: ${budget.transit.rides} separate ${budget.transit.rides === 1 ? "trip" : "trips"} (one per subway leg) × $${budget.transit.fare} fare, for one person` : "no subway fares (the legs are walks)"}${budget.transit.note ? ` (${budget.transit.note.toLowerCase()})` : ""}. About $${budget.perPerson} in all${budget.unknown ? `, not counting ${budget.unknown} unknown` : ""}. For "cheaper", swap paid stops for free ones or cheaper food.` : "";
-  const systemInstruction = `${PERSONA}${rememberedFacts(remembered)}\n\nSAVED TRIP\n${tripFacts(currentPlan, input)}${costs}${draft ? `\n\nPENDING PREVIEW (not applied): ${input.pending!.title}\n${tripFacts(draft, input)}\nUse the pending preview as the starting point for refinements.` : "\nThere is no pending preview to accept or discard."}`;
-  const messages: GrokMessage[] = [{ role: "system", content: systemInstruction }, ...conversation(input.history, input.message)];
+  const systemInstruction = `${TRAVEL_SCOPE}\n\n${PERSONA}${rememberedFacts(remembered)}\n\nSAVED TRIP\n${tripFacts(currentPlan, input)}${costs}${draft ? `\n\nPENDING PREVIEW (not applied): ${input.pending!.title}\n${tripFacts(draft, input)}\nUse the pending preview as the starting point for refinements.` : "\nThere is no pending preview to accept or discard."}`;
+  const messages: GeminiMessage[] = [{ role: "system", content: systemInstruction }, ...conversation(input.history, input.message)];
   // The model often does one thing per call, so it gets a few rounds to cover the whole message.
   // A lookup (the web, other days) always earns another round: the model reads what came back, then answers or acts.
   const tools = declarations.filter(({ function: f }) => (f.name !== "resolve_proposal" || input.pending) && (f.name !== "web_search" || webSearchEnabled()));
   // Free to act, ask, look something up or just answer: a vague request gets a question, not a guess.
   // Low effort keeps replies quick; the planner checks every change, so the model needn't deliberate.
-  const ask = (round: number) => withFallback((model) => grokChat({ messages, tools, timeoutMs: CALL_TIMEOUT_MS, model, effort: "low" })).catch((error) => {
+  const ask = (round: number) => {
+    progress(round ? "Reviewing what I found…" : "Working out the next step…");
+    return withFallback((model) => geminiChat({ messages, tools, timeoutMs: CALL_TIMEOUT_MS, model, effort: "low" })).catch((error) => {
     // A later round failing (rate limit, timeout) still leaves the earlier work to show.
     if (round === 0) throw error;
     console.error("[trip-chat] follow-up round failed:", error instanceof Error ? error.message : error);
     return null;
-  });
-  const toolReply = (id: string, output: unknown): GrokMessage => ({ role: "tool", tool_call_id: id, content: typeof output === "string" ? output : JSON.stringify(output) });
+    });
+  };
+  const toolReply = (id: string, output: unknown): GeminiMessage => ({ role: "tool", tool_call_id: id, content: typeof output === "string" ? output : JSON.stringify(output) });
   const calls: ToolCall[] = [];
   const seen = new Set<string>();
   const sources: NonNullable<ChatReply["sources"]> = [];
@@ -810,7 +857,7 @@ export async function chat(input: z.infer<typeof ChatInput>): Promise<ChatReply>
   let lookups = 0;
   let said: string | null = null;
   /** The model's last message, whose tool calls are still waiting for their responses. */
-  let open: Extract<GrokMessage, { role: "assistant" }> | null = null;
+  let open: Extract<GeminiMessage, { role: "assistant" }> | null = null;
   let rounds = SEVERAL.test(input.message) ? MAX_ROUNDS : 1;
   for (let round = 0; round < rounds; round++) {
     const response = await ask(round);
@@ -833,13 +880,15 @@ export async function chat(input: z.infer<typeof ChatInput>): Promise<ChatReply>
       break;
     }
     // Every call gets its answer: lookups what they found, changes that they're queued.
-    const answers: GrokMessage[] = [];
+    const answers: GeminiMessage[] = [];
     for (const c of all) {
       let output: unknown;
       if (c.name === "compare_days") {
+        progress("Comparing days and opening hours…");
         output = await daysOutlook(c.args, input).catch(() => "Couldn't compare days right now.");
         console.info("[trip-chat] days compared");
       } else if (c.name === "web_search") {
+        progress("Searching the web…");
         const q = schemas.web_search.safeParse(c.args);
         const found = q.success && lookups++ < MAX_LOOKUPS ? await webSearch(q.data.query, { recent: q.data.recent }) : null;
         console.info("[trip-chat] web:", q.success ? q.data.query : "?", found ? `${found.results.length} results` : "nothing");
@@ -873,7 +922,7 @@ export async function chat(input: z.infer<typeof ChatInput>): Promise<ChatReply>
 
   // Try the changes on the real planner. If they break something, the model
   // hears exactly what and gets one chance to fix it before asking the traveler.
-  let { reply, problems } = await settle(await runTools(work, input), input);
+  let { reply, problems } = await settle(await runTools(work, input, progress), input);
   if (problems.length && reply.proposal) {
     const check = `Planner check: those changes would ${problems.join("; ")}. If a further change that the traveler's words allow fixes this (another time, another spot, skipping a wait), make it now. Otherwise don't change anything else: explain the problem in one or two sentences and ask whether to apply it anyway or keep the day as it is.`;
     if (open) messages.push(open, ...(open.tool_calls ?? []).map((c) => toolReply(c.id, check)));
@@ -882,7 +931,7 @@ export async function chat(input: z.infer<typeof ChatInput>): Promise<ChatReply>
     const more = (response?.calls ?? []).filter((c) => CHANGES.has(c.name) && !seen.has(`${c.name}:${JSON.stringify(c.args ?? {})}`));
     console.info("[trip-chat] repair:", more.map((c) => c.name).join(" ") || (response?.text ?? "").slice(0, 100));
     if (more.length) {
-      const retried = await settle(await runTools([...work, ...more], input).catch(() => reply), input);
+      const retried = await settle(await runTools([...work, ...more], input, progress).catch(() => reply), input);
       if (!retried.problems.length || retried.reply.proposal) ({ reply, problems } = retried);
     }
     if (problems.length && reply.proposal) {

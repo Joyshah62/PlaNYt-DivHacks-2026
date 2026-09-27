@@ -7,7 +7,7 @@ export type TravelMode = "transit" | "walk" | "bike" | "car";
 export type CrowdPref = "avoid" | "balanced" | "ignore";
 
 export type Pace = "relaxed" | "balanced" | "packed";
-export type Group = "solo" | "couple" | "family" | "seniors";
+export type Group = "unspecified" | "solo" | "couple" | "family" | "seniors";
 export type Interest = "art" | "views" | "history" | "outdoors" | "food" | "neighborhoods";
 
 /** Who is travelling and how they like to travel. It shapes the plan, not just the labels. */

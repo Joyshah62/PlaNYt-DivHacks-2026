@@ -1,4 +1,5 @@
 "use client";
+import { readProgress } from "@/lib/progress";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
@@ -49,13 +50,14 @@ import { Itinerary } from "./Itinerary";
 import { Budget } from "./Budget";
 import { PhoneSend } from "./PhoneSend";
 import { FollowUpQuestions } from "./FollowUpQuestions";
+import { GroupTrips } from "./GroupTrips";
+import { AccountMenu, type Account } from "@/components/auth/AccountMenu";
 import type { AppAction } from "@/lib/discover/chat";
 import { PlaceSheet, type InspectPlace } from "./PlaceSheet";
 import { ProfileCard, profileSummary } from "./ProfileCard";
 import { ReplanDialog, type ReplanChoice } from "./ReplanDialog";
 import type { MapLeg, MapStop } from "./PlanMap";
 import { StopPicker, stopFromAttraction } from "./StopPicker";
-import { loadMemoryId, storeMemoryId } from "@/lib/memory/local";
 
 const PlanMap = dynamic(() => import("./PlanMap").then((m) => m.PlanMap), {
   ssr: false,
@@ -151,7 +153,8 @@ function Logo() {
   );
 }
 
-export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: string | null; initialPlan: string | null }) {
+export function PlannerView({ initialPrompt, initialPlan, account = null }: { initialPrompt: string | null; initialPlan: string | null; /** The signed-in traveler; their number fills in "Text to my phone". */ account?: Account | null }) {
+  const phone = account?.phoneNumber ?? null;
   // A shared or saved plan fills the form before the first render; the effect below plans it.
   const [shared] = useState(() => (initialPlan ? decodePlan(initialPlan) : null));
   const [stops, setStops] = useState<StopInput[]>(() => shared?.stops ?? []);
@@ -182,7 +185,31 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
   const [inspect, setInspect] = useState<InspectPlace | null>(null);
   const [shareNote, setShareNote] = useState<string | null>(null);
   const savedRaw = useSyncExternalStore(subscribeSaved, readSavedRaw, () => "[]");
-  const savedPlans = useMemo(() => parseSaved(savedRaw), [savedRaw]);
+  const localSavedPlans = useMemo(() => parseSaved(savedRaw), [savedRaw]);
+  const [accountSavedPlans, setAccountSavedPlans] = useState<SavedPlan[]>([]);
+  const savedPlans = account ? accountSavedPlans : localSavedPlans;
+  const accountEmail = account?.email;
+  useEffect(() => {
+    if (!accountEmail) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const current = await fetch("/api/saved-trips");
+        if (!current.ok) throw new Error("Couldn't load saved trips.");
+        const data = await current.json() as { plans: SavedPlan[] };
+        const merged = [...data.plans];
+        const known = new Set(merged.map((p) => p.code));
+        const imports = localSavedPlans.filter((p) => !known.has(p.code));
+        if (imports.length) {
+          const imported = await fetch("/api/saved-trips", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "import", plans: imports }) });
+          if (imported.ok) merged.unshift(...imports);
+        }
+        if (!cancelled) setAccountSavedPlans(merged.slice(0, 30));
+      } catch { if (!cancelled) note("Couldn't sync saved trips right now"); }
+    })();
+    return () => { cancelled = true; };
+  // On sign-in, copy the existing browser-only saves into the account.
+  }, [accountEmail, localSavedPlans]);
   // The traveler profile lives on this device; a shared link can bring its own for this visit.
   const storedProfileRaw = useSyncExternalStore(subscribeProfile, readProfileRaw, () => "");
   const [profileOverride, setProfileOverride] = useState<Profile | null>(() =>
@@ -197,6 +224,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
 
   const [prompt, setPrompt] = useState(initialPrompt ?? "");
   const [thinking, setThinking] = useState(false);
+  const [assistantProgress, setAssistantProgress] = useState("Reading your request…");
   const [assistant, setAssistant] = useState<{ reply: string; unresolved: string[] } | null>(null);
   const [assistantError, setAssistantError] = useState<string | null>(null);
   /** Questions asked before planning, with the answers picked so far. */
@@ -365,6 +393,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
     async (text: string, current: Settings, skipQuestions = false) => {
       if (text.trim().length < 3) return;
       setThinking(true);
+      setAssistantProgress("Reading your request…");
       setAssistantError(null);
       setAssistant(null);
       setFollowUp(null);
@@ -373,13 +402,11 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
         const here = NEAR_ME.test(text) ? await locate() : null;
         const res = await fetch("/api/assistant", {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text, profile: profileRef.current, here, memoryId: loadMemoryId(), skipQuestions, knowsGroup: !!readProfileRaw() }),
+          headers: { "content-type": "application/json", accept: "application/x-ndjson" },
+          body: JSON.stringify({ text, profile: profileRef.current, here, skipQuestions }),
         });
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.error ?? "The assistant couldn't help with that.");
+        const body = await readProgress<AssistantResult>(res, setAssistantProgress);
         const r = body as AssistantResult;
-        storeMemoryId(r.memoryId);
         if (r.questions?.length) {
           setAssistant({ reply: r.reply, unresolved: [] });
           setFollowUp({ text, questions: r.questions });
@@ -393,6 +420,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
         setSettings(next);
         setAssistant({ reply: r.reply, unresolved: r.unresolved });
         if (paced.length) {
+          setAssistantProgress("Building your route and checking timings…");
           setStops(paced);
           await runPlan(paced, next, nextProfile);
         }
@@ -564,11 +592,22 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
     if (!target) return;
     const code = encodePlan(target.request);
     if (savedPlans.some((p) => p.code === code)) {
-      if (onlySave) return note("Already saved on this device");
+      if (onlySave) return note(account ? "Already saved to your account" : "Already saved on this device");
+      const existing = savedPlans.find((p) => p.code === code)!;
+      if (account) {
+        setAccountSavedPlans((items) => items.filter((p) => p.id !== existing.id));
+        void fetch("/api/saved-trips", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "remove", id: existing.id }) }).then((res) => { if (!res.ok) throw new Error(); }).catch(() => note("Couldn't remove the saved trip"));
+        return note("Removed from saved trips");
+      }
       storeSaved(savedPlans.filter((p) => p.code !== code));
       return note("Removed from saved plans");
     }
-    const entry: SavedPlan = { id: `${Date.now().toString(36)}`, title: planTitle(target.request), savedAt: new Date().toISOString(), code };
+    const entry: SavedPlan = { id: crypto.randomUUID(), title: planTitle(target.request), savedAt: new Date().toISOString(), code };
+    if (account) {
+      setAccountSavedPlans((items) => [entry, ...items].slice(0, 30));
+      void fetch("/api/saved-trips", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "save", plan: entry }) }).then((res) => { if (!res.ok) throw new Error(); }).catch(() => note("Couldn't save to your account"));
+      return note("Saved to your account");
+    }
     note(storeSaved([entry, ...savedPlans]) ? "Saved on this device" : "Couldn't save here. Copy the link instead.");
   }
 
@@ -702,6 +741,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
               ]}
             />
           )}
+          {account && <AccountMenu account={account} />}
           </div>
         </header>
 
@@ -737,14 +777,11 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                 onActivate={setActiveKey}
                 onInspect={inspectStop}
                 onEdit={() => setView("edit")}
-                onSave={savePlan}
-                onShare={sharePlan}
-                onCalendar={downloadCalendar}
                 friendsHref={planCode ? `/trip/start?plan=${planCode}` : undefined}
                 onSave={() => savePlan()}
                 onShare={() => void sharePlan()}
                 onCalendar={() => downloadCalendar()}
-                phone={planCode && <PhoneSend key={planCode} planCode={planCode} />}
+                phone={planCode && <PhoneSend key={planCode} planCode={planCode} defaultHandle={phone} />}
                 forecast={forecast}
                 photos={photos}
                 assistant={
@@ -761,7 +798,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                   />
                 }
                 dayPicker={<DayPicker plan={plan} forecast={forecast} busy={planning} onPickDate={pickDate} />}
-                budget={<Budget request={plan.request} people={partySize(profile)} onPeople={(people) => updateProfile({ ...profile, people })} />}
+                budget={<Budget key={JSON.stringify(plan.request)} request={plan.request} people={partySize(profile)} onPeople={(people) => updateProfile({ ...profile, people })} />}
               />
               {replanOpen && <ReplanDialog plan={plan} busy={planning} onReplan={replan} onClose={() => setReplanOpen(false)} />}
             </div>
@@ -810,11 +847,12 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                     <span className="text-[11px] text-muted-foreground max-sm:hidden">Places, timing and travel are worked out for you</span>
                     <Button type="submit" disabled={thinking || prompt.trim().length < 3} className="ml-auto rounded-full bg-brand px-4 text-on-color hover:bg-brand/90">
                       {thinking ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles aria-hidden />}
-                      {thinking ? "Building your day…" : "Build my day"}
+                      {thinking ? "Working…" : "Build my day"}
                     </Button>
                   </div>
                 </form>
                 <div aria-live="polite">
+                  {thinking && <p role="status" className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" aria-hidden />{assistantProgress}</p>}
                   {assistantError && <p className="mt-3 text-sm text-sev-c">{assistantError}</p>}
                   {assistant && (
                     <div className="mt-3 rounded-2xl bg-brand-soft px-4 py-3 text-sm leading-relaxed">
@@ -856,7 +894,12 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                         </button>
                         <button
                           type="button"
-                          onClick={() => storeSaved(savedPlans.filter((x) => x.id !== p.id))}
+                          onClick={() => {
+                            if (account) {
+                              setAccountSavedPlans((items) => items.filter((x) => x.id !== p.id));
+                              void fetch("/api/saved-trips", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "remove", id: p.id }) }).then((res) => { if (!res.ok) throw new Error(); }).catch(() => note("Couldn't remove the saved trip"));
+                            } else storeSaved(savedPlans.filter((x) => x.id !== p.id));
+                          }}
                           className="grid size-7 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
                           aria-label={`Delete saved plan ${p.title}`}
                         >
@@ -867,6 +910,8 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                   </ul>
                 </section>
               )}
+
+              {account && <GroupTrips />}
 
               {/* Everything below is what the assistant fills in; it's here to check or do by hand. */}
               <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">

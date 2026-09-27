@@ -27,12 +27,19 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) enables natural-language planning. `GOOGLE_PLACES_API_KEY` enables live Google place photos. Both are optional; manual planning and catalog photos work without them. `MONGODB_URI` (MongoDB Atlas) stores "Plan with friends" group trips; without it trips live in the dev server's memory. Groups start at http://localhost:3000/start ("Who's coming?"), which opens a trip room where everyone votes and taps I'm in.
-Open http://localhost:3000. Every key is optional; see `.env.example` for each one:
+Open http://localhost:3000. The planner needs an account: sign up with email and a phone number, or with Google. Accounts and "Plan with friends" trips live in MongoDB Atlas: put the cluster's connection string in `MONGODB_URI` and run `npm run db:check` to confirm the app can reach it (unset, a local `mongodb://127.0.0.1:27017` is used). Production also needs `BETTER_AUTH_SECRET`.
 
-- `GROK_API_KEY` (xAI) enables "Plan it for me" and the trip chat. Without it, pick spots by hand.
+Groups start at http://localhost:3000/start ("Who's coming?"), which opens a trip room where everyone votes and taps I'm in.
+
+Every other key is optional; see `.env.example` for each one:
+
+Every other key is optional; see `.env.example` for each one:
+
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` add "Continue with Google". Roam asks Google for the phone number on the person's profile, and asks them for one if Google has none.
+
+- `GEMINI_API_KEY` (Google Gemini) enables "Plan it for me" and the trip chat. Uses `gemini-3.5-flash-lite` by default (`GEMINI_MODEL` overrides it). Without it, pick spots by hand.
 - `GOOGLE_PLACES_API_KEY` enables live Google ratings and photos. Without it, photos come from Wikipedia.
-- `BACKBOARD_API_KEY` lets Roam remember each traveler from one trip to the next ("vegetarian", "staying at the Ace"): per device on the web, per thread over iMessage.
+- `BACKBOARD_API_KEY` lets Roam remember each traveler from one trip to the next ("vegetarian", "staying at the Ace"): one memory per account, on every device; per text thread over iMessage.
 - `TAVILY_API_KEY` lets the trip chat look up current facts on the web.
 
 ## Common commands

@@ -3,6 +3,10 @@ import { BRAND } from "../bridge/index";
 import { StartRoom } from "./StartRoom";
 import { TripRoom } from "./TripRoom";
 import { WhoIsComing } from "./WhoIsComing";
+import type { Viewer } from "./useTripRoom";
+
+/** The signed-in traveler; the app checks sign-in before these pages render. */
+export type { Viewer };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
@@ -16,9 +20,9 @@ export async function TripStartPage({ searchParams }: { searchParams: SearchPara
   return <StartRoom code={first(params.plan)?.slice(0, 4000) || null} group={first(params.group)} />;
 }
 
-export async function TripRoomPage({ params }: { params: Promise<{ id: string }> }) {
+export async function TripRoomPage({ params, viewer = null }: { params: Promise<{ id: string }>; viewer?: Viewer | null }) {
   const { id } = await params;
-  return <TripRoom id={id} />;
+  return <TripRoom id={id} viewer={viewer} />;
 }
 
 export function StartPage() {

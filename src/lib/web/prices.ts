@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { grokJson, grokKey } from "@/lib/llm/grok";
+import { geminiJson, geminiKey } from "@/lib/llm/gemini";
 import { assembleBudget, priceKindOf, type DayBudget } from "@/lib/plan/budget";
 import { isMealBreak } from "@/lib/plan/profile";
 import type { DayPlan } from "@/lib/plan/types";
@@ -8,7 +8,7 @@ import { webSearch, webSearchEnabled } from "./tavily";
 
 /**
  * What a place costs one adult, read from the web: a ticket for a museum or a
- * deck, a typical spend for a restaurant. Grok only reads the search results
+ * deck, a typical spend for a restaurant. Gemini only reads the search results
  * into numbers; nothing is priced from memory. Cached for two weeks, so each
  * place costs one search and one read.
  */
@@ -80,7 +80,7 @@ const SYSTEM = `You read web search results about one New York City place and re
 async function readPrice(name: string, kind: "ticket" | "food", query: string): Promise<PriceInfo | null> {
   const found = await webSearch(query);
   if (!found?.results.length) return null;
-  const answer = (await grokJson(
+  const answer = (await geminiJson(
     SYSTEM,
     `Place: ${name}\n\nSearch summary: ${found.answer ?? "none"}\n\nResults:\n${found.results.map((r, i) => `${i + 1}. ${r.title} (${r.url})\n${r.content}`).join("\n\n")}`,
     SCHEMA,
@@ -117,7 +117,7 @@ async function lookUp(name: string, kind: "ticket" | "food"): Promise<PriceInfo 
 
 /** The price of one place, from the cache or the web; null when it can't be known (no keys, nothing found). */
 export async function priceOf(name: string, kind: "ticket" | "food"): Promise<PriceInfo | null> {
-  if (!webSearchEnabled() || !grokKey()) return null;
+  if (!webSearchEnabled() || !geminiKey()) return null;
   const key = id(name);
   const store = await load();
   const hit = store[key];
