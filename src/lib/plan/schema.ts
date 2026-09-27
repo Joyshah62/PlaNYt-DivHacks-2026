@@ -30,7 +30,7 @@ export const PlanRequestSchema = z
     profile: z
       .object({
         pace: z.enum(["relaxed", "balanced", "packed"]),
-        group: z.enum(["solo", "couple", "family", "seniors"]),
+        group: z.enum(["unspecified", "solo", "couple", "family", "seniors"]),
         walkMax: z.number().int().min(5).max(120).nullable(),
         interests: z.array(z.enum(["art", "views", "history", "outdoors", "food", "neighborhoods"])).max(6),
       })

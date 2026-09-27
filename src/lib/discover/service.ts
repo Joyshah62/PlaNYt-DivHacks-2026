@@ -24,6 +24,8 @@ const DiscoverSchema = z.object({
   /** True when the reader picked the area; the words then don't move it. */
   areaPinned: z.boolean().default(false),
   reusePrevious: z.boolean().default(false),
+  /** The traveler's position, for "near me" in the words. */
+  here: z.object({ lat: z.number(), lon: z.number() }).nullable().optional(),
   placementPinned: z.boolean().default(false),
   placement: z.object({
     after: z.string().max(80).nullable(),
@@ -58,10 +60,16 @@ export async function discover(body: unknown) {
       return Response.json({ error: "Choose a preferred time within your trip's start and end times." }, { status: 422 });
     }
     // The words can name a place to look ("in Williamsburg") unless the reader chose one.
-    const area: Area = !areaPinned && said?.kind ? ({ ...parsed.data.area, ...said } as Area) : parsed.data.area;
+    let area: Area = !areaPinned && said?.kind ? ({ ...parsed.data.area, ...said } as Area) : parsed.data.area;
+    // "Near me" in the words needs the position the device shared.
+    if (area.kind === "here" && area.lat === undefined) {
+      const here = parsed.data.here;
+      if (!here) return Response.json({ error: "I don't know where you are right now. Share your location, or name a street or neighborhood." }, { status: 422 });
+      area = { ...area, lat: here.lat, lon: here.lon };
+    }
     // "After the Met" on a trip-wide search looks wider around the Met and the stop after it.
     const where = await resolveArea(area, plan, intent.after);
-    if (!where) return Response.json({ error: area.kind === "neighborhood" ? "Couldn't find that neighborhood in NYC." : "That search area isn't available." }, { status: 422 });
+    if (!where) return Response.json({ error: area.kind === "neighborhood" ? "Couldn't find that neighborhood in NYC." : area.kind === "here" ? "You seem to be outside New York City, so there's nothing near you to fit into this trip." : "That search area isn't available." }, { status: 422 });
 
     const google = await searchGoogle(where.points, intent);
     let candidates = google ?? [];

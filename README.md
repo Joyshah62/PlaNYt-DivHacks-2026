@@ -1,223 +1,85 @@
 # Roam NYC
 
-**See New York, not the crowds.** Tell Roam what you want to see. It works out
-the best order and the best times: less travel, fewer crowds, nothing closed
-when you arrive.
+**See New York, not the crowds.** Roam turns a visitor’s preferences into a timed NYC itinerary, balancing travel, opening hours, and neighborhood crowd patterns.
 
-Built for DivHacks 2026 · **Move Smarter** track.
+Built for DivHacks 2026 · Move Smarter track.
 
-## The problem
+## Start here
 
-A first-time visitor with one day in New York usually makes the same mistakes.
-They zig-zag between boroughs, reach the Met on a Wednesday (when it's closed),
-and turn up at Top of the Rock at 5pm with everyone else. Map apps route you
-between two points. None of them decide the order of your whole day, or when
-each stop is at its quietest.
+- [Product and MVP](docs/MVP.md) — audience, goals, current scope, and demo flow.
+- [System architecture](docs/architecture.md) — request flow, planning logic, data, and code map.
+- [UI/UX guide](docs/UI-UX.md) — page structure, interactions, responsive behavior, and accessibility.
+- [Archived RentCheck concept](rentcheck_hackathon_plan.md) — separate earlier product idea; not the active application.
 
 ## What Roam does
 
-1. **Pick or describe your day.** Tap spots on the map, choose from 40+ curated
-   places, search any restaurant or address, or just type *"Saturday with my
-   parents: the Met, a skyline view and great pizza. We hate crowds."*
-2. **Choose how you'll get around:** subway + walking, walking, bike, or car.
-3. **Get an ordered, timed itinerary.** Each stop gets a time slot, travel
-   between stops is drawn on the map, and each stop has an hour-by-hour
-   **crowd strip** showing why it was scheduled when it was.
-4. **Get there.** Every leg has a one-tap link to that trip in Google Maps, with
-   live transit times and turn-by-turn directions. Walking, cycling and driving
-   days also open as one multi-stop route.
-5. **Make it yours.** A 20-second travel style (pace, who's coming, how far
-   you'll walk, what you're into) changes the plan itself: relaxed days get
-   longer visits and breathers between stops, walks over your limit go by
-   subway, and "Picked for you" suggests places that fit. Pin set times for
-   bookings (a ferry, a show) and add lunch or dinner breaks, which fall
-   wherever you are at mealtime. A food stop in the day counts as the meal.
-   Vague wishes ("a skyline view", "pizza") and meal breaks come with 3–4
-   options. Each one is tried in the whole day, and its card shows what it
-   changes: extra travel, time slot, crowds, whether it's closed. The best
-   fit is marked, and one tap re-plans the day around your pick. Lunch and
-   dinner options are real restaurants near where you'll be then.
-6. **Running late? Re-plan from here.** Mid-day, share your location (or pick
-   where you are), tick what's done, and the rest of the day is planned again.
-7. **Tap any place** (a map dot, a card, a stop) for a photo, today's hours,
-   when the area is quietest, and a button to add it or get directions.
-8. **Save or share the day.** Saved plans stay on this device; the copied link
-   rebuilds the same day anywhere.
+Describe a day in plain language or choose places manually. Roam creates an ordered itinerary with visit times, travel legs, opening-hour checks, and a crowd profile for each stop. Users can adjust the plan, compare alternatives, discover nearby places, save or share it, and export it to a calendar.
 
-The plan explains itself in plain language, for example: *"This order saves
-44 min of travel versus the order you added the stops"*, *"The Met at 10:44am:
-the area is about 38% as busy as at 4pm"*, or *"The Met is usually closed on
-Wednesdays, so it's left out."*
+The AI extracts structured preferences. Deterministic code handles scheduling and scoring, so the itinerary can be reproduced and its tradeoffs explained. Crowd levels estimate busyness around a place using nearby subway ridership; they do not measure queues or venue attendance.
 
-## How it works
-
-```text
- "Saturday, the Met, a view, pizza"          picked on the map
-              │                                      │
-      Gemini (structured output) ──► stops, day, mode, crowd preference
-                                                     │
-            ┌────────────────────────────────────────┼──────────────────────────┐
-            ▼                                        ▼                          ▼
-   Travel matrix (every pair)          Crowd profile per stop           Opening hours
-   OSRM walk/bike/car on OSM           MTA hourly ridership near         per weekday
-   + subway estimate via stations      the stop, by weekday & hour
-            └────────────────────────────────────────┼──────────────────────────┘
-                                                     ▼
-                  Optimizer: tries every order, simulated through the clock
-                                                     ▼
-                     Timed itinerary + map + plain-language reasons
-```
-
-**The AI does not plan the day.** Gemini only reads a free-text request into
-structured fields (which places, which day, how you'll travel). The ordering
-and timing are computed by deterministic code, so the same inputs always give
-the same plan, and every choice can be explained.
-
-### The optimizer
-
-Every possible order of the stops is played out through the day: travel to the
-stop, wait if it isn't open yet, visit, move on. Each order is scored in minutes:
-
-```
-travel + waiting + crowd weight × (crowd level × visit minutes)
-+ a large penalty for arriving at a closed place or running past closing
-+ 2 × minutes past the end of the day
-```
-
-Set times, meals and breathers are part of the same simulation. A stop with
-a set time can't start earlier, and arriving late is heavily penalized. A meal
-has a preferred window (lunch 11:30–1:30, dinner 6–8:30): it never starts
-before the window, and starting after it costs a little per minute. A meal
-break "floats": getting there takes no travel, and the next leg starts from
-the last real place.
-
-Every term is non-negative, so a branch-and-bound search can drop any partial
-order that already costs more than the best complete one. For a day's worth of
-stops (up to 10) this finds the true optimum in well under a second. If the
-search budget runs out, a local-improvement pass polishes the best order found.
-Stops that are closed all day are set aside rather than scheduled. See
-[src/lib/plan/optimize.ts](src/lib/plan/optimize.ts).
-
-### Crowd levels
-
-[MTA Subway Hourly Ridership](https://data.ny.gov/d/5wq4-mkjj) records how many
-people enter every station, every hour. For each stop, Roam adds up ridership at
-the stations within walking distance (nearer stations count more) for the chosen
-weekday. It then expresses each hour as a share of that area's busiest hour of
-the day.
-
-This measures **area busyness**: foot traffic on the streets around a place.
-It is not a headcount inside the venue, because venue-level crowd data isn't
-public, and the UI says so. [scripts/build-crowd-data.mjs](scripts/build-crowd-data.mjs)
-builds the profiles from the median of the last 5 full weeks, so one holiday
-week doesn't skew the typical day. The result is committed
-([src/lib/plan/crowd-data.json](src/lib/plan/crowd-data.json)) and planning
-never waits on the MTA API.
-
-### Photos, and the Google cap
-
-The place card shows a Google Places photo when a key with **Places API (New)**
-is configured, and a freely licensed Wikipedia / Wikimedia Commons photo
-otherwise. Every photo is shown with its author credit and license.
-
-Google usage is capped in code
-([src/lib/plan/photos.ts](src/lib/plan/photos.ts)) so the project stays within
-Google's free monthly usage:
-
-- One photo lookup is at most two billable calls: a Text Search, with a field
-  mask limited to photo references, and a Place Photo call.
-- The monthly cap (default **900** lookups) is under the smallest free
-  allowance of any Places SKU (1,000 a month). A daily cap (default **100**)
-  stops one busy day from using up the month.
-- Lookups are counted before the call and saved to `.data/` (git-ignored). A
-  refused call (API disabled, key restricted) gives its unit back and pauses
-  Google for 10 minutes.
-- Photo URLs are kept in memory for 6 hours, and simultaneous requests for the
-  same place share one lookup.
-- Past the cap, photos fall back to Wikipedia.
-
-Also set a quota in Google Cloud: that's the one limit this code can't bypass.
-The counter lives on local disk, so on serverless hosts it resets on each cold
-start.
-
-Catalog photos from Wikipedia are pre-resolved with credits by
-[scripts/build-photo-data.mjs](scripts/build-photo-data.mjs). Places you
-search for are looked up live, and a result is used only if its coordinates
-are within 400 m of the place.
-
-### Travel times
-
-- **Walk, bike, car:** real street routes from [OSRM](https://project-osrm.org/)
-  on OpenStreetMap, fetched as one matrix per plan. Car times are scaled up
-  for city traffic, and parking time is added.
-- **Subway + walk:** for each leg, whichever is faster: walking, or an
-  estimate of walking to a nearby station, waiting, riding, and walking out.
-  Lines come from the MTA station names ("86 St (4,5,6)"). If two stations
-  share a line, it's one ride; otherwise the estimate adds a transfer at the
-  station that adds the least distance. Express trunk lines count as faster
-  than locals. These times are only for ordering the day, so subway legs are
-  marked `~`.
-- **Getting there:** Roam doesn't give its own directions. Each leg links to
-  Google Maps (a plain URL, no API key, no cost), which has live schedules,
-  service changes and turn-by-turn.
-
-## Tech stack
-
-- [Next.js 16](https://nextjs.org) (App Router) + React 19 + TypeScript
-- Gemini (`gemini-3.5-flash-lite`) through Google's `@google/genai` SDK,
-  using structured output with a JSON Schema generated from a Zod schema
-- MapLibre GL with OpenFreeMap tiles (planner); Google photorealistic 3D Maps on the home page, with a MapLibre satellite fallback
-- Editorial design system (paper and ink, Instrument Serif / Newsreader / IBM Plex Mono): see `docs/DESIGN.md`
-- Tailwind CSS 4, shadcn/ui on Base UI, lucide icons
-- Zod request validation, Vitest unit tests
-
-## Getting started
+## Run locally
 
 Requires Node.js 20+.
 
 ```bash
-git clone https://github.com/Joyshah62/divhacks-2026.git
-cd divhacks-2026
 npm install
-cp .env.example .env.local   # optional: Gemini key (assistant), Google Places key (photos)
+cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open http://localhost:3000. The planner needs an account: sign up with email and a phone number, or with Google. Accounts and "Plan with friends" trips live in MongoDB Atlas: put the cluster's connection string in `MONGODB_URI` and run `npm run db:check` to confirm the app can reach it (unset, a local `mongodb://127.0.0.1:27017` is used). Production also needs `BETTER_AUTH_SECRET`.
 
-Both keys are optional. Without a Gemini key, everything works except
-"Plan it for me"; pick spots by hand instead. Without a Google key, photos
-come from Wikipedia.
+Groups start at http://localhost:3000/start ("Who's coming?"), which opens a trip room where everyone votes and taps I'm in.
 
-### Scripts
+Every other key is optional; see `.env.example` for each one:
 
-| Command | What it does |
+Every other key is optional; see `.env.example` for each one:
+
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` add "Continue with Google". Roam asks Google for the phone number on the person's profile, and asks them for one if Google has none.
+
+- `GEMINI_API_KEY` (Google Gemini) enables "Plan it for me" and the trip chat. Uses `gemini-3.5-flash-lite` by default (`GEMINI_MODEL` overrides it). Without it, pick spots by hand.
+- `GOOGLE_PLACES_API_KEY` enables live Google ratings and photos. Without it, photos come from Wikipedia.
+- `BACKBOARD_API_KEY` lets Roam remember each traveler from one trip to the next ("vegetarian", "staying at the Ace"): one memory per account, on every device; per text thread over iMessage.
+- `TAVILY_API_KEY` lets the trip chat look up current facts on the web.
+
+## Common commands
+
+| Command | Purpose |
 |---|---|
-| `npm run dev` | Start the dev server |
-| `npm run build` / `npm start` | Production build / serve it |
-| `npm test` | Run the Vitest suite |
+| `npm run dev` | Start the development server |
+| `npm run build` / `npm start` | Build / serve production app |
 | `npm run lint` | Run ESLint |
+| `npm test` | Run Vitest |
 | `npm run crowd-data` | Rebuild crowd profiles from the latest MTA ridership (~30 s) |
 | `npm run poi-data` | Rebuild the local copy of NYC places from OpenStreetMap, used by "Find something that fits my trip" (a few minutes) |
 | `node scripts/build-photo-data.mjs` | Rebuild catalog photos and credits from Wikipedia |
+| `npm run imessage` | Start the iMessage bot next to the dev server (see below) |
 
-## Project structure
+### iMessage
 
-```text
-src/
-  app/                 landing page, /plan, API routes
-  components/plan/     planner view, map, itinerary, crowd strip, stop picker
-  lib/plan/            optimizer, crowd model, travel matrix, attraction catalog
-  lib/osm/             OSRM routing, Nominatim geocoding
-scripts/               crowd-data builder, MapLibre worker copy
-```
+Roam also works over iMessage, through [Photon Spectrum](https://photon.codes/docs/spectrum-ts).
+Text the project's line what you'd like to do and the day comes back; text again to
+change it ("add Times Square and a café there"). Places come back numbered (reply `2`),
+and changes wait for `YES` or `NO`. On the day, the bot sends a morning rundown, and
+tells you when to leave for each stop. "Text to my phone" on an itinerary sends a plan
+from the website.
 
-## Data sources
+1. Set `SPECTRUM_PROJECT_ID` and `SPECTRUM_PROJECT_SECRET` in `.env` (Photon dashboard, Settings),
+   plus `PHONE_BRIDGE_URL` and a random `PHONE_BRIDGE_TOKEN` for the website button (see `.env.example`).
+2. Run `npm run dev`, then `npm run imessage` in a second terminal.
 
-[MTA Subway Hourly Ridership](https://data.ny.gov/d/5wq4-mkjj) (data.ny.gov),
-[OpenStreetMap](https://www.openstreetmap.org/copyright) contributors,
-[Wikipedia](https://www.wikipedia.org/) and Wikimedia Commons photographers
-(credited per photo), Google Places photos (when enabled),
-[OSRM](https://project-osrm.org/) via FOSSGIS, [Nominatim](https://nominatim.org/),
-[NYC Planning GeoSearch](https://geosearch.planninglabs.nyc/), and
-[OpenFreeMap](https://openfreemap.org/).
+The bot plans through this app's API, so both must be running. Texts understand
+`PLAN`, `NEW TRIP`, `STOP` / `START` and `HELP`. Map links in texts use `PUBLIC_APP_URL`
+(default `http://localhost:3000`, which won't open on a phone; set it to a deploy or tunnel).
+
+## Important limitations
+
+- Crowd profiles describe neighborhood activity, not conditions inside a venue.
+- Published opening hours can be stale and may not reflect holidays or seasonal changes.
+- Subway times are estimates for ordering stops. Use the linked Google Maps directions for live service and directions.
+- Public routing and geocoding services are rate-limited. Roam falls back to straight-line travel estimates if routing is unavailable.
+- Saved plans are stored in the current browser. Shared links encode the request and rebuild the plan when opened.
+
+## Data and attribution
+
+Roam uses MTA Subway Hourly Ridership, OpenStreetMap contributors, OSRM, Nominatim, NYC Planning GeoSearch, OpenFreeMap, Open-Meteo, Wikipedia/Wikimedia Commons, and optionally Google Places. See [architecture and data sources](docs/architecture.md#data-sources) for how each is used.

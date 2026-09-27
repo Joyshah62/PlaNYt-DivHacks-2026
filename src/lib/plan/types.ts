@@ -1,12 +1,13 @@
 import type { OpenWindow, WeeklyHours } from "./attractions";
 import type { CrowdBand } from "./crowd";
+import type { FollowUp } from "./followUps";
 
 /** What the reader picks. "transit" = walk or subway, whichever is faster per leg. */
 export type TravelMode = "transit" | "walk" | "bike" | "car";
 export type CrowdPref = "avoid" | "balanced" | "ignore";
 
 export type Pace = "relaxed" | "balanced" | "packed";
-export type Group = "solo" | "couple" | "family" | "seniors";
+export type Group = "unspecified" | "solo" | "couple" | "family" | "seniors";
 export type Interest = "art" | "views" | "history" | "outdoors" | "food" | "neighborhoods";
 
 /** Who is travelling and how they like to travel. It shapes the plan, not just the labels. */
@@ -16,6 +17,11 @@ export interface Profile {
   /** The longest walk (minutes) worth doing before taking the subway; null = no limit. Set from the group, then editable. */
   walkMax: number | null;
   interests: Interest[];
+  /**
+   * How many are going, when known. Only the budget uses it, so it isn't part
+   * of a plan request: changing it never re-plans the day.
+   */
+  people?: number;
 }
 
 export interface Meals {
@@ -167,6 +173,10 @@ export interface AssistantResult {
   /** Vague wishes ("a skyline view") with the other places that would satisfy them. */
   choices: Choice[];
   reply: string;
+  /** The traveler's memory id (see lib/memory), for the app to send back next time. */
+  memoryId?: string;
+  /** Asked before planning (when? who?); when present, nothing was planned yet. */
+  questions?: FollowUp[];
 }
 
 /** One place that could fill a slot in the day, and why it's offered. */

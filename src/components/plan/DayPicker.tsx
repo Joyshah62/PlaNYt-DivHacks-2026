@@ -7,7 +7,7 @@ import type { DayOutcome } from "@/lib/plan/compare";
 import { crowdBand } from "@/lib/plan/crowd";
 import { CROWD_LABEL } from "@/lib/plan/display";
 import { encodePlan } from "@/lib/plan/share";
-import { nycToday, WEEKDAYS } from "@/lib/plan/time";
+import { addDays, nycToday, WEEKDAYS } from "@/lib/plan/time";
 import type { DayPlan } from "@/lib/plan/types";
 import { WEATHER_LABEL, weatherKind, type DayWeather, type Forecast } from "@/lib/plan/weatherCodes";
 import { Fold } from "./Fold";
@@ -15,12 +15,6 @@ import { WeatherIcon } from "./WeatherIcon";
 
 const DAYS = 14;
 const OUTDOOR = new Set(["view", "park", "landmark", "neighborhood"]);
-
-function addDays(date: string, n: number): string {
-  const d = new Date(`${date}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
 
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000);
 

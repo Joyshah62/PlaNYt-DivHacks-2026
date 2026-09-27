@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ratingText, scoreOf, weightedRating } from "./evaluate";
 import { fallbackIntent, fallbackWithPlan } from "./intent";
+import type { Intent } from "./types";
 
 const intent = fallbackIntent("korean food for dinner", null);
 const base = { travelDelta: 8, overDelta: 0, conflicts: [] as string[], closed: false, crowdBand: null, meters: 300, price: null, rating: null, reviews: null, after: "Central Park" };
@@ -66,5 +67,17 @@ describe("reading the plan without Gemini", () => {
     expect(fallbackWithPlan("a quiet café after the Met", null, plan).intent.after).toBe("met");
     expect(fallbackWithPlan("something fun near our last stop", null, plan).area).toEqual({ kind: "stop", stopKey: "top-of-the-rock" });
     expect(fallbackWithPlan("korean instead, replace my lunch stop", null, plan).intent.replace).toBe("joes");
+  });
+});
+
+describe("ranking places by rating, popularity and travel", () => {
+  const fit: Intent = { category: "shopping", cuisine: null, keywords: [], searchText: "shopping", price: null, indoor: null, quiet: false, minRating: null, visitMin: null, after: null, meal: null, replace: null, sort: "fit", summary: "shopping" };
+  const place = (rating: number, reviews: number, travelDelta: number) => ({ travelDelta, overDelta: 0, conflicts: [], closed: false, crowdBand: null, meters: 300, price: null, rating, reviews, after: null });
+
+  it("prefers a well-loved, much-reviewed place over a near-perfect score from a handful", () => {
+    expect(scoreOf(place(4.8, 1085, 10), fit, 0, null)).toBeLessThan(scoreOf(place(4.9, 46, 10), fit, 0, null));
+  });
+  it("still lets a much longer trip outweigh a slightly better place", () => {
+    expect(scoreOf(place(4.6, 300, 4), fit, 0, null)).toBeLessThan(scoreOf(place(4.7, 400, 30), fit, 0, null));
   });
 });

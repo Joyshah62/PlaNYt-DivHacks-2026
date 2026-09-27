@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronUp, Clock, Loader2, MapPin, RefreshCw, Trash2, X } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { AccountMenu, type Account } from "@/components/auth/AccountMenu";
 import { haversine } from "@/lib/osm/geo";
 import { ATTRACTION_BY_ID, type Attraction } from "@/lib/plan/attractions";
 import { fillSlot } from "@/lib/plan/choices";
@@ -199,7 +200,7 @@ function Logo() {
   );
 }
 
-export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: string | null; initialPlan: string | null }) {
+export function PlannerView({ initialPrompt, initialPlan, account }: { initialPrompt: string | null; initialPlan: string | null; account: Account }) {
   // A shared or saved plan fills the form before the first render; the effect below plans it.
   const [shared] = useState(() => (initialPlan ? decodePlan(initialPlan) : null));
   const [stops, setStops] = useState<StopInput[]>(() => shared?.stops ?? []);
@@ -777,6 +778,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
           <Link href="/" className="ed-navlink pl-mono">
             Home
           </Link>
+          <AccountMenu account={account} />
           <ThemeToggle className="ed-theme" />
         </nav>
       </header>

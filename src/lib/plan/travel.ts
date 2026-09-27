@@ -26,6 +26,8 @@ const SUBWAY_WAIT_MIN = 6;
 const TRANSFER_MIN = 6;
 /** Take the train only when it saves real time over walking. */
 const SUBWAY_MIN_SAVING = 4;
+/** Past their walking limit, a train this much slower than the walk still beats walking; a slower one doesn't. */
+const OVER_LIMIT_SLOWDOWN = 1.5;
 
 const BIKE_M_PER_MIN = 230;
 /** OSRM drives at free-flow speeds; NYC does not. */
@@ -91,8 +93,10 @@ function rides(a: Station, b: Station): Ride[] | null {
     const extra = haversine(a, t) + haversine(t, b) - straight;
     if (!best || extra < best.extra) best = { via: t, extra, l1, l2 };
   }
-  // A transfer that doubles the trip is not one anybody would take.
-  if (!best || best.extra > straight * 0.8 + 1500) return null;
+  // A transfer far out of the way is not one anybody would take. Crossing
+  // Brooklyn often means going via Manhattan, though, and that still beats
+  // an hour's walk; the leg's minutes decide between them.
+  if (!best || best.extra > straight * 1.5 + 2000) return null;
   return [ride(a, best.via, best.l1), ride(best.via, b, best.l2)];
 }
 
@@ -146,7 +150,8 @@ async function routedMatrix(mode: "walk" | "bike" | "car", points: LatLon[]): Pr
 /**
  * In "transit" mode, `walkMax` caps how long a walk may be before the subway
  * takes over, even when the train is a little slower: someone travelling with
- * older parents would rather sit for 15 minutes than walk 25.
+ * older parents would rather sit for 30 minutes than walk 25, but not ride 26
+ * minutes (with its own walk to the station) to skip a 13-minute walk.
  */
 /**
  * The same points are routed again and again: the plan, then its option cards
@@ -191,7 +196,7 @@ async function computeLegMatrix(mode: TravelMode, points: LatLon[], walkMax: num
       if (i === j) return walkLeg;
       const train = subwayLeg(points[i], points[j]);
       if (!train) return walkLeg;
-      if (walkMax !== null && walkLeg.minutes > walkMax) return train;
+      if (walkMax !== null && walkLeg.minutes > walkMax) return train.minutes <= walkLeg.minutes * OVER_LIMIT_SLOWDOWN ? train : walkLeg;
       return train.minutes + SUBWAY_MIN_SAVING <= walkLeg.minutes ? train : walkLeg;
     }),
   );

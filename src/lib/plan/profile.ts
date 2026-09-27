@@ -1,7 +1,7 @@
 import { ATTRACTIONS, windowOn, type Attraction, type AttractionKind } from "./attractions";
 import type { Group, Interest, MealKind, Pace, Profile } from "./types";
 
-export const DEFAULT_PROFILE: Profile = { pace: "balanced", group: "solo", walkMax: null, interests: [] };
+export const DEFAULT_PROFILE: Profile = { pace: "balanced", group: "unspecified", walkMax: null, interests: [] };
 
 export const PACE: Record<Pace, { label: string; hint: string; visitFactor: number; bufferMin: number }> = {
   relaxed: { label: "Relaxed", hint: "Longer visits, a breather between stops", visitFactor: 1.25, bufferMin: 15 },
@@ -10,11 +10,20 @@ export const PACE: Record<Pace, { label: string; hint: string; visitFactor: numb
 };
 
 export const GROUP: Record<Group, { label: string; walkMax: number | null }> = {
+  unspecified: { label: "Not specified", walkMax: null },
   solo: { label: "Solo", walkMax: null },
   couple: { label: "Couple", walkMax: null },
   family: { label: "With kids", walkMax: 15 },
   seniors: { label: "Older travelers", walkMax: 10 },
 };
+
+/** How many are going: what they said, else what the group means (one, two); null when it's a family or group of unknown size. */
+export function partySize(p: Pick<Profile, "group" | "people">): number | null {
+  return p.people ?? (p.group === "solo" ? 1 : p.group === "couple" ? 2 : null);
+}
+
+/** A group's party size, when the group alone says it; set on switching groups so an old count doesn't linger. */
+export const groupPeople = (group: Group): number | undefined => (group === "solo" ? 1 : group === "couple" ? 2 : undefined);
 
 export const WALK_LIMITS: { value: number | null; label: string }[] = [
   { value: 10, label: "10 min" },
