@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { GEMINI_ASSISTANT_MODEL, GeminiError, geminiJson, geminiKey } from "@/lib/llm/gemini";
-import { outsideTravelScope, SCOPE_REPLY, TRAVEL_SCOPE } from "@/lib/discover/scope";
+import { guardrail, TRAVEL_SCOPE } from "@/lib/discover/scope";
 import { recall, remember, rememberedFacts } from "@/lib/memory/backboard";
 import { travelerMemory } from "@/lib/memory/traveler";
 import { followUps } from "@/lib/plan/followUps";
@@ -70,7 +70,7 @@ type Understood = z.infer<typeof Understood>;
 
 const CATALOG = ATTRACTIONS.map((a) => `${a.id}: ${a.name} (${a.area}; ${a.kind}; ~${a.visitMin} min)`).join("\n");
 
-const SYSTEM = `You are Roam AI, a warm, thoughtful NYC day-planning companion. Sound natural and personal, with brief empathy when it fits, without pretending to have human experiences. If a remembered preference materially shaped a choice, say so conversationally ("Since you mentioned you like quieter places...") and invite correction if it may have changed. Don't announce memory when it didn't affect the plan.
+const SYSTEM = `Be warm and thoughtful: natural and personal, with brief empathy when it fits. If a remembered preference materially shaped a choice, say so conversationally ("Since you mentioned you like quieter places...") and invite correction if it may have changed. Don't announce memory when it didn't affect the plan.
 You help visitors plan a day in New York City. Read what the person wants and fill in the planner's fields. You do not order the stops or set times for them; a separate optimizer does that.
 
 Stops:
@@ -161,7 +161,8 @@ async function assistant(request: Request, progress: Progress) {
   }
   if (text.length < 3) return Response.json({ error: "Tell me a little about your day." }, { status: 400 });
   if (text.length > 1500) return Response.json({ error: "That's a lot! Keep it under 1,500 characters." }, { status: 400 });
-  if (outsideTravelScope(text)) return Response.json({ error: SCOPE_REPLY }, { status: 422 });
+  const blocked = guardrail(text);
+  if (blocked) return Response.json({ error: blocked }, { status: 422 });
 
   const today = nycToday();
   const party = partyFromText(text);

@@ -3,7 +3,7 @@ import { chat, ChatError, ChatInput } from "@/lib/discover/chat";
 import { remember } from "@/lib/memory/backboard";
 import { travelerMemory } from "@/lib/memory/traveler";
 import { progressResponse, type Progress } from "@/lib/progress";
-import { outsideTravelScope, SCOPE_REPLY } from "@/lib/discover/scope";
+import { guardrail } from "@/lib/discover/scope";
 import { auth } from "@/lib/auth";
 import { conversationOwner, loadConversation, saveConversationTurn } from "@/lib/chat/conversations";
 import { randomUUID } from "node:crypto";
@@ -32,9 +32,10 @@ async function respond(req: Request, progress: Progress) {
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
   const conversationId = parsed.data.conversationId ?? randomUUID();
   const owner = conversationOwner(session?.user.id ?? null, conversationId);
-  if (outsideTravelScope(parsed.data.message)) {
-    await saveConversationTurn(owner, conversationId, parsed.data.message, SCOPE_REPLY);
-    return Response.json({ message: SCOPE_REPLY, choices: [], conversationId });
+  const blocked = guardrail(parsed.data.message);
+  if (blocked) {
+    await saveConversationTurn(owner, conversationId, parsed.data.message, blocked);
+    return Response.json({ message: blocked, choices: [], conversationId });
   }
   try {
     progress("Loading your trip…");

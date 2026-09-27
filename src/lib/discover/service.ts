@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { guardrail } from "@/lib/discover/scope";
 import { evaluate, resolveArea } from "@/lib/discover/evaluate";
 import { IntentSchema, parseIntent } from "@/lib/discover/intent";
 import { searchGoogle, searchLocal, searchOsm } from "@/lib/discover/sources";
@@ -43,6 +44,8 @@ export async function discover(body: unknown) {
   const parsed = DiscoverSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid search." }, { status: 400 });
   const { query, request, previous, areaPinned } = parsed.data;
+  const blocked = guardrail(query);
+  if (blocked) return Response.json({ error: blocked }, { status: 422 });
 
   try {
     // The day as planned now, for the words ("after the Met") and the search area.

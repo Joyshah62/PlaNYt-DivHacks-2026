@@ -13,7 +13,7 @@ import { budgetFor } from "@/lib/web/prices";
 import { money } from "@/lib/plan/budget";
 import type { Progress } from "@/lib/progress";
 import { partyFromText } from "@/lib/plan/party";
-import { outsideTravelScope, SCOPE_REPLY, TRAVEL_SCOPE } from "./scope";
+import { guardrail, TRAVEL_SCOPE } from "./scope";
 import { GROUP, isMealBreak, mealBreakKey, visitFor } from "@/lib/plan/profile";
 import { CROWD_LABEL } from "@/lib/plan/display";
 import { ATTRACTIONS, searchAttractions } from "@/lib/plan/attractions";
@@ -684,7 +684,7 @@ export function executeChatTool(name: string, args: unknown, input: Input): Prom
 }
 
 /** How Roam AI talks, and when it acts versus asks. */
-const PERSONA = `You are Roam AI, a friendly NYC trip planner chatting with a traveler about the day they've planned. Talk like a helpful local friend: warm, brief (one to three short sentences), plain text with no markdown.
+const PERSONA = `You're chatting with a traveler about the day they've planned. Talk like a helpful local friend: warm, brief (one to three short sentences), plain text with no markdown.
 
 Conversation:
 - Party size, companions and spending limits are unknown unless explicitly stated for this trip. Never infer them from "I", "we", a default profile, or memories of another day. Ask if they matter. Don't create a budget or volunteer cost totals unless asked; per-person cost estimates are not a spending limit.
@@ -812,7 +812,8 @@ export async function settle(result: ChatReply, input: Input): Promise<{ reply: 
 }
 
 export async function chat(input: z.infer<typeof ChatInput>, progress: Progress = () => {}): Promise<ChatReply> {
-  if (outsideTravelScope(input.message)) return { message: SCOPE_REPLY, choices: [] };
+  const blocked = guardrail(input.message);
+  if (blocked) return { message: blocked, choices: [] };
   progress("Checking your trip…");
   // A card's Add button is a clear choice: it goes in when it works.
   if (input.action) {

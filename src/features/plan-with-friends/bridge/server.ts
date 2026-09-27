@@ -47,3 +47,4 @@ export type { Intent, Candidate as DiscoverCandidate } from "@/lib/discover/type
 /** The app's Gemini client: the same model and key as the planner's assistant (/api/assistant). */
 export { geminiJson, geminiKey } from "@/lib/llm/gemini";
 export { resolveDestination } from "@/lib/osm/nominatim";
+export { guardrail, TRAVEL_SCOPE } from "@/lib/discover/scope";
