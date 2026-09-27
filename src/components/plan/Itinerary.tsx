@@ -1,29 +1,6 @@
 "use client";
 
-import {
-  AlarmClock,
-  AlertTriangle,
-  Bike,
-  Bookmark,
-  BookmarkCheck,
-  CalendarPlus,
-  Car,
-  ChevronDown,
-  Footprints,
-  Hourglass,
-  Lightbulb,
-  Link2,
-  Map as MapIcon,
-  MessageCircle,
-  MapPin,
-  Pencil,
-  Share2,
-  TrainFront,
-  Users,
-  Umbrella,
-  UtensilsCrossed,
-  X,
-} from "lucide-react";
+import { AlarmClock, AlertTriangle, Bike, Bookmark, BookmarkCheck, CalendarPlus, Car, CarTaxiFront, ChevronDown, Footprints, Hourglass, Lightbulb, Link2, Map as MapIcon, MapPin, MessageCircle, Pencil, Share2, TrainFront, Umbrella, Users, UtensilsCrossed, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ATTRACTION_BY_ID } from "@/lib/plan/attractions";
 import { crowdBand } from "@/lib/plan/crowd";
@@ -38,7 +15,7 @@ import { stopFromAttraction } from "./StopPicker";
 import { Fold } from "./Fold";
 import { arrowKeys } from "./arrowKeys";
 
-const LEG_ICON: Record<LegMode, typeof Footprints> = { walk: Footprints, subway: TrainFront, bike: Bike, car: Car };
+const LEG_ICON: Record<LegMode, typeof Footprints> = { walk: Footprints, subway: TrainFront, bike: Bike, car: Car, taxi: CarTaxiFront };
 /** Places where rain changes the visit. */
 const OUTDOOR = new Set(["view", "park", "landmark", "neighborhood"]);
 

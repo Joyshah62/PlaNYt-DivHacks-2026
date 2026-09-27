@@ -30,4 +30,5 @@ export const LEG_VERB: Record<LegMode, string> = {
   subway: "by subway",
   bike: "bike",
   car: "drive",
+  taxi: "by taxi",
 };

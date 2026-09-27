@@ -17,7 +17,7 @@ export function mapsPoint(p: { lat: number; lon: number; attractionId?: string |
   return { query: known ? `${known.name}, ${known.area}, New York, NY` : `${p.lat.toFixed(6)},${p.lon.toFixed(6)}` };
 }
 
-const TRAVEL_MODE: Record<LegMode, string> = { walk: "walking", subway: "transit", bike: "bicycling", car: "driving" };
+const TRAVEL_MODE: Record<LegMode, string> = { walk: "walking", subway: "transit", bike: "bicycling", car: "driving", taxi: "driving" };
 
 export function mapsDirections(from: MapsPoint, to: MapsPoint, mode: LegMode): string {
   const params = new URLSearchParams({ api: "1", origin: from.query, destination: to.query, travelmode: TRAVEL_MODE[mode] });

@@ -32,7 +32,8 @@ export interface Meals {
 export type MealKind = keyof Meals;
 
 /** How one leg is actually travelled. */
-export type LegMode = "walk" | "subway" | "bike" | "car";
+/** "taxi": a transit day's leg too far to walk with no subway that helps (e.g. from an airport). */
+export type LegMode = "walk" | "subway" | "bike" | "car" | "taxi";
 
 export interface PointLabel {
   label: string;

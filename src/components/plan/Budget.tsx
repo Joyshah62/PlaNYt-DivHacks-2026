@@ -132,6 +132,7 @@ export function Budget({ request, people, onPeople }: {
                 <span className="pl-budget-name">
                   <TrainFront aria-hidden />
                   {budget.transit.rides > 0 ? `Subway · ${budget.transit.rides} ${budget.transit.rides === 1 ? "trip" : "trips"} × $${budget.transit.fare.toFixed(2)} each` : budget.transit.note}
+                  {budget.transit.rides > 0 && budget.transit.note && <span className="pl-small pl-muted"> · {budget.transit.note}</span>}
                 </span>
                 {budget.transit.rides > 0 && <span className="pl-budget-value">${budget.transit.total}</span>}
               </li>

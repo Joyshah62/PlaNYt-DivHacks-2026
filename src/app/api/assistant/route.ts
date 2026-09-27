@@ -5,7 +5,7 @@ import { recall, remember, rememberedFacts } from "@/lib/memory/backboard";
 import { travelerMemory } from "@/lib/memory/traveler";
 import { followUps } from "@/lib/plan/followUps";
 import { oneMealEach } from "@/lib/plan/oneMeal";
-import { partyFromText } from "@/lib/plan/party";
+import { companyIn, partyFromText } from "@/lib/plan/party";
 import { progressResponse, type Progress } from "@/lib/progress";
 import { z } from "zod";
 import { inNycArea } from "@/lib/osm/geo";
@@ -166,7 +166,8 @@ async function assistant(request: Request, progress: Progress) {
 
   const today = nycToday();
   const party = partyFromText(text);
-  knowsGroup = !!party.group || !!party.people;
+  // "With my friends" answers who's coming even without a count; don't ask it again.
+  knowsGroup = !!party.group || !!party.people || companyIn(text);
   let understood: Understood;
   if (!geminiKey()) {
     return Response.json({ error: "The assistant isn't set up on this server. Pick your spots below instead." }, { status: 503 });
