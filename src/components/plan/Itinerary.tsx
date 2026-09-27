@@ -121,6 +121,7 @@ export function Itinerary({
   onSave,
   onShare,
   onCalendar,
+  friendsHref,
   phone,
   assistant,
   dayPicker,
@@ -138,6 +139,8 @@ export function Itinerary({
   onSave: () => void;
   onShare: () => void;
   onCalendar: () => void;
+  /** Starts a group trip from this plan; omitted when there's no plan to share. */
+  friendsHref?: string;
   /** "Text to my phone", with the actions. */
   phone?: ReactNode;
   /** The trip assistant, right under the day's summary and actions. */
@@ -210,6 +213,14 @@ export function Itinerary({
         <Button size="sm" variant="outline" onClick={onShare} className="rounded-full">
           <Link2 aria-hidden /> Copy link
         </Button>
+        {friendsHref && (
+          <a
+            href={friendsHref}
+            className="inline-flex h-7 items-center gap-1 rounded-full border border-border bg-background px-2.5 text-[0.8rem] font-medium transition hover:bg-muted"
+          >
+            <Users className="size-3.5" aria-hidden /> Plan with friends
+          </a>
+        )}
         {dayRoute && (
           <a
             href={dayRoute}

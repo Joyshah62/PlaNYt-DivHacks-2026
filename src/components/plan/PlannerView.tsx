@@ -737,6 +737,10 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
                 onActivate={setActiveKey}
                 onInspect={inspectStop}
                 onEdit={() => setView("edit")}
+                onSave={savePlan}
+                onShare={sharePlan}
+                onCalendar={downloadCalendar}
+                friendsHref={planCode ? `/trip/start?plan=${planCode}` : undefined}
                 onSave={() => savePlan()}
                 onShare={() => void sharePlan()}
                 onCalendar={() => downloadCalendar()}
