@@ -26,6 +26,14 @@ const SUBWAY_WAIT_MIN = 6;
 const TRANSFER_MIN = 6;
 /** Take the train only when it saves real time over walking. */
 const SUBWAY_MIN_SAVING = 4;
+/**
+ * With no subway that helps, a walk longer than this is a cab ride: the airports
+ * (no station near the terminals), the far ends of the boroughs. A traveler
+ * with a walking limit takes one sooner.
+ */
+const TAXI_AFTER_WALK_MIN = 45;
+/** Hailing or waiting for a pickup; a cab needs no parking. */
+const TAXI_WAIT_MIN = 5;
 /** Past their walking limit, a train this much slower than the walk still beats walking; a slower one doesn't. */
 const OVER_LIMIT_SLOWDOWN = 1.5;
 
@@ -200,5 +208,19 @@ async function computeLegMatrix(mode: TravelMode, points: LatLon[], walkMax: num
       return train.minutes + SUBWAY_MIN_SAVING <= walkLeg.minutes ? train : walkLeg;
     }),
   );
-  return { legs, routed: walk.routed };
+  // Nobody walks six hours from JFK: where the best left is a long walk, it's a cab.
+  const taxiAfter = walkMax === null ? TAXI_AFTER_WALK_MIN : Math.min(TAXI_AFTER_WALK_MIN, Math.max(walkMax, 20));
+  const needsTaxi = legs.some((row) => row.some((leg) => leg.mode === "walk" && leg.minutes > taxiAfter));
+  if (!needsTaxi) return { legs, routed: walk.routed };
+  // Road times only when some leg needs them: one more routing call, not one per plan.
+  const car = await routedMatrix("car", points);
+  const withTaxis = legs.map((row, i) =>
+    row.map((leg, j) => {
+      if (leg.mode !== "walk" || leg.minutes <= taxiAfter) return leg;
+      const drive = car.legs[i][j];
+      const taxi: Leg = { mode: "taxi", minutes: Math.max(1, drive.minutes - PARKING_MIN) + TAXI_WAIT_MIN, meters: drive.meters, estimated: true };
+      return taxi.minutes < leg.minutes ? taxi : leg;
+    }),
+  );
+  return { legs: withTaxis, routed: walk.routed };
 }

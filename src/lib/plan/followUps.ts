@@ -48,6 +48,7 @@ export function followUps(
       choices: [
         { label: "Just me", answer: "just me" },
         { label: "Two of us", answer: "the two of us" },
+        { label: "With friends", answer: "with a group of friends" },
         { label: "Family with kids", answer: "a family with kids" },
         { label: "With older parents", answer: "with my older parents" },
       ],

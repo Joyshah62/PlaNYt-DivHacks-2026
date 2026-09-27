@@ -102,7 +102,7 @@ const TRIP_STARTERS: { label: string; blurb: string; photo: string; who: Party; 
 ];
 
 
-const ROUTE_PROFILE = { walk: "foot", bike: "bike", car: "car" } as const;
+const ROUTE_PROFILE = { walk: "foot", bike: "bike", car: "car", taxi: "car" } as const;
 
 interface KeyedLeg extends MapLeg {
   /** The stop this leg arrives at, or "return". */

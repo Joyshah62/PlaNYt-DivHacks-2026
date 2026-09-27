@@ -29,7 +29,7 @@ export interface Position {
   trail: Coord[][];
 }
 
-const VERB = { walk: "Walking", subway: "Subway", bike: "Cycling", car: "Driving" } as const;
+const VERB = { walk: "Walking", subway: "Subway", bike: "Cycling", car: "Driving", taxi: "Taxi" } as const;
 
 /**
  * The day as a sequence of moves and stays, in minutes, following the drawn

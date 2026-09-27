@@ -57,3 +57,13 @@ describe("how many are going", () => {
     expect(itinerary(plan, { budget, people: null })).toContain("About $40 per person");
   });
 });
+
+describe("someone coming along", () => {
+  it("counts friends or kids as answering who's coming, but not the sitcom", async () => {
+    const { companyIn } = await import("./party");
+    expect(companyIn("A fun day in Brooklyn with my friends")).toBe(true);
+    expect(companyIn("Saturday with a few colleagues")).toBe(true);
+    expect(companyIn("museums and good pizza")).toBe(false);
+    expect(companyIn("see the Friends apartment building")).toBe(false);
+  });
+});

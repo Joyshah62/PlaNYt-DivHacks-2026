@@ -68,11 +68,16 @@ export function assembleBudget(plan: DayPlan, prices: Map<string, KnownPrice | n
   });
   const legs = [...plan.stops.map((s) => s.leg), plan.returnLeg].filter((l) => l?.mode === "subway");
   const mode = plan.request.mode;
+  // A cab's fare depends on the trip (JFK has a flat fare, tolls, tip) and is usually shared, so it's named, not guessed.
+  const taxis = [...plan.stops.map((s) => s.leg), plan.returnLeg].filter((l) => l?.mode === "taxi").length;
   const transit = {
     rides: legs.length,
     fare: SUBWAY_FARE,
     total: legs.length * SUBWAY_FARE,
-    note: mode === "car" ? "Driving, parking and tolls not included" : mode === "bike" ? "Bike rental not included" : null,
+    note: mode === "car" ? "Driving, parking and tolls not included"
+      : mode === "bike" ? "Bike rental not included"
+      : taxis ? `${taxis === 1 ? "A taxi ride" : `${taxis} taxi rides`} not included`
+      : null,
   };
   const perPerson = lines.reduce((sum, l) => sum + (l.perPerson ?? 0), 0) + transit.total;
   return {

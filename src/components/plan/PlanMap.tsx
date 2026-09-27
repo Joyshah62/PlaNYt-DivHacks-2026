@@ -416,7 +416,7 @@ export function PlanMap(props: PlanMapProps) {
         });
       // Editorial ink: the subway in red, everything on foot or wheels in ink.
       leg("legs-subway", ["subway"], { "line-color": c["--brand"], "line-width": 4.5 });
-      leg("legs-car", ["car"], { "line-color": ink, "line-width": 4 });
+      leg("legs-car", ["car", "taxi"], { "line-color": ink, "line-width": 4 });
       leg("legs-bike", ["bike"], { "line-color": ink, "line-width": 4, "line-dasharray": [0.1, 1.9] });
       leg("legs-walk", ["walk"], { "line-color": ink, "line-width": 3.5, "line-dasharray": [2, 1.5] });
 

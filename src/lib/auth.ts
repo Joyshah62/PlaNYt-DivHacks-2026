@@ -43,8 +43,16 @@ export const auth = betterAuth({
   }),
   secret: secret || "dev-secret-change-me",
   baseURL: { allowedHosts: [...new Set(allowedHosts)], fallback: siteUrl, protocol: "auto" },
-  // Tunnels and hosts (ngrok, Vercel) say which site and https via x-forwarded-*; only allowedHosts are believed.
-  advanced: { trustedProxyHeaders: true },
+  advanced: {
+    // Tunnels and hosts (ngrok, Vercel) say which site and https via x-forwarded-*; only allowedHosts are believed.
+    trustedProxyHeaders: true,
+    // Sign-in is rate limited per visitor, so each needs their real IP; without one, everyone shares a single limit.
+    // Render sits behind Cloudflare, which sets cf-connecting-ip to the visitor's address (and overwrites any sent);
+    // Vercel sets its own. x-forwarded-for is a chain behind proxies, so it only counts when it holds one address.
+    ipAddress: {
+      ipAddressHeaders: process.env.BETTER_AUTH_IP_HEADERS?.split(",").map((h) => h.trim().toLowerCase()).filter(Boolean) ?? ["cf-connecting-ip", "x-vercel-forwarded-for", "x-forwarded-for"],
+    },
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
