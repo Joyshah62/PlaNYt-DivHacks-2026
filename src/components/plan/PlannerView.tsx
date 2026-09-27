@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronUp, Clock, Loader2, MapPin, RefreshCw, Trash2, X } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { AccountMenu, type Account } from "@/components/auth/AccountMenu";
@@ -20,6 +21,7 @@ import {
   encodePlan,
   parseProfile,
   parseSaved,
+  planTitle,
   readProfileRaw,
   readSavedRaw,
   storeProfile,
@@ -149,13 +151,6 @@ function syncSaved(body: { action: "save"; plan: SavedPlan } | { action: "remove
   void fetch("/api/saved-trips", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
 }
 
-/** A name for a saved plan: "Sat, Sep 26 · The Met, MoMA +2". */
-function planTitle(r: PlanRequest): string {
-  const day = new Date(`${r.date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
-  const names = r.stops.map((s) => s.name);
-  return `${day} · ${names.slice(0, 2).join(", ")}${names.length > 2 ? ` +${names.length - 2}` : ""}`;
-}
-
 /** Meal options are looked up again once the meal moves this far (the day was re-planned). */
 const MEAL_ANCHOR_METERS = 700;
 const MEALS: MealKind[] = ["lunch", "dinner"];
@@ -233,7 +228,7 @@ function Logo({ onHome }: { onHome: () => void }) {
   );
 }
 
-export function PlannerView({ initialPrompt, initialPlan, account }: { initialPrompt: string | null; initialPlan: string | null; account: Account }) {
+export function PlannerView({ initialPrompt, initialPlan, initialChat = null, account }: { initialPrompt: string | null; initialPlan: string | null; /** A past conversation to reopen once the plan is up. */ initialChat?: string | null; account: Account }) {
   // A shared or saved plan fills the form before the first render; the effect below plans it.
   const [shared] = useState(() => (initialPlan ? decodePlan(initialPlan) : null));
   const [stops, setStops] = useState<StopInput[]>(() => shared?.stops ?? []);
@@ -605,6 +600,14 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
     // Runs once for the link it arrived with.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shared, runPlan]);
+
+  // Arriving to continue a conversation: open the assistant once the day it was about is planned.
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (!initialChat || !plan || resumed.current) return;
+    resumed.current = true;
+    assistantHandle.current?.open();
+  }, [initialChat, plan]);
 
   // A prompt from the landing page runs once, on arrival.
   const asked = useRef(false);
@@ -1128,6 +1131,9 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
                           {allSaved ? "Show fewer" : `Show all ${savedPlans.length}`}
                         </button>
                       )}
+                      <Link href="/trips" className="pl-textbtn pl-mono mt-2 ml-4">
+                        Your trips &amp; chats <ArrowRight className="size-3" aria-hidden />
+                      </Link>
                     </Fold>
                   </div>
                 )}
@@ -1307,7 +1313,7 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
         {plan && (
           <div hidden={!showingPlan}>
             <Assistant unread={unread} onOpenChange={onAssistantOpen} handle={assistantHandle}>
-              <TripChat plan={plan} discover={discover} planning={planning || stale} onApply={applyChatPlan} onAction={(a) => (a === "save" ? ensureSaved() : a === "calendar" ? downloadCalendar() : void sharePlan())} onReply={() => !assistantOpen.current && setUnread(true)} onView={(place) => {
+              <TripChat plan={plan} discover={discover} planning={planning || stale} onApply={applyChatPlan} onAction={(a) => (a === "save" ? ensureSaved() : a === "calendar" ? downloadCalendar() : void sharePlan())} onReply={() => !assistantOpen.current && setUnread(true)} resume={initialChat} onView={(place) => {
                 assistantHandle.current?.close();
                 setPeek(place);
               }} />

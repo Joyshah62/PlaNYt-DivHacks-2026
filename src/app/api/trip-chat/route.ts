@@ -5,12 +5,19 @@ import { travelerMemory } from "@/lib/memory/traveler";
 import { progressResponse, type Progress } from "@/lib/progress";
 import { guardrail } from "@/lib/discover/scope";
 import { auth } from "@/lib/auth";
-import { conversationOwner, loadConversation, saveConversationTurn } from "@/lib/chat/conversations";
+import { conversationOwner, listConversations, loadConversation, saveConversationTurn } from "@/lib/chat/conversations";
+import { encodePlan, planTitle } from "@/lib/plan/share";
 import { randomUUID } from "node:crypto";
 
 export async function GET(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
-  const requestedId = new URL(req.url).searchParams.get("conversationId");
+  const params = new URL(req.url).searchParams;
+  // ?list=1: the account's past conversations, for the chat's history and the trips page.
+  if (params.has("list")) {
+    if (!session) return Response.json({ conversations: [] });
+    return Response.json({ conversations: await listConversations(conversationOwner(session.user.id, "")) });
+  }
+  const requestedId = params.get("conversationId");
   if (requestedId && !/^[0-9a-f-]{36}$/i.test(requestedId)) return Response.json({ error: "Invalid conversation." }, { status: 400 });
   if (!session && !requestedId) return Response.json({ conversation: null });
   const owner = conversationOwner(session?.user.id ?? null, requestedId ?? "");
@@ -36,16 +43,17 @@ async function respond(req: Request, progress: Progress) {
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
   const conversationId = parsed.data.conversationId ?? randomUUID();
   const owner = conversationOwner(session?.user.id ?? null, conversationId);
+  const trip = { title: planTitle(parsed.data.request), code: encodePlan(parsed.data.request) };
   const blocked = guardrail(parsed.data.message);
   if (blocked) {
-    await saveConversationTurn(owner, conversationId, parsed.data.message, blocked);
+    await saveConversationTurn(owner, conversationId, parsed.data.message, blocked, trip);
     return Response.json({ message: blocked, choices: [], conversationId });
   }
   try {
     progress("Loading your trip…");
     const { memoryId, onAccount } = await travelerMemory(req, parsed.data.memoryId);
     const reply = await chat({ ...parsed.data, memoryId }, progress);
-    await saveConversationTurn(owner, conversationId, parsed.data.message, reply.message);
+    await saveConversationTurn(owner, conversationId, parsed.data.message, reply.message, trip);
     // Their own words, not a button's; kept after the reply goes out, since it takes a few seconds.
     if (!parsed.data.action) after(() => remember(memoryId, parsed.data.message));
     // An account's memory stays on the server; only a text thread keeps its own id.

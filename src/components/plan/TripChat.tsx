@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, CalendarPlus, Check, Link2, Loader2, Mic, RotateCcw, Volume2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowUp, CalendarPlus, Check, History, Link2, Loader2, Mic, RotateCcw, Volume2 } from "lucide-react";
 import type { AppAction, ChatReply } from "@/lib/discover/chat";
 import type { DiscoverResponse } from "@/lib/discover/types";
 import type { DayPlan } from "@/lib/plan/types";
 import { clock, duration } from "@/lib/plan/time";
+import type { ConversationSummary } from "@/lib/chat/conversations";
 import { ResultCard, type Discover } from "./Discover";
 
 type Message = { id: number; role: "user" | "assistant"; text: string; reply?: ChatReply; tripKey: string };
@@ -23,6 +25,7 @@ export function TripChat({
   onReply,
   onView,
   onAction,
+  resume,
 }: {
   plan: DayPlan;
   discover: Discover;
@@ -34,6 +37,8 @@ export function TripChat({
   onView?: (place: { key: string; name: string; lat: number; lon: number }) => void;
   /** Save, calendar or share, when the assistant was asked to. */
   onAction?: (action: Exclude<AppAction["action"], "new_plan">) => void;
+  /** A past conversation to pick up on arrival (from the trips page). */
+  resume?: string | null;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -52,6 +57,10 @@ export function TripChat({
   const chunks = useRef<Blob[]>([]);
   const audioEl = useRef<HTMLAudioElement | null>(null);
   const sequence = useRef(0);
+  // One stored conversation per thread: every turn after the first carries its id.
+  const conversationId = useRef<string | null>(null);
+  const [past, setPast] = useState<ConversationSummary[]>([]);
+  const [opening, setOpening] = useState(!!resume);
   const tripKey = JSON.stringify(plan.request);
   const disabled = busy || planning;
   const foundCurrent = found?.tripKeys.includes(tripKey) ?? false;
@@ -82,7 +91,7 @@ export function TripChat({
       const res = await fetch("/api/trip-chat", {
         method: "POST", headers: { "content-type": "application/json" }, signal: abort.signal,
         body: JSON.stringify({
-          request: plan.request, message: text, action,
+          conversationId: conversationId.current, request: plan.request, message: text, action,
           history: messages.slice(-20).map((m) => ({ role: m.role, text: m.text.slice(0, 2000) })),
           offers: offers.map((r) => ({ name: r.name, nextStops: r.nextStops })),
           previousArea: foundCurrent ? found!.data.area : undefined,
@@ -94,6 +103,7 @@ export function TripChat({
       if (latestTrip.current !== tripKey) throw new Error("Your trip changed while I was working. Send your request again for the updated trip.");
       if (!res.ok) throw new Error(body.error ?? "Couldn't complete that request.");
       const reply = body as ChatReply;
+      if (typeof body.conversationId === "string") conversationId.current = body.conversationId;
       if (reply.discovery) {
         setFound({ data: reply.discovery, tripKeys: reply.proposal ? [tripKey, JSON.stringify(reply.proposal.plan.request)] : [tripKey] });
         discover.present(reply.discovery);
@@ -188,7 +198,41 @@ export function TripChat({
     setMessages((list) => [...list, { id: ++sequence.current * 2, role: "assistant", text: "Updated your trip. You can undo this change below.", tripKey: JSON.stringify(next.request) }]);
   }
 
-  const newConversation = () => { controller.current?.abort(); sequence.current++; setMessages([]); setFound(null); setDraft(""); setError(null); setLastAttempt(null); discover.clear(); };
+  type Stored = { conversationId: string; messages: { role: "user" | "assistant"; text: string }[] };
+  const fetchConversation = (id: string) => fetch(`/api/trip-chat?conversationId=${encodeURIComponent(id)}`)
+    .then(async (res) => {
+      const body = (await res.json()) as { conversation?: Stored | null };
+      if (!res.ok || !body.conversation) throw new Error("Couldn't open that conversation.");
+      return body.conversation;
+    });
+  /** A stored conversation, picked up: its words come back, the cards and proposals in it don't. */
+  const show = (conversation: Stored) => {
+    conversationId.current = conversation.conversationId;
+    setFound(null); discover.clear();
+    setMessages(conversation.messages.map((m) => ({ id: ++sequence.current * 2, role: m.role, text: m.text, tripKey })));
+  };
+  const reopen = (id: string) => {
+    controller.current?.abort(); sequence.current++;
+    return fetchConversation(id)
+      .then(show, (e: unknown) => setError(e instanceof Error ? e.message : "Couldn't open that conversation."))
+      .finally(() => setOpening(false));
+  };
+
+  // Earlier conversations, listed while this one is empty; the one asked for on arrival opens itself.
+  const loadPast = (signal?: AbortSignal) => fetch("/api/trip-chat?list=1", { signal })
+    .then((res) => (res.ok ? res.json() : { conversations: [] }))
+    .then((body: { conversations?: ConversationSummary[] }) => setPast(body.conversations ?? []))
+    .catch(() => {});
+  useEffect(() => {
+    const abort = new AbortController();
+    void loadPast(abort.signal);
+    if (resume) void reopen(resume);
+    return () => abort.abort();
+    // Once, for the conversation it arrived with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const newConversation = () => { controller.current?.abort(); sequence.current++; conversationId.current = null; void loadPast(); setMessages([]); setFound(null); setDraft(""); setError(null); setLastAttempt(null); discover.clear(); };
   const undoChange = () => { if (!undo) return; discover.clear(); onApply(undo.before); setUndo(null); setMessages((list) => [...list, { id: ++sequence.current * 2, role: "assistant", text: "Undid the last change. Your previous trip is restored.", tripKey: JSON.stringify(undo.before.request) }]); };
   const talking = messages.length > 0;
 
@@ -198,6 +242,15 @@ export function TripChat({
       {!talking && <>
         <p className="pl-dek mt-0">Find a place to eat, swap a stop or slow the day down. I&apos;ll check every change against your whole day.</p>
         <div className="pl-chips">{starters.map((c) => <button key={c.label} type="button" disabled={disabled} onClick={() => void send(c.message)} className="pl-chip">{c.label}</button>)}</div>
+        {opening && <p role="status" className="pl-mono pl-muted flex items-center gap-2"><Loader2 className="size-4 animate-spin" aria-hidden /> Opening your conversation…</p>}
+        {past.length > 0 && !opening && <div className="pl-chat-past">
+          <p className="pl-mono pl-muted flex items-center gap-2"><History className="size-4" aria-hidden /> Earlier conversations</p>
+          <ul>{past.slice(0, 4).map((c) => <li key={c.conversationId}>
+            <button type="button" disabled={disabled} onClick={() => { setOpening(true); setError(null); void reopen(c.conversationId); }} className="pl-textbtn">{c.title}</button>
+            <span className="pl-small pl-muted">{c.trip?.title ?? "A trip"} · {new Date(c.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+          </li>)}</ul>
+          <Link href="/trips#chats" className="pl-link pl-small">All your trips and chats</Link>
+        </div>}
       </>}
       {messages.map((message, i) => {
         const reply = message.reply;

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, LogOut } from "lucide-react";
+import { History, Loader2, LogOut } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { formatPhone } from "@/lib/phone";
 
@@ -12,7 +13,7 @@ export interface Account {
   phoneNumber: string | null;
 }
 
-/** The signed-in traveler: who they are, and a way out. */
+/** The signed-in traveler: who they are, their trips and chats, and a way out. */
 export function AccountMenu({ account }: { account: Account }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -71,6 +72,10 @@ export function AccountMenu({ account }: { account: Account }) {
             <p className="pl-small pl-muted">{account.email}</p>
             {account.phoneNumber && <p className="pl-mono pl-muted">{formatPhone(account.phoneNumber)}</p>}
           </div>
+          <Link href="/trips" role="menuitem" className="pl-textbtn" onClick={() => setOpen(false)}>
+            <History className="size-4" aria-hidden />
+            Your trips &amp; chats
+          </Link>
           <button
             type="button"
             role="menuitem"
