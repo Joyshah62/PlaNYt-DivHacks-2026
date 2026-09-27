@@ -12,6 +12,24 @@ export function ensureWorker() {
   setWorkerUrl(new URL("/maplibre/maplibre-gl-worker.mjs", window.location.origin).href);
 }
 
+/** MapLibre expands its compact credit when tile attributions arrive; fold that initial expansion. */
+export function keepAttributionCollapsed(map: MapLibre) {
+  const credit = map.getContainer().querySelector(".maplibregl-ctrl-attrib");
+  if (!credit) return () => {};
+  const fold = () => {
+    if (!credit.classList.contains("maplibregl-compact-show")) return false;
+    credit.classList.remove("maplibregl-compact-show");
+    credit.removeAttribute("open");
+    return true;
+  };
+  const observer = new MutationObserver(() => {
+    if (fold()) observer.disconnect();
+  });
+  observer.observe(credit, { attributes: true, attributeFilter: ["class"] });
+  fold();
+  return () => observer.disconnect();
+}
+
 export type MapTheme = "day" | "night" | "satellite" | "transit";
 
 export const SATELLITE_STYLE = {

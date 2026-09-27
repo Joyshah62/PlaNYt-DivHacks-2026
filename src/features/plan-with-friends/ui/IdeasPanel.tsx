@@ -3,7 +3,6 @@
 import { ChevronUp, MapPin, Send } from "lucide-react";
 import { useState, type SubmitEvent } from "react";
 import type { StopInput } from "../bridge/index";
-import { cn } from "../bridge/ui";
 import type { Trip } from "../core/types";
 import { AvatarBubble } from "./Avatar";
 import { IdeaToPlace } from "./IdeaToPlace";
@@ -44,35 +43,35 @@ export function IdeasPanel({
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold">Ideas &amp; chat</h2>
-        <span className="text-xs text-muted-foreground">Upvote, or turn one into a place</span>
+    <section className="ed-panel">
+      <div className="tr-ideas-header">
+        <h2 className="ed-h3">Ideas &amp; chat</h2>
+        <span className="tr-ideas-hint">Upvote, or turn one into a place</span>
       </div>
-      <ul className="mt-2 flex max-h-96 flex-col gap-2 overflow-y-auto pr-1" aria-live="polite">
-        {trip.ideas.length === 0 && <li className="py-3 text-center text-sm text-muted-foreground">No ideas yet. Throw out a thought, like &ldquo;dessert later?&rdquo;</li>}
+      <ul className="tr-ideas-list" aria-live="polite">
+        {trip.ideas.length === 0 && <li className="tr-ideas-empty">No ideas yet. Throw out a thought, like &ldquo;dessert later?&rdquo;</li>}
         {trip.ideas.map((idea) => {
           const author = trip.members[idea.memberId];
           const mine = memberId !== null && idea.votes.includes(memberId);
           const linked = idea.placeKey ? placeName(idea.placeKey) : null;
           return (
-            <li key={idea.id} className="rounded-xl border border-amber-200/10 bg-amber-100/5 p-2.5">
-              <div className="flex gap-2.5">
+            <li key={idea.id} className="tr-idea-item">
+              <div className="tr-idea-item-head">
                 {author && <AvatarBubble avatar={author.avatar} name={author.name} size="sm" />}
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-semibold text-foreground">{author?.name ?? "Someone"}</span> · {ago(idea.at)}
+                <div className="tr-idea-item-body">
+                  <p className="tr-idea-item-meta">
+                    <span className="tr-idea-item-author">{author?.name ?? "Someone"}</span> · {ago(idea.at)}
                   </p>
-                  <p className="text-sm break-words">{idea.text}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                  <p className="tr-idea-item-text">{idea.text}</p>
+                  <div className="tr-idea-item-action">
                     {linked ? (
-                      <span className="inline-flex items-center gap-1 text-brand">
+                      <span className="tr-idea-item-linked">
                         <MapPin className="size-3" aria-hidden /> → added as {linked}
                       </span>
                     ) : (
                       memberId &&
                       !trip.lockedCode && (
-                        <button type="button" onClick={() => setFinding(finding === idea.id ? null : idea.id)} className="text-brand hover:underline">
+                        <button type="button" onClick={() => setFinding(finding === idea.id ? null : idea.id)} className="tr-idea-item-toplace">
                           Turn into a place
                         </button>
                       )
@@ -85,10 +84,7 @@ export function IdeasPanel({
                   aria-label={`${mine ? "Remove your upvote from" : "Upvote"} "${idea.text}"`}
                   disabled={!memberId}
                   onClick={() => onVote(idea.id, !mine)}
-                  className={cn(
-                    "flex h-fit min-w-10 flex-col items-center rounded-lg border px-1.5 py-1 text-[11px] leading-tight transition disabled:opacity-60",
-                    mine ? "border-brand bg-brand-soft text-brand" : "border-border hover:bg-muted",
-                  )}
+                  className="tr-idea-vote"
                 >
                   <ChevronUp className="size-3" aria-hidden />
                   <b>{idea.votes.length}</b>
@@ -112,9 +108,9 @@ export function IdeasPanel({
         })}
       </ul>
       {memberId && (
-        <form onSubmit={post} className="mt-3 flex items-center gap-2 rounded-full border border-border bg-background py-1 pr-1 pl-4 focus-within:border-brand">
-          <input value={text} onChange={(e) => setText(e.target.value)} maxLength={280} placeholder="Share a thought…" aria-label="Share a thought" className="min-w-0 flex-1 bg-transparent py-1.5 text-sm outline-none" />
-          <button type="submit" disabled={!text.trim()} aria-label="Post" className="grid size-8 place-items-center rounded-full bg-foreground text-background transition disabled:opacity-40">
+        <form onSubmit={post} className="tr-ideas-form">
+          <input value={text} onChange={(e) => setText(e.target.value)} maxLength={280} placeholder="Share a thought…" aria-label="Share a thought" className="tr-ideas-input" />
+          <button type="submit" disabled={!text.trim()} aria-label="Post" className="tr-ideas-submit">
             <Send className="size-3.5" aria-hidden />
           </button>
         </form>

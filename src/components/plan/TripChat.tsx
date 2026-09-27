@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, Loader2, RotateCcw } from "lucide-react";
+import { ArrowUp, Check, Loader2, Mic, RotateCcw, Volume2 } from "lucide-react";
 import type { ChatReply } from "@/lib/discover/chat";
 import type { DiscoverResponse } from "@/lib/discover/types";
 import type { DayPlan } from "@/lib/plan/types";
@@ -32,6 +32,8 @@ export function TripChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [speakingId, setSpeakingId] = useState<number | null>(null);
   const [lastAttempt, setLastAttempt] = useState<{ text: string; action?: { name: "preview_place"; index: number }; tripKey: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Results searched on top of a proposed change stay good for the trip before and after it's applied.
@@ -40,6 +42,9 @@ export function TripChat({
   const [applied, setApplied] = useState<number[]>([]);
   const viewport = useRef<HTMLDivElement>(null);
   const controller = useRef<AbortController | null>(null);
+  const recorder = useRef<MediaRecorder | null>(null);
+  const chunks = useRef<Blob[]>([]);
+  const audioEl = useRef<HTMLAudioElement | null>(null);
   const sequence = useRef(0);
   const tripKey = JSON.stringify(plan.request);
   const disabled = busy || planning;
@@ -49,7 +54,12 @@ export function TripChat({
   useEffect(() => {
     viewport.current?.scrollTo({ top: viewport.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
-  useEffect(() => () => { controller.current?.abort(); sequence.current++; }, []);
+  useEffect(() => () => {
+    controller.current?.abort();
+    sequence.current++;
+    recorder.current?.stop();
+    audioEl.current?.pause();
+  }, []);
   // A trip edited elsewhere invalidates any pending answer about the old day.
   const latestTrip = useRef(tripKey);
   useEffect(() => { latestTrip.current = tripKey; }, [tripKey]);
@@ -90,6 +100,76 @@ export function TripChat({
     } finally { if (id === sequence.current) setBusy(false); }
   }
 
+  async function toggleMic() {
+    if (disabled) return;
+    if (listening) {
+      recorder.current?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
+      const rec = new MediaRecorder(stream, { mimeType: mime });
+      chunks.current = [];
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data); };
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setListening(false);
+        const blob = new Blob(chunks.current, { type: mime });
+        if (blob.size < 800) return;
+        void (async () => {
+          setBusy(true); setError(null);
+          try {
+            const body = new FormData();
+            body.append("audio", blob, mime.includes("webm") ? "note.webm" : "note.m4a");
+            const res = await fetch("/api/speech/stt", { method: "POST", body });
+            const data = (await res.json()) as { text?: string; error?: string };
+            if (!res.ok) throw new Error(data.error ?? "Couldn't hear that.");
+            if (data.text) await send(data.text);
+          } catch (e) {
+            setError(e instanceof Error ? e.message : "Couldn't transcribe that.");
+            setBusy(false);
+          }
+        })();
+      };
+      recorder.current = rec;
+      rec.start();
+      setListening(true);
+    } catch {
+      setError("Microphone permission is needed to dictate a change.");
+    }
+  }
+
+  async function speak(message: Message) {
+    const text = (message.reply?.message ?? message.text).trim();
+    if (!text || speakingId === message.id) {
+      audioEl.current?.pause();
+      setSpeakingId(null);
+      return;
+    }
+    try {
+      setSpeakingId(message.id);
+      const res = await fetch("/api/speech/tts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: text.slice(0, 800) }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? "Couldn't play that.");
+      }
+      const url = URL.createObjectURL(await res.blob());
+      audioEl.current?.pause();
+      const audio = new Audio(url);
+      audioEl.current = audio;
+      audio.onended = () => { setSpeakingId(null); URL.revokeObjectURL(url); };
+      await audio.play();
+    } catch (e) {
+      setSpeakingId(null);
+      setError(e instanceof Error ? e.message : "Couldn't play speech.");
+    }
+  }
+
   function apply(message: Message) {
     const next = message.reply?.proposal?.plan;
     if (!next || message.tripKey !== tripKey || disabled) return;
@@ -118,6 +198,9 @@ export function TripChat({
         if (message.role === "user") return <p key={message.id} className="pl-msg user">{message.text}</p>;
         return <div key={message.id} className="grid gap-3">
           <p className="pl-msg">{reply?.message ?? message.text}</p>
+          <button type="button" className="pl-textbtn pl-muted w-fit" disabled={disabled} onClick={() => void speak(message)} aria-label={speakingId === message.id ? "Stop speaking" : "Listen to reply"}>
+            <Volume2 aria-hidden /> {speakingId === message.id ? "Stop" : "Listen"}
+          </button>
           {reply?.discovery && <>
             <p className="pl-mono pl-muted">{reply.discovery.area.label} · {reply.discovery.source === "google" ? "Details from Google" : "OpenStreetMap, no ratings"}</p>
             {reply.discovery.note && <p className="pl-small pl-muted">{reply.discovery.note}</p>}
@@ -148,6 +231,9 @@ export function TripChat({
     </div>
     <form className="ed-prompt pl-composer" onSubmit={(e) => { e.preventDefault(); void send(draft); }}>
       <input aria-label="Describe a change to your day" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="‘Find pizza after the Met’" maxLength={600} />
+      <button type="button" disabled={disabled} aria-pressed={listening} aria-label={listening ? "Stop recording" : "Dictate with microphone"} onClick={() => void toggleMic()} className="ed-btn ed-btn--ghost">
+        <Mic className={listening ? "pl-red" : undefined} aria-hidden />
+      </button>
       <button type="submit" disabled={disabled || !draft.trim()} aria-label="Send message" className="ed-btn">{busy ? <Loader2 className="animate-spin" aria-hidden /> : <ArrowUp aria-hidden />}</button>
     </form>
   </section>;

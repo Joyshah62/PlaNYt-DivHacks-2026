@@ -1,8 +1,8 @@
 "use client";
 
+import { MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { APP_API, type StopInput } from "../bridge/index";
-import { cn } from "../bridge/ui";
 
 interface Photo {
   url: string;
@@ -26,8 +26,6 @@ function photoFor(stop: Pick<StopInput, "key" | "name" | "lat" | "lon" | "attrac
   return hit;
 }
 
-const TINTS = ["from-sky-500/40 to-indigo-500/30", "from-amber-500/40 to-rose-500/30", "from-emerald-500/40 to-teal-500/30", "from-fuchsia-500/40 to-violet-500/30"];
-
 export function PlaceThumb({ stop, className }: { stop: Pick<StopInput, "key" | "name" | "lat" | "lon" | "attractionId">; className?: string }) {
   const [photo, setPhoto] = useState<{ key: string; value: Photo | null } | null>(null);
   const loaded = photo?.key === stop.key ? photo.value : undefined;
@@ -41,15 +39,14 @@ export function PlaceThumb({ stop, className }: { stop: Pick<StopInput, "key" | 
     };
   }, [key, name, lat, lon, attractionId]);
 
-  const tint = TINTS[[...stop.key].reduce((h, c) => h + c.charCodeAt(0), 0) % TINTS.length];
   return (
-    <span title={loaded ? `Photo: ${loaded.credit}` : undefined} className={cn("relative block shrink-0 overflow-hidden rounded-xl bg-gradient-to-br", tint, className)}>
+    <span title={loaded ? `Photo: ${loaded.credit}` : undefined} className={className ? `tr-thumb ${className}` : "tr-thumb"}>
       {loaded ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={loaded.url} alt="" aria-hidden loading="lazy" className="size-full object-cover" />
+        <img src={loaded.url} alt="" aria-hidden loading="lazy" />
       ) : (
-        <span aria-hidden className={cn("grid size-full place-items-center text-sm font-semibold text-white/80", loaded === undefined && "animate-pulse")}>
-          {stop.name.charAt(0).toUpperCase()}
+        <span aria-hidden className="tr-thumb-empty">
+          <MapPin />
         </span>
       )}
     </span>

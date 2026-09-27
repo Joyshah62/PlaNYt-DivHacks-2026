@@ -1,24 +1,11 @@
 /* The planner: the working edition of the editorial system. A paper column beside the map,
    which is framed and captioned like a plate. Breakpoints live here, not in utilities: these
    rules are unlayered and would beat Tailwind's. */
-.ed { --ed-muted: var(--muted); }
 .ed-planner {
-  /* shadcn / map tokens, reprinted in paper and ink (the map reads its colours from here). */
-  --background: var(--paper); --foreground: var(--ink);
-  --card: var(--paper); --card-foreground: var(--ink);
-  --popover: var(--paper); --popover-foreground: var(--ink);
-  --muted: color-mix(in srgb, var(--ink) 9%, var(--paper)); --muted-foreground: var(--ed-muted);
-  --accent: color-mix(in srgb, var(--ink) 6%, var(--paper)); --accent-foreground: var(--ink);
-  --border: var(--rule); --input: var(--rule); --ring: var(--red);
-  --brand: var(--red); --on-red: #fff; --on-color: var(--on-red);
-  --font-sans: var(--f-text); --font-display: var(--f-display);
-  --pad: var(--s-2);
-  --hair: color-mix(in srgb, var(--ink) 16%, transparent);
-  --wash: color-mix(in srgb, var(--red) 6%, var(--paper));
   display: flex; flex-direction: column; height: 100dvh; overflow: hidden;
   scrollbar-color: var(--hair) transparent; caret-color: var(--red);
 }
-.dark .ed-planner { color-scheme: dark; --on-red: #1a1815; } /* native date and time pickers follow the theme */
+.dark .ed-planner { color-scheme: dark; } /* native date and time pickers follow the theme */
 .ed-planner ::selection { background: var(--ink); color: var(--paper); }
 .ed-planner :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
 /* Resets at zero specificity, so every component class below wins over them. */
@@ -220,6 +207,42 @@
 .pl-actions .end { margin-left: auto; }
 .pl-toast { width: 100%; padding-bottom: 0.5em; color: var(--red); }
 .pl-toast:empty { display: none; }
+.pl-phone-form { flex-basis: 100%; padding-block: var(--s-1); border-top: 1px solid var(--hair); }
+.pl-phone-fields { display: flex; gap: var(--s-1); }
+.pl-phone-input { min-width: 0; flex: 1; padding: 0.7em; border: 1px solid var(--rule); background: var(--field); color: var(--field-ink); }
+.pl-phone-success { display: flex; align-items: flex-start; gap: var(--s-1); font-size: var(--t-small); line-height: 1.45; }
+.pl-phone-success svg { flex: none; width: 1.2em; height: 1.2em; color: var(--red); }
+
+.pl-budget { display: grid; gap: var(--s-2); }
+.pl-budget-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-2); }
+.pl-budget-title { display: inline-flex; align-items: center; gap: 0.5em; }
+.pl-budget-title svg { width: 1.2em; height: 1.2em; }
+.pl-budget-total { text-align: right; }
+.pl-budget-total strong { display: block; font: 400 1.5em / 1 var(--f-display); }
+.pl-budget-loading { display: grid; gap: var(--s-1); }
+.pl-budget-people { display: grid; gap: var(--s-1); }
+.pl-budget-people > div { display: flex; flex-wrap: wrap; gap: 0.4em; }
+.pl-budget-person { min-width: 2.2em; padding: 0.4em 0.65em; border: 1px solid var(--hair); font: 500 var(--t-mono) / 1.2 var(--f-mono); }
+.pl-budget-person:hover, .pl-budget-person[aria-pressed="true"] { border-color: var(--red); color: var(--red); }
+.pl-budget-booking { display: flex; align-items: flex-start; gap: 0.5em; padding: var(--s-1); background: var(--wash); font-size: var(--t-small); }
+.pl-budget-booking svg { flex: none; width: 1.15em; height: 1.15em; }
+.pl-budget-lines { border-top: 1px solid var(--rule); }
+.pl-budget-lines li { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-2); padding-block: var(--s-1); border-bottom: 1px solid var(--hair); font-size: var(--t-small); }
+.pl-budget-name { display: flex; align-items: flex-start; gap: 0.5em; font-weight: 500; }
+.pl-budget-name svg { flex: none; width: 1.1em; height: 1.1em; color: var(--ed-muted); }
+.pl-budget-source { display: flex; flex-wrap: wrap; gap: 0.2em var(--s-1); }
+.pl-budget-value { flex: none; font-variant-numeric: tabular-nums; }
+
+.pl-group-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-1); }
+.pl-group-title { display: inline-flex; align-items: center; gap: 0.5em; }
+.pl-group-title svg { width: 1.2em; height: 1.2em; }
+.pl-group-list { margin-top: var(--s-1); border-top: 1px solid var(--rule); }
+.pl-group-list li { border-bottom: 1px solid var(--hair); }
+.pl-group-item { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); padding-block: var(--s-1); }
+.pl-group-item:hover .pl-group-name { color: var(--red); }
+.pl-group-name { display: block; font-size: var(--t-body); }
+.pl-group-status { flex: none; font: 500 var(--t-mono) / 1.3 var(--f-mono); text-transform: uppercase; }
+.pl-group-status.decided { color: var(--red); }
 
 
 /* "Your call": open slots in the day, each with its options. */
@@ -228,7 +251,7 @@
 .pl-options { margin-top: var(--s-1); border-top: 1px solid var(--rule); }
 .pl-option { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.2em var(--s-1); align-items: start; width: 100%; padding: var(--s-1) 0; border-bottom: 1px solid var(--hair); text-align: left; }
 .pl-option:hover:not(:disabled) { background: var(--wash); }
-.pl-option[aria-pressed="true"] { box-shadow: inset 3px 0 0 var(--red); padding-left: var(--s-1); }
+.pl-option[aria-pressed="true"] { background: var(--wash); }
 .pl-option:disabled:not([aria-pressed="true"]) { opacity: 0.5; }
 .pl-radio { width: 1.15em; height: 1.15em; margin-top: 0.2em; border: 1.5px solid var(--ink); border-radius: 50%; }
 .pl-option[aria-pressed="true"] .pl-radio { border-color: var(--red); background: radial-gradient(var(--red) 45%, transparent 50%); }
@@ -239,7 +262,7 @@
 .pl-reel > li { flex: none; width: min(17em, 78%); scroll-snap-align: start; }
 .pl-food { display: flex; flex-direction: column; width: 100%; height: 100%; text-align: left; border: 1px solid var(--rule); background: var(--paper); }
 .pl-food:hover:not(:disabled) { border-color: var(--ink); }
-.pl-food[aria-pressed="true"] { border-color: var(--red); box-shadow: inset 0 -3px 0 var(--red); }
+.pl-food[aria-pressed="true"] { border-color: var(--red); }
 .pl-food:disabled:not([aria-pressed="true"]) { opacity: 0.55; }
 .pl-food .pl-photo { aspect-ratio: 16 / 10; }
 .pl-food-body { display: flex; flex-direction: column; gap: 0.3em; padding: var(--s-1); flex: 1; }
@@ -327,7 +350,7 @@
 .pl-found .pl-photo { aspect-ratio: 16 / 10; }
 .pl-found-letter { position: absolute; top: 0.5em; left: 0.5em; display: grid; place-items: center; width: 1.9em; height: 1.9em; border-radius: 50%; background: var(--red); color: var(--on-red); font: 600 var(--t-mono) / 1 var(--f-mono); }
 .pl-found-body { display: flex; flex-direction: column; gap: 0.4em; padding: var(--s-1); flex: 1; font-size: var(--t-small); }
-.pl-found-fit { padding: 0.5em 0.7em; background: var(--field); border-left: 2px solid var(--ink); line-height: 1.4; }
+.pl-found-fit { padding: 0.5em 0.7em; background: var(--field); border: 1px solid var(--hair); line-height: 1.4; }
 .pl-found-actions { display: flex; gap: 0.4em; margin-top: auto; padding-top: 0.4em; }
 .pl-found-actions .ed-btn { flex: 1; min-width: 0; padding: 0.75em 0.8em; }
 .pl-found-actions .ed-btn span { overflow: hidden; text-overflow: ellipsis; }
@@ -427,6 +450,18 @@
 .pl-fold-title { font: 400 clamp(24px, 1.2vw + 14px, 38px) / 1.05 var(--f-display); }
 .pl-fold-sum { font-style: italic; color: var(--ed-muted); font-size: var(--t-small); line-height: 1.4; }
 .pl-fold-body { padding-bottom: var(--s-3); animation: pl-up 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* Account menu: profile button and dropdown in the masthead. */
+/* Sized like the theme toggle beside it (2.5em of the masthead's type). */
+.pl-account { display: inline-grid; place-items: center; width: 2.5em; height: 2.5em; border: 1px solid currentColor; border-radius: 50%; font-family: var(--f-display); line-height: 1; }
+.pl-account:hover, .pl-account[aria-expanded="true"] { background: var(--ink); color: var(--paper); }
+.pl-account-menu {
+  position: absolute; top: calc(100% + 0.5em); right: 0; z-index: 50; width: min(20em, 90vw);
+  background: var(--paper); border: 1.5px solid var(--ink); box-shadow: var(--offset) var(--offset) 0 var(--shadow);
+}
+.pl-account-who { display: grid; gap: 0.2em; padding: var(--s-1) var(--s-2); overflow-wrap: anywhere; }
+.pl-account-name { font: 400 var(--t-lead) / 1.1 var(--f-display); }
+.pl-account-menu .pl-textbtn { width: 100%; padding: var(--s-1) var(--s-2); border-top: 1px solid var(--rule); }
 
 /* Menus: a button that opens a short list (Share). */
 .pl-menu { position: relative; }

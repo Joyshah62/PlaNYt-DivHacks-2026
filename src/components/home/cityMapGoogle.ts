@@ -2,7 +2,7 @@
 
 import { importLibrary, setOptions } from "@googlemaps/js-api-loader";
 import type { Camera } from "./camera";
-import { visibleTimeout, type CityMap } from "./cityMap";
+import { visibleTimeout, type CityMap, type MapRole } from "./cityMap";
 
 // `beta`, not `alpha`: in alpha every maps3d overlay constructor throws (checked 2026-09-26).
 let configured = false;
@@ -29,12 +29,12 @@ const toCam = (c: Camera) => ({
   heading: c.heading,
 });
 
-export async function createGoogleMap(host: HTMLElement, cam: Camera, signal?: AbortSignal): Promise<CityMap> {
+export async function createGoogleMap(host: HTMLElement, cam: Camera, role: MapRole, signal?: AbortSignal): Promise<CityMap> {
   if (authFailed) throw new Error("Google Maps rejected the key");
   configure();
   const { Map3DElement, MapMode, Polyline3DElement, Marker3DElement } = await importLibrary("maps3d");
   signal?.throwIfAborted(); // don't create (and pay for) a map nobody will see
-  const map = new Map3DElement({ ...toCam(cam), mode: MapMode.SATELLITE, defaultUIHidden: true });
+  const map = new Map3DElement({ ...toCam(cam), mode: MapMode.SATELLITE, defaultUIHidden: true, gestureHandling: role === "hero" ? "COOPERATIVE" : undefined });
   map.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
   host.append(map);
 
@@ -104,7 +104,11 @@ export async function createGoogleMap(host: HTMLElement, cam: Camera, signal?: A
       line.path = points.map((p) => ({ lat: p.lat, lng: p.lng })); // a fresh array, or Google may not redraw
     },
     addPin(p, label) {
-      const pin = new Marker3DElement({ position: { lat: p.lat, lng: p.lng, altitude: 60 }, altitudeMode: "RELATIVE_TO_GROUND", extruded: true, label });
+      // Midtown towers are taller than the pin: draw it through them, and never let a map label hide it.
+      const pin = new Marker3DElement({
+        position: { lat: p.lat, lng: p.lng, altitude: 60 }, altitudeMode: "RELATIVE_TO_GROUND", extruded: true, label,
+        drawsWhenOccluded: true, collisionBehavior: "REQUIRED", sizePreserved: true,
+      });
       map.append(pin);
       pins.push(pin);
     },

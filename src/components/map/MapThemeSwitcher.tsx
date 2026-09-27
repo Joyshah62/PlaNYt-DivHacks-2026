@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { GlobeSimple, Moon, Stack, Sun, Subway } from "@phosphor-icons/react";
+import { Globe, Layers, Moon, Sun, TrainFront, type LucideIcon } from "lucide-react";
 import { arrowKeys } from "@/components/plan/arrowKeys";
 import { type MapTheme, useMapTheme } from "./mapStyle";
 
@@ -9,14 +9,14 @@ export interface MapThemeOption {
   id: MapTheme;
   label: string;
   tagline: string;
-  icon: typeof Sun;
+  icon: LucideIcon;
 }
 
 export const MAP_THEMES: MapThemeOption[] = [
   { id: "day", label: "Day", tagline: "Quiet streets, the route in ink", icon: Sun },
   { id: "night", label: "Night", tagline: "The city after dark", icon: Moon },
-  { id: "satellite", label: "Satellite", tagline: "Aerial photography", icon: GlobeSimple },
-  { id: "transit", label: "Transit", tagline: "Subway lines and stations", icon: Subway },
+  { id: "satellite", label: "Satellite", tagline: "Aerial photography", icon: Globe },
+  { id: "transit", label: "Transit", tagline: "Subway lines and stations", icon: TrainFront },
 ];
 
 /** One map tool that opens the four map layers (Day, Night, Satellite, Transit). */
@@ -41,7 +41,7 @@ export function MapThemeSwitcher() {
   return (
     <div ref={root} className="relative">
       <button type="button" aria-label="Map layers" title="Map layers" aria-expanded={open} aria-haspopup="true" onClick={() => setOpen((v) => !v)} className="pl-maptool">
-        <Stack weight="bold" aria-hidden />
+        <Layers aria-hidden />
       </button>
       {open && (
         <div role="radiogroup" aria-label="Map layer" className="pl-layers" onKeyDown={(e) => arrowKeys(e, '[role="radio"]', false)}>
@@ -59,7 +59,7 @@ export function MapThemeSwitcher() {
                   setOpen(false);
                 }}
               >
-                <Icon weight="bold" aria-hidden />
+                <Icon aria-hidden />
                 <span className="grid">
                   <span>{theme.label}</span>
                   <span className="pl-muted" style={{ fontSize: "0.85em", fontStyle: "italic" }}>

@@ -4,16 +4,10 @@ The home page (`/`) is the reference implementation of this system. Every new pa
 redesign of the planner (`/plan`), should read like another page of the same magazine. This
 document is the handoff: what the system is, where it lives in code, and how to extend it.
 
-> Status (2026-09-26): the home page and the planner (`/plan`) are both in this system. The
-> planner's styles are `src/app/plan/planner.css` (`.pl-*`, scoped under `.ed-planner`); the old
-> glass-neumorphic `.neo-*` layer and its fonts are gone. The planner is AI-first: Build is the
-> prompt (date, hours, company, pace and start point are read from what people type; there are no
-> manual settings), with "Pick places yourself" as a quiet alternative that collects places in a
-> tray with Undo. Your day = photo cover → "Ask the planner to change anything" → Save / Share ▾ /
-> Edit stops → the timeline → folded "Your call", "The best day", "Why this order". The assistant
-> sits in the map's bottom-right corner; it opens on click, tap or Enter and closes on ×, Escape
-> or a click in the column (clicks on the map leave it open). Map tools: zoom and locate, with
-> north-up, 3D and layers behind "More"; the place filter shows only while picking places.
+> Status (2026-09-27): the home page, planner, login, and trip pages are all in this system. All
+> app pages now use editorial styling. The shared tokens are in `src/app/editorial.css`, with
+> page-specific rules in `src/app/login/auth.css` and `src/app/trip/trip.css`. Trip room panels
+> are migrating from shadcn to editorial cards and panels.
 
 ---
 
@@ -34,7 +28,12 @@ A New York print magazine, with Google's photorealistic 3D city as its photograp
 
 | File | What |
 |---|---|
-| `src/app/home.css` | All tokens and styles, scoped under `.ed` (see §8 for promoting them) |
+| `src/app/editorial.css` | Shared app tokens and primitives (`.ed-app` layer), promoted from home.css |
+| `src/app/home.css` | Home page only: hero, demo, story, colophon |
+| `src/app/login/auth.css` | Login page layout (`.au-*` prefix) |
+| `src/app/trip/trip.css` | Trip pages layout and panels (`.tr-*` prefix) |
+| `src/components/editorial/fonts.ts` | The three `next/font` families → `edFonts` class string |
+| `src/components/editorial/AppBar.tsx` | Shared app masthead for all pages except home |
 | `src/components/home/fonts.ts` | The three `next/font` families → `edFonts` class string |
 | `src/components/home/data.ts` | All copy, links and camera positions for the home page; `ORBIT_SECONDS` |
 | `src/components/home/HeroStage.tsx` | Hero + intro choreography |
@@ -92,13 +91,21 @@ only spacing values. `--offset` (4 → 8px) is the hard shadow offset.
 
 | Class | What it is |
 |---|---|
-| `.ed` | Page root: tokens, paper, body type. Put it on `<main>` with `edFonts` |
+| `.ed` | Page root: tokens, paper, body type. Put it on `<div>` wrapping the entire page |
+| `.ed-app` | App page layer (goes inside `.ed`): remaps shadcn tokens to paper and ink |
 | `.ed-paper` | Paper grain background (light: dark flecks; dark: light flecks). Only on paper sections, never over a map |
-| `.ed-gut` | Page gutters |
+| `.ed-gut` | Page gutters (left = right = `--gut`) |
 | `.ed-display`, `.ed-mono`, `.ed-kicker` | Type roles; kicker = red mono label above a headline |
-| `.ed-h2` | Section headline |
-| `.ed-btn`, `.ed-btn--ghost` | Square, mono, uppercase buttons (ink fill / outline) |
+| `.ed-h2`, `.ed-h3` | Section and subsection headlines |
+| `.ed-title`, `.ed-dek`, `.ed-muted`, `.ed-small` | App page text roles |
+| `.ed-btn`, `.ed-btn--ghost`, `.ed-btn--block` | Square, mono, uppercase buttons (ink fill / outline / full-width) |
 | `.ed-prompt` | The prompt box: field, ink border, hard offset shadow, red shadow on focus |
+| `.ed-panel` | App page section: top border, padding, no card fill |
+| `.ed-card` | Floating card: border, offset shadow |
+| `.ed-field` | Form label + input |
+| `.ed-tabs`, `.ed-tab` | Tab list and tab button |
+| `.ed-alert` | Error message: red left border |
+| `.ed-appbar` | Shared page masthead with wordmark, nav, theme toggle |
 | `.ed-chips`, `.ed-flip` | Italic underlined text links; in the hero they flip like a split-flap board |
 | `.ed-bullet` | Red numbered route bullet (①②③): stop numbers everywhere |
 | `.ed-row`, `.ed-crowd` | Itinerary row (bullet, time, name + reason, crowd bars with the chosen hour in red) |

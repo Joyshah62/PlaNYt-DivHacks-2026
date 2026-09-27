@@ -3,7 +3,6 @@
 import { ChevronUp, Plus, X } from "lucide-react";
 import { useState } from "react";
 import type { StopInput } from "../bridge/index";
-import { Button, cn } from "../bridge/ui";
 import { rankCandidates } from "../core/rank";
 import { MAX_CANDIDATES, type Candidate, type Trip } from "../core/types";
 import { AvatarBubble } from "./Avatar";
@@ -47,19 +46,19 @@ export function PlacesPanel({
     const canRemove = !locked && memberId !== null && c.addedBy === memberId;
     const others = c.votes.filter((v) => v !== memberId).length;
     return (
-      <li key={c.stop.key} className="border-t border-border py-3 first:border-t-0">
-        <div className="flex items-center gap-3">
-        <PlaceThumb stop={c.stop} className="size-12" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{c.stop.name}</p>
-          {c.note && <p className="truncate text-xs text-muted-foreground italic">&ldquo;{c.note}&rdquo;</p>}
-          <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="flex items-center pl-1">
+      <li key={c.stop.key} className="tr-places-item">
+        <div className="tr-places-row">
+        <PlaceThumb stop={c.stop} className="tr-places-thumb" />
+        <div className="tr-places-content">
+          <p className="tr-places-name">{c.stop.name}</p>
+          {c.note && <p className="tr-places-note">&ldquo;{c.note}&rdquo;</p>}
+          <div className="tr-places-meta">
+            <span className="tr-places-voters">
               {c.votes.map((v) =>
-                trip.members[v] ? <AvatarBubble key={v} avatar={trip.members[v].avatar} name={trip.members[v].name} size="sm" className="-ml-1 size-5 text-[11px]" /> : null,
+                trip.members[v] ? <AvatarBubble key={v} avatar={trip.members[v].avatar} name={trip.members[v].name} size="sm" /> : null,
               )}
             </span>
-            <span className="truncate">
+            <span className="tr-places-added">
               {adder ? `added by ${adder.name}` : "added"}
               {inTheDay && " · in the day"}
             </span>
@@ -71,13 +70,10 @@ export function PlacesPanel({
           aria-label={`${mine ? "Remove your vote for" : "Vote for"} ${c.stop.name}`}
           disabled={!memberId || locked}
           onClick={() => onVote(c.stop.key, !mine)}
-          className={cn(
-            "flex min-w-12 flex-col items-center rounded-xl border px-2 py-1.5 text-xs leading-tight tabular-nums transition active:scale-95 disabled:opacity-60",
-            mine ? "border-brand bg-brand-soft text-brand" : "border-border bg-background hover:border-brand/50 hover:bg-muted",
-          )}
+          className="tr-places-vote"
         >
           <ChevronUp className="size-3.5" aria-hidden />
-          <span className="text-sm font-bold">{c.votes.length}</span>
+          <span className="tr-places-vote-count">{c.votes.length}</span>
         </button>
         {canRemove && (
           <button
@@ -85,21 +81,21 @@ export function PlacesPanel({
             aria-label={`Remove ${c.stop.name}`}
             title="Remove this place"
             onClick={() => (others > 0 ? setRemoving(c.stop.key) : onRemove(c.stop.key))}
-            className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+            className="tr-places-remove"
           >
             <X className="size-4" aria-hidden />
           </button>
         )}
         </div>
         {removing === c.stop.key && (
-          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
-            <span className="flex-1">
+          <div className="tr-places-confirm">
+            <span className="tr-places-confirm-text">
               {others} {others === 1 ? "other person" : "others"} voted for this. Remove it anyway?
             </span>
-            <button type="button" onClick={() => { setRemoving(null); onRemove(c.stop.key); }} className="rounded-full bg-destructive px-3 py-1 font-medium text-white">
+            <button type="button" onClick={() => { setRemoving(null); onRemove(c.stop.key); }} className="ed-btn ed-small">
               Remove
             </button>
-            <button type="button" onClick={() => setRemoving(null)} className="rounded-full border border-border px-3 py-1">
+            <button type="button" onClick={() => setRemoving(null)} className="ed-btn ed-btn--ghost ed-small">
               Keep
             </button>
           </div>
@@ -109,56 +105,56 @@ export function PlacesPanel({
   };
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold">Places</h2>
-        <span className="text-xs text-muted-foreground">Most votes go in the day · up to 10</span>
+    <section className="ed-panel">
+      <div className="tr-places-header">
+        <h2 className="ed-h3">Places</h2>
+        <span className="tr-places-hint">Most votes go in the day · up to 10</span>
       </div>
       {trip.candidates.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">No places yet. Suggest the first one.</p>
+        <p className="tr-places-empty">No places yet. Suggest the first one.</p>
       ) : (
         <>
-          <ul className="mt-1">{inDay.map((c) => row(c, true))}</ul>
+          <ul className="tr-places-list">{inDay.map((c) => row(c, true))}</ul>
           {waiting.length > 0 && (
             <>
-              <p className="mt-3 text-[0.7rem] font-semibold tracking-wide text-muted-foreground uppercase">Not in the day yet</p>
-              <ul>{waiting.map((c) => row(c, false))}</ul>
+              <p className="tr-places-section-label">Not in the day yet</p>
+              <ul className="tr-places-list">{waiting.map((c) => row(c, false))}</ul>
             </>
           )}
         </>
       )}
       {memberId && !locked && !picking && (
-        <Button variant="outline" className="mt-3 w-full border-dashed" onClick={() => setPicking(true)} disabled={full}>
-          <Plus aria-hidden /> Suggest a place
-        </Button>
+        <button type="button" className="ed-btn ed-btn--ghost ed-btn--block tr-places-add" onClick={() => setPicking(true)} disabled={full}>
+          <Plus className="size-4" aria-hidden /> Suggest a place
+        </button>
       )}
       {picking && (
-        <div className="mt-3 rounded-xl border border-border bg-background p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground">Suggest a place</span>
-            <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setPicking(false); setPreview(null); }}>
+        <div className="tr-places-picker">
+          <div className="tr-places-picker-header">
+            <span>Suggest a place</span>
+            <button type="button" className="tr-places-picker-close" onClick={() => { setPicking(false); setPreview(null); }}>
               Close
             </button>
           </div>
           {preview ? (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-3">
-                <PlaceThumb stop={preview} className="size-16" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{preview.name}</p>
-                  <p className="text-xs text-muted-foreground">{existing(preview.key) ? `Already suggested · ${existing(preview.key)!.votes.length} vote${existing(preview.key)!.votes.length === 1 ? "" : "s"}` : "New suggestion"}</p>
+            <div className="tr-places-preview">
+              <div className="tr-places-preview-row">
+                <PlaceThumb stop={preview} className="tr-places-preview-thumb" />
+                <div className="tr-places-preview-info">
+                  <p className="tr-places-preview-name">{preview.name}</p>
+                  <p className="tr-places-preview-status">{existing(preview.key) ? `Already suggested · ${existing(preview.key)!.votes.length} vote${existing(preview.key)!.votes.length === 1 ? "" : "s"}` : "New suggestion"}</p>
                 </div>
               </div>
               {!existing(preview.key) && (
-                <input value={why} onChange={(e) => setWhy(e.target.value)} maxLength={140} placeholder="Why? (optional) e.g. best cookies in the city" aria-label="Why this place (optional)" className="rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-brand" />
+                <input value={why} onChange={(e) => setWhy(e.target.value)} maxLength={140} placeholder="Why? (optional) e.g. best cookies in the city" aria-label="Why this place (optional)" className="tr-places-note-input" />
               )}
-              <div className="flex gap-2">
-                <Button onClick={confirmPreview} className="rounded-full">
+              <div className="tr-places-preview-actions">
+                <button type="button" className="ed-btn" onClick={confirmPreview}>
                   {existing(preview.key) ? "Upvote it" : "Add it"}
-                </Button>
-                <Button variant="outline" className="rounded-full" onClick={() => setPreview(null)}>
+                </button>
+                <button type="button" className="ed-btn ed-btn--ghost" onClick={() => setPreview(null)}>
                   Back
-                </Button>
+                </button>
               </div>
             </div>
           ) : (

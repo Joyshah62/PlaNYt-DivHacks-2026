@@ -2,9 +2,9 @@
 
 import { Map as MapLibre, Marker, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { ensureWorker } from "@/components/map/mapStyle";
+import { ensureWorker, keepAttributionCollapsed } from "@/components/map/mapStyle";
 import { rangeToZoom, type Camera, type LatLng } from "./camera";
-import { visibleTimeout, type CityMap } from "./cityMap";
+import { visibleTimeout, type CityMap, type MapRole } from "./cityMap";
 
 // Above ~50° the flat satellite raster runs out of tiles and shows a jagged black horizon.
 const MAX_PITCH = 50;
@@ -38,7 +38,7 @@ const view = (c: Camera) => ({
 
 const ROUTE = "roam-route";
 
-export async function createLibreMap(host: HTMLElement, cam: Camera, signal?: AbortSignal): Promise<CityMap> {
+export async function createLibreMap(host: HTMLElement, cam: Camera, role: MapRole, signal?: AbortSignal): Promise<CityMap> {
   signal?.throwIfAborted();
   ensureWorker();
   const el = document.createElement("div");
@@ -46,8 +46,18 @@ export async function createLibreMap(host: HTMLElement, cam: Camera, signal?: Ab
   host.append(el);
   const map = new MapLibre({
     container: el, style: STYLE, ...view(cam), maxPitch: MAX_PITCH,
-    interactive: false, attributionControl: { compact: true }, fadeDuration: 0,
+    interactive: role === "hero",
+    cooperativeGestures: role === "hero",
+    boxZoom: false,
+    dragPan: false,
+    dragRotate: false,
+    doubleClickZoom: false,
+    keyboard: false,
+    touchPitch: false,
+    touchZoomRotate: role === "hero",
+    attributionControl: { compact: true }, fadeDuration: 0,
   });
+  const stopWatchingAttribution = keepAttributionCollapsed(map);
   await new Promise<void>((resolve, reject) => {
     const done = () => {
       cancelTimer();
@@ -56,6 +66,7 @@ export async function createLibreMap(host: HTMLElement, cam: Camera, signal?: Ab
     };
     const abort = () => {
       cancelTimer();
+      stopWatchingAttribution();
       map.remove();
       el.remove();
       reject(signal?.reason);
@@ -64,13 +75,6 @@ export async function createLibreMap(host: HTMLElement, cam: Camera, signal?: Ab
     map.once("idle", done);
     signal?.addEventListener("abort", abort, { once: true });
   });
-
-  // The compact credit opens itself once the tiles' attribution arrives and only collapses after
-  // a drag, which these maps never get: collapse it to its (i) button. The credit stays one
-  // click away (Esri requires it).
-  const credit = el.querySelector(".maplibregl-ctrl-attrib");
-  credit?.classList.remove("maplibregl-compact-show");
-  credit?.removeAttribute("open");
 
   let raf = 0;
   const stop = () => {
@@ -142,6 +146,7 @@ export async function createLibreMap(host: HTMLElement, cam: Camera, signal?: Ab
     },
     destroy() {
       stop();
+      stopWatchingAttribution();
       map.remove();
       el.remove();
     },

@@ -6,7 +6,7 @@ import { Box, Compass, Crosshair, Ellipsis, Minus, Pause, Play, Plus, RotateCcw 
 import { cn } from "@/lib/utils";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapThemeSwitcher } from "@/components/map/MapThemeSwitcher";
-import { STYLES, ensureWorker, prefersReducedMotion, resolveColors, resolveMissingStyleImages, useDarkScheme, useMapTheme } from "@/components/map/mapStyle";
+import { STYLES, ensureWorker, keepAttributionCollapsed, prefersReducedMotion, resolveColors, resolveMissingStyleImages, useDarkScheme, useMapTheme } from "@/components/map/mapStyle";
 import { ATTRACTIONS } from "@/lib/plan/attractions";
 import { positionAt, type Timeline } from "@/lib/plan/playback";
 import { clock } from "@/lib/plan/time";
@@ -309,16 +309,7 @@ export function PlanMap(props: PlanMapProps) {
     });
     resolveMissingStyleImages(map);
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
-    // The compact credit opens itself when the tiles' attribution first arrives: fold it straight
-    // back to its (i), before it paints. The credit stays one click away (OpenStreetMap requires it).
-    const credit = map.getContainer().querySelector(".maplibregl-ctrl-attrib");
-    const fold = new MutationObserver(() => {
-      if (!credit?.classList.contains("maplibregl-compact-show")) return;
-      credit.classList.remove("maplibregl-compact-show");
-      credit.removeAttribute("open");
-      fold.disconnect();
-    });
-    if (credit) fold.observe(credit, { attributes: true, attributeFilter: ["class"] });
+    const stopWatchingAttribution = keepAttributionCollapsed(map);
     mapRef.current = map;
     const tooltip = new Popup({ closeButton: false, closeOnClick: false, offset: 10, className: "rc-tooltip" });
     const pinCard = new Popup({ closeButton: false, closeOnClick: false, offset: 26, className: "pin-card", maxWidth: "240px" });
@@ -527,7 +518,7 @@ export function PlanMap(props: PlanMapProps) {
       userMarker.current?.remove();
       userMarker.current = null;
       readyRef.current = false;
-      fold.disconnect();
+      stopWatchingAttribution();
       map.remove();
       mapRef.current = null;
     };

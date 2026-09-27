@@ -164,6 +164,8 @@ export function Itinerary({
   onShare,
   onCalendar,
   onAsk,
+  phone,
+  budget,
   choices,
   dayPicker,
   forecast,
@@ -181,6 +183,10 @@ export function Itinerary({
   onCalendar: () => void;
   /** Opens the trip assistant: the main way to change the day. */
   onAsk: () => void;
+  /** Sends the planned day by text. */
+  phone?: ReactNode;
+  /** Optional cost estimate, fetched only when opened. */
+  budget?: ReactNode;
   /** Options for the day's open slots ("Your call"). */
   choices?: ReactNode;
   /** The strip for choosing which day to go. */
@@ -243,6 +249,7 @@ export function Itinerary({
           {isSaved ? "Saved" : "Save"}
         </button>
         <ShareMenu onShare={onShare} onCalendar={onCalendar} dayRoute={dayRoute} />
+        {phone}
         <button type="button" onClick={onEdit} className="pl-textbtn end">
           <Pencil aria-hidden /> Edit stops
         </button>
@@ -414,6 +421,7 @@ export function Itinerary({
       <div className="pl-folds">
         {choices}
         {dayPicker}
+        {budget && <Fold kicker="Cost of the day" title={<>A day within your <em>budget</em></>} summary="Tickets, food and subway fares, estimated per person.">{budget}</Fold>}
         <Fold kicker="Why this order" title={<>The thinking, <em>briefly</em></>} summary={plan.insights[0] ?? "Where the crowds, hours and travel times come from."}>
           {plan.insights.length > 0 && (
             <ul className="pl-insights">

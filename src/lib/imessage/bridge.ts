@@ -5,19 +5,30 @@ import { normalizeHandle } from "./format";
 
 /**
  * POST /send { handle, request } — the website's "Text it to me". Only the
- * Roam server calls this, with the shared token; it listens on localhost only.
+ * Roam server calls this, with the shared token.
+ *
+ * Locally binds 127.0.0.1. On Render (PORT set), bind 0.0.0.0 so the web
+ * service can reach this worker; override with PHONE_BRIDGE_HOST.
+ * GET /health is for Render's health check (no auth).
  */
 export function startBridge(opts: {
   port: number;
+  /** Defaults to 127.0.0.1 locally; 0.0.0.0 when PORT is set (Render). */
+  host?: string;
   token: string;
   send: (handle: string, request: PlanRequest) => Promise<void>;
 }) {
+  const host = opts.host ?? (process.env.PHONE_BRIDGE_HOST || (process.env.PORT ? "0.0.0.0" : "127.0.0.1"));
   const expected = Buffer.from(`Bearer ${opts.token}`);
   const server = createServer(async (req, res) => {
     const reply = (status: number, body: object) => {
       res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     };
-    if (req.method !== "POST" || req.url !== "/send") return reply(404, { error: "Not found." });
+    const path = (req.url ?? "/").split("?")[0];
+    if (req.method === "GET" && (path === "/health" || path === "/")) {
+      return reply(200, { ok: true, service: "roam-imessage" });
+    }
+    if (req.method !== "POST" || path !== "/send") return reply(404, { error: "Not found." });
     const auth = Buffer.from(req.headers.authorization ?? "");
     if (auth.length !== expected.length || !timingSafeEqual(auth, expected)) return reply(401, { error: "Unauthorized." });
 
@@ -46,6 +57,6 @@ export function startBridge(opts: {
       reply(502, { error: message || "Couldn't send the text." });
     }
   });
-  server.listen(opts.port, "127.0.0.1", () => console.log(`[bridge] listening on http://127.0.0.1:${opts.port}`));
+  server.listen(opts.port, host, () => console.log(`[bridge] listening on http://${host}:${opts.port}`));
   return server;
 }

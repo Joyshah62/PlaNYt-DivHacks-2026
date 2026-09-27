@@ -100,7 +100,7 @@ export async function createCityMap(host: HTMLElement, cam: Camera, role: MapRol
     try {
       const { createGoogleMap } = await import("./cityMapGoogle");
       if (signal?.aborted) return null;
-      return await createGoogleMap(host, cam, signal);
+      return await createGoogleMap(host, cam, role, signal);
     } catch (err) {
       if (signal?.aborted) return null;
       console.warn("Google 3D map unavailable, using the satellite fallback.", err);
@@ -109,7 +109,7 @@ export async function createCityMap(host: HTMLElement, cam: Camera, role: MapRol
   }
   const { createLibreMap } = await import("./cityMapLibre");
   if (signal?.aborted) return null;
-  return createLibreMap(host, cam, signal).catch((err) => {
+  return createLibreMap(host, cam, role, signal).catch((err) => {
     if (signal?.aborted) return null;
     throw err;
   });

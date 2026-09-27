@@ -23,40 +23,39 @@ export function GroupMapPanel({ trip, plan, memberId, onSuggest }: { trip: Trip;
       .join(" · ");
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="relative h-64 sm:h-72">
+    <section className="ed-panel">
+      <div className="tr-map-container">
         <RoomMap people={people} stops={stops} origin={origin} />
       </div>
       {f && (
-        <div className="flex flex-col gap-2 border-t border-border p-3 text-sm">
+        <div className="tr-map-info">
           {f.firstStop && !meetupChosen && (
             <p>
-              <span className="font-semibold text-brand">★ Fairest start: {f.firstStop.name}</span>
-              <span className="text-muted-foreground">
+              <span className="tr-map-fairest">★ Fairest start: {f.firstStop.name}</span>
+              <span className="tr-map-fairest-detail">
                 {" "}
-                · everyone arrives within {f.firstStop.worst} min
-                <span className="block text-xs">{times(f.firstStop.perMember)}</span>
+                · everyone arrives within {f.firstStop.worst} min<br />{times(f.firstStop.perMember)}
               </span>
             </p>
           )}
-          {meetupChosen && origin && <p className="font-semibold text-brand">★ {origin.label} first, then the day</p>}
+          {meetupChosen && origin && <p className="tr-map-fairest">★ {origin.label} first, then the day</p>}
           {f.meetup && !meetupChosen && (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl bg-muted/60 px-3 py-2 text-xs">
-              <span className="min-w-0 flex-1">
+            <div className="tr-map-meetup">
+              <span className="tr-map-meetup-text">
                 Or meet at a station first: <b>{f.meetup.name.replace(/^Meet at /, "")}</b>, everyone within {f.meetup.worst} min ({times(f.meetup.perMember)})
               </span>
               {memberId && !trip.lockedCode && (
                 <button
                   type="button"
                   onClick={() => onSuggest({ key: f.meetup!.key, name: f.meetup!.name, lat: f.meetup!.lat, lon: f.meetup!.lon, visitMin: 10, attractionId: null })}
-                  className="rounded-full bg-foreground px-3 py-1 font-medium text-background"
+                  className="ed-btn ed-small"
                 >
                   Suggest it
                 </button>
               )}
             </div>
           )}
-          <p className="text-[11px] text-muted-foreground">
+          <p className="tr-map-note">
             {f.starts} of {Object.keys(trip.members).length} shared a starting point. Times are subway or walking estimates.
           </p>
         </div>

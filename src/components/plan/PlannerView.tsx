@@ -15,7 +15,7 @@ import { nextStep } from "@/lib/plan/live";
 import { buildTimeline } from "@/lib/plan/playback";
 import type { Forecast } from "@/lib/plan/weatherCodes";
 import { BRAND } from "@/lib/plan/display";
-import { DEFAULT_PROFILE, GROUP, isMealBreak, MEAL_WINDOW, suggestFor, visitFor } from "@/lib/plan/profile";
+import { DEFAULT_PROFILE, GROUP, isMealBreak, MEAL_WINDOW, partySize, suggestFor, visitFor } from "@/lib/plan/profile";
 import {
   decodePlan,
   encodePlan,
@@ -54,6 +54,9 @@ import { Fold } from "./Fold";
 import { NextUp, nextLine, useNycNow } from "./NextUp";
 import { DayPicker } from "./DayPicker";
 import { Itinerary } from "./Itinerary";
+import { Budget } from "./Budget";
+import { PhoneSend } from "./PhoneSend";
+import { GroupTrips } from "./GroupTrips";
 import { PlaceSheet, type InspectPlace } from "./PlaceSheet";
 import { ReplanDialog, type ReplanChoice } from "./ReplanDialog";
 import type { MapLeg, MapStop } from "./PlanMap";
@@ -836,6 +839,12 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
                   onCalendar={downloadCalendar}
                   forecast={forecast}
                   photos={photos}
+                  phone={planCode && <PhoneSend key={planCode} planCode={planCode} defaultHandle={account.phoneNumber} />}
+                  budget={<Budget request={plan.request} people={partySize(profile)} onPeople={(people) => {
+                    const next = { ...profileRef.current, people };
+                    setProfileOverride(next);
+                    storeProfile(next);
+                  }} />}
                   dayPicker={<DayPicker plan={plan} forecast={forecast} busy={planning} onPickDate={pickDate} />}
                   choices={
                     <ChoicePanel
@@ -909,6 +918,12 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
                           {assistant.unresolved.length > 0 && <p className="pl-muted mt-2">Couldn&apos;t find on the map: {assistant.unresolved.join(", ")}. Try naming them differently, or pick them yourself.</p>}
                         </div>
                       )}
+                    </div>
+
+                    <div className="pl-folds">
+                      <Fold kicker="Plan with friends" title={<>Make it a <em>group day</em></>} summary="Open a trip room or pick up where your group left off.">
+                        <GroupTrips />
+                      </Fold>
                     </div>
 
                     {/* Ideas: a tap fills the prompt, ready to change or send. */}

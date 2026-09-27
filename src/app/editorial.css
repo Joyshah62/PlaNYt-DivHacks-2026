@@ -127,3 +127,138 @@
 .ed-callout strong { display: block; font: 400 clamp(26px, 2.4vw, 48px) / 1 var(--f-display); }
 .ed-callout em { color: var(--muted); font-size: var(--t-small); }
 
+/* --- App pages: shadcn tokens reprinted in paper and ink --- */
+
+.ed { --ed-muted: var(--muted); }
+
+.ed-app, .ed-planner {
+  /* shadcn / map tokens, reprinted in paper and ink */
+  --background: var(--paper); --foreground: var(--ink);
+  --card: var(--paper); --card-foreground: var(--ink);
+  --popover: var(--paper); --popover-foreground: var(--ink);
+  --muted: color-mix(in srgb, var(--ink) 9%, var(--paper)); --muted-foreground: var(--ed-muted);
+  --accent: color-mix(in srgb, var(--ink) 6%, var(--paper)); --accent-foreground: var(--ink);
+  --border: var(--rule); --input: var(--rule); --ring: var(--red);
+  --brand: var(--red); --on-red: #fff; --on-color: var(--on-red);
+  --font-sans: var(--f-text); --font-display: var(--f-display);
+  --pad: var(--s-2);
+  --hair: color-mix(in srgb, var(--ink) 16%, transparent);
+  --wash: color-mix(in srgb, var(--red) 6%, var(--paper));
+  --radius: 0; /* rounded-sm…3xl collapse to square corners */
+  --brand-soft: var(--wash);
+  --primary: var(--ink); --primary-foreground: var(--paper);
+  --secondary: var(--wash); --secondary-foreground: var(--ink);
+  --destructive: var(--red);
+  --sev-c: var(--red); --sev-c-soft: var(--wash);
+  caret-color: var(--red);
+}
+.dark :is(.ed-app, .ed-planner) { --on-red: #1a1815; }
+
+/* Type roles for .ed-app */
+.ed-app .ed-title { font: 400 clamp(40px, 3.2vw + 10px, 76px) / 0.95 var(--f-display); text-wrap: balance; margin-top: var(--s-1); }
+.ed-dek { font-style: italic; color: var(--ed-muted); font-size: var(--t-small); line-height: 1.45; }
+.ed-muted { color: var(--ed-muted); }
+.ed-small { font-size: var(--t-small); line-height: 1.45; }
+
+/* Resets at zero specificity for .ed-app */
+:where(.ed-app) :where(button, input, select, textarea) { font: inherit; color: inherit; }
+:where(.ed-app) :where(button) { cursor: pointer; background: none; border: 0; padding: 0; }
+:where(.ed-app) :where(button:disabled) { cursor: default; }
+:where(.ed-app) :where(img) { display: block; }
+:where(.ed-app) :where(em) { font-style: italic; }
+:where(.ed-app) :where(h1, h2, h3, p, ol, ul, dl, dd, figure, fieldset) { margin: 0; }
+:where(.ed-app) :where(ol, ul) { list-style: none; padding: 0; }
+:where(.ed-app) :where(fieldset) { border: 0; padding: 0; min-width: 0; }
+.ed-app :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+/* Panels and cards */
+.ed-panel {
+  border-top: 1px solid var(--rule); padding-block: var(--s-2);
+}
+.ed-panel .ed-mono.ed-kicker { display: block; margin-bottom: 0.3em; }
+.ed-h3 { font: 400 clamp(22px, 0.8vw + 15px, 32px) / 1.05 var(--f-display); }
+
+.ed-card {
+  background: var(--paper); border: 1.5px solid var(--ink); box-shadow: var(--offset) var(--offset) 0 var(--shadow); padding: var(--s-2);
+}
+
+/* Form field */
+.ed-field {
+  display: flex; flex-direction: column; gap: 0;
+}
+.ed-field label {
+  font: 500 var(--t-mono) / 1.4 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ed-muted); margin-bottom: 0.5em;
+}
+.ed-field input {
+  width: 100%; background: var(--field); color: var(--field-ink); border: 1.5px solid var(--field-ink);
+  padding: 0.7em 0.8em; font: inherit; font-size: var(--t-lead); border-radius: 0; outline: none;
+}
+.ed-field input:focus {
+  box-shadow: var(--offset) var(--offset) 0 var(--red);
+}
+.ed-field input[aria-invalid="true"] {
+  border-color: var(--red);
+}
+.ed-field input::placeholder { color: var(--ed-muted); font-style: italic; }
+.ed-hint {
+  font-size: var(--t-small); font-style: italic; color: var(--ed-muted); margin-top: 0.4em;
+}
+.ed-hint.bad { color: var(--red); }
+
+/* Tabs */
+.ed-tabs { display: flex; gap: var(--s-2); overflow-x: auto; scrollbar-width: none; }
+.ed-tab {
+  font: 500 var(--t-mono) / 1 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 0.8em 0; flex: none; color: var(--ed-muted); border-bottom: 2px solid transparent;
+}
+.ed-tab:hover { color: var(--ink); }
+.ed-tab:is([aria-selected="true"], [aria-checked="true"]) { color: var(--ink); border-bottom-color: var(--red); }
+
+/* Alert */
+.ed-alert {
+  color: var(--red); border-left: 2px solid var(--red); padding: 0.4em 0 0.4em var(--s-1); font-size: var(--t-small);
+}
+
+/* Button hover state for app pages */
+.ed-app .ed-btn:hover:not(:disabled) {
+  background: var(--red); color: var(--on-red); border-color: var(--red);
+}
+.ed-btn--block { width: 100%; }
+
+/* Text button and link */
+.ed-textbtn {
+  display: inline-flex; align-items: center; gap: 0.45em; padding: 0.55em 0; white-space: nowrap; text-decoration: none;
+}
+.ed-textbtn:hover:not(:disabled) { color: var(--red); }
+.ed-textbtn:disabled { opacity: 0.45; }
+.ed-textbtn svg { width: 1.2em; height: 1.2em; flex: none; }
+
+.ed-link { font-style: italic; text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+.ed-link:hover { color: var(--red); }
+
+/* Tag */
+.ed-tag {
+  display: inline-flex; align-items: center; gap: 0.35em;
+  font: 500 calc(var(--t-mono) * 0.95) / 1.2 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 0.35em 0.5em; border: 1px solid var(--hair); white-space: nowrap;
+}
+.ed-tag svg { width: 1em; height: 1em; }
+.ed-tag.red { color: var(--red); border-color: currentColor; }
+.ed-tag.ink { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+/* Avatar */
+.ed-avatar {
+  display: inline-grid; place-items: center; width: 2.2em; height: 2.2em;
+  border-radius: 50%; border: 1.5px solid var(--ink); background: var(--paper);
+  font-size: var(--t-lead);
+}
+
+/* App bar */
+/* Like the home page's header: the rule runs inside the gutters. */
+.ed-appbar {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); flex: none;
+  margin-inline: var(--gut); padding-block: var(--s-1); border-bottom: 1px solid var(--rule);
+}
+.ed-appbar nav { display: flex; align-items: center; gap: var(--s-2); }
+.ed-appbar .ed-theme { height: 2.5em; align-self: center; }

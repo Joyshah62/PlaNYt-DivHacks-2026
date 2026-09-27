@@ -4,6 +4,13 @@ import type { LegMode, TravelMode } from "./types";
 /** The product's name, in one place. */
 export const BRAND = { name: "Roam", suffix: "NYC" };
 
+export const CROWD_COLOR: Record<CrowdBand, string> = {
+  quiet: "var(--cat-parks)",
+  moderate: "var(--sev-b)",
+  busy: "var(--cat-restaurants)",
+  peak: "var(--sev-c)",
+};
+
 export const CROWD_LABEL: Record<CrowdBand, string> = {
   quiet: "Quiet",
   moderate: "Moderate",

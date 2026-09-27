@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore, type MouseEvent } from "react";
 import { flushSync } from "react-dom";
-import { Moon, Sun } from "@phosphor-icons/react";
+import { Moon, Sun } from "lucide-react";
 
 const themeListeners = new Set<() => void>();
 
@@ -103,9 +103,9 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       className={`grid size-10 cursor-pointer place-items-center transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${className}`}
     >
       {dark ? (
-        <Sun weight="duotone" className="size-4.5 text-amber-400 transition-transform duration-300 hover:rotate-45" aria-hidden />
+        <Sun className="size-4.5 text-amber-400 transition-transform duration-300 hover:rotate-45" aria-hidden />
       ) : (
-        <Moon weight="duotone" className="size-4.5 text-slate-700 transition-transform duration-300 hover:-rotate-12" aria-hidden />
+        <Moon className="size-4.5 text-slate-700 transition-transform duration-300 hover:-rotate-12" aria-hidden />
       )}
     </button>
   );

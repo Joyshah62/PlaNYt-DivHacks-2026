@@ -1,13 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { interpolate, routePath, type LatLng } from "./camera";
+import { fitStops, interpolate, routePath, type Camera, type LatLng } from "./camera";
 import { DEMOS, ORBIT_SECONDS, type DemoPlan } from "./data";
+import type { CityMap } from "./cityMap";
 import { useCityMap } from "./useCityMap";
 import { useInView, usePageVisible, usePrefersReducedMotion } from "./visibility";
 
 const REPLAY_AFTER_MS = 60_000;
 const label = (plan: DemoPlan, i: number) => `${i + 1} · ${plan.stops[i].name}`;
+/** The plan's route camera, pulled back so every stop stays on this map while it orbits. */
+const routeView = (plan: DemoPlan, map: CityMap, host: HTMLElement | null): Camera =>
+  fitStops(plan.stops, plan.route, host?.clientWidth ?? 0, host?.clientHeight ?? 0, map.engine === "maplibre");
 
 export function PlanDemo() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -51,7 +55,7 @@ export function PlanDemo() {
       typed.textContent = plan.sentence;
       plan.stops.forEach((s, i) => map.addPin(s, label(plan, i)));
       map.setRoute(routePath(plan.stops, 24));
-      map.jumpTo(plan.route);
+      map.jumpTo(routeView(plan, map, hostRef.current));
       setShown(plan.stops.length);
       setDone(true);
       return;
@@ -63,7 +67,7 @@ export function PlanDemo() {
         await wait(26);
       }
       await wait(300);
-      void map.flyTo(plan.route, 1600);
+      void map.flyTo(routeView(plan, map, hostRef.current), 1600);
       await wait(1200);
       const path: LatLng[] = [plan.stops[0]];
       for (let i = 0; i < plan.stops.length; i++) {
@@ -108,7 +112,7 @@ export function PlanDemo() {
   // Idle when off screen.
   useEffect(() => {
     if (!map || !done || reduced) return;
-    if (visible && pageVisible) map.orbit(plan.route, ORBIT_SECONDS);
+    if (visible && pageVisible) map.orbit(routeView(plan, map, hostRef.current), ORBIT_SECONDS);
     else map.stop();
   }, [map, done, visible, pageVisible, reduced, plan]);
 

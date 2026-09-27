@@ -12,7 +12,7 @@ if (!secret && process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !
   throw new Error("BETTER_AUTH_SECRET is not set. Generate one with `openssl rand -hex 32`.");
 }
 
-const siteUrl = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+const siteUrl = process.env.BETTER_AUTH_URL || "https://planyt.tech";
 const hostOf = (url: string) => {
   try {
     return new URL(url).host;

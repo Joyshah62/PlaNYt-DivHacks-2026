@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatTicker, interpolate, rangeToZoom, routePath } from "./camera";
+import { fitStops, formatTicker, interpolate, rangeToZoom, routePath } from "./camera";
 
 describe("rangeToZoom", () => {
   it("maps 400 m to zoom 16 and halves the range per zoom level", () => {
@@ -38,5 +38,33 @@ describe("interpolate / routePath", () => {
   });
   it("handles no stops", () => {
     expect(routePath([], 5)).toEqual([]);
+  });
+});
+
+describe("fitStops", () => {
+  const base = { lat: 0, lng: 0, alt: 0, range: 500, tilt: 58, heading: -29 };
+  const stops = [
+    { lat: 40.7794, lng: -73.9632 },
+    { lat: 40.7306, lng: -74.0027 },
+  ];
+  it("centres on the stops and keeps the base tilt and heading", () => {
+    const c = fitStops(stops, base, 900, 900);
+    expect(c.lat).toBeCloseTo(40.755);
+    expect(c.lng).toBeCloseTo(-73.98295);
+    expect([c.tilt, c.heading]).toEqual([58, -29]);
+  });
+  it("pulls back until the farthest stop stays in view at any heading", () => {
+    // The Met to Carmine St is ~6.4 km: its old 6.2 km camera lost the ends as it orbited.
+    expect(fitStops(stops, base, 900, 900).range).toBeGreaterThan(11_000);
+    expect(fitStops(stops, base, 900, 900).range).toBeLessThan(14_000);
+  });
+  it("pulls back further for a narrower map, and for a short MapLibre one", () => {
+    const square = fitStops(stops, base, 900, 900).range;
+    expect(fitStops(stops, base, 450, 900).range).toBeGreaterThan(square);
+    expect(fitStops(stops, base, 900, 440, true).range).toBeGreaterThan(fitStops(stops, base, 900, 440).range);
+  });
+  it("leaves the camera alone without stops or a size", () => {
+    expect(fitStops([], base, 900, 900)).toBe(base);
+    expect(fitStops(stops, base, 0, 0)).toBe(base);
   });
 });

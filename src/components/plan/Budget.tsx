@@ -39,10 +39,9 @@ export function Budget({ request, people, onPeople }: {
     return () => abort.abort();
   }, [key, requested]);
 
-  if (!requested) return <section className="mt-5 rounded-2xl border border-border bg-card p-4">
-    <p className="text-sm font-semibold">Want a cost estimate?</p>
-    <p className="mt-1 text-xs text-muted-foreground">Check typical costs per person. No spending limit or group size is assumed.</p>
-    <button type="button" onClick={() => setRequested(true)} className="mt-3 rounded-full bg-brand px-3 py-2 text-xs font-semibold text-on-color">Estimate costs</button>
+  if (!requested) return <section className="pl-budget">
+    <p className="pl-small pl-muted">Typical costs for tickets, meals and subway rides. Nothing is booked.</p>
+    <button type="button" onClick={() => setRequested(true)} className="ed-btn ed-btn--ghost mt-2">Estimate costs</button>
   </section>;
 
   const budget = result?.key === key ? result.budget : undefined;
@@ -50,36 +49,36 @@ export function Budget({ request, people, onPeople }: {
   const booking = budget?.lines.filter((l) => l.bookAhead) ?? [];
 
   return (
-    <section aria-labelledby="budget-heading" className="mt-5 rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <h2 id="budget-heading" className="flex items-center gap-1.5 text-sm font-semibold">
-          <Wallet className="size-4 text-brand" aria-hidden /> Estimated costs
+    <section aria-labelledby="budget-heading" className="pl-budget">
+      <div className="pl-budget-head">
+        <h2 id="budget-heading" className="pl-budget-title pl-mono">
+          <Wallet aria-hidden /> Estimated costs
         </h2>
         {budget ? (
-          <p className="text-right">
-            <span className="font-display text-2xl leading-none">About ${people ? partyTotal(budget, people) : budget.perPerson}</span>
-            <span className="block text-[11px] text-muted-foreground">
+          <p className="pl-budget-total">
+            <strong>About ${people ? partyTotal(budget, people) : budget.perPerson}</strong>
+            <span className="pl-small pl-muted">
               {people === null ? "per person" : people === 1 ? "for one person" : `for ${people} people · $${budget.perPerson} per person`}
             </span>
           </p>
         ) : (
-          <Skeleton className="h-8 w-28 rounded-lg" />
+          <Skeleton className="h-8 w-28 rounded-none" />
         )}
       </div>
 
       {!budget ? (
-        <div className="mt-3 space-y-2" role="status" aria-label="Looking up prices">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-4/5" />
-          <Skeleton className="h-4 w-3/5" />
-          <p className="text-[11px] text-muted-foreground">Checking ticket prices…</p>
+        <div className="pl-budget-loading" role="status" aria-label="Looking up prices">
+          <Skeleton className="h-4 w-full rounded-none" />
+          <Skeleton className="h-4 w-4/5 rounded-none" />
+          <Skeleton className="h-4 w-3/5 rounded-none" />
+          <p className="pl-small pl-muted">Checking ticket prices…</p>
         </div>
       ) : (
         <>
           {people === null || picking ? (
-            <div className="mt-3">
-              <p className="mb-1.5 text-xs font-medium">{people === null ? "How many of you? For a total for everyone:" : "How many of you?"}</p>
-              <div className="flex flex-wrap gap-1.5" role="group" aria-label="How many of you">
+            <div className="pl-budget-people">
+              <p className="pl-small">{people === null ? "How many of you? For a total for everyone:" : "How many of you?"}</p>
+              <div role="group" aria-label="How many of you">
                 {PARTY.map((n) => (
                   <button
                     key={n}
@@ -89,7 +88,7 @@ export function Budget({ request, people, onPeople }: {
                       onPeople(n);
                       setPicking(false);
                     }}
-                    className="min-w-8 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium tabular-nums transition hover:border-brand aria-pressed:border-brand aria-pressed:bg-brand aria-pressed:text-on-color"
+                    className="pl-budget-person"
                   >
                     {n === PARTY.length ? `${n}+` : n}
                   </button>
@@ -97,26 +96,26 @@ export function Budget({ request, people, onPeople }: {
               </div>
             </div>
           ) : (
-            <button type="button" onClick={() => setPicking(true)} className="mt-1 text-[11px] font-medium text-brand underline-offset-2 hover:underline">
+            <button type="button" onClick={() => setPicking(true)} className="pl-textbtn pl-small">
               Not {people === 1 ? "just you" : `${people} of you`}? Change
             </button>
           )}
           {booking.length > 0 && (
-            <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-sev-a-soft px-2.5 py-1.5 text-xs font-medium text-sev-a">
-              <TicketCheck className="mt-px size-3.5 shrink-0" aria-hidden />
+            <p className="pl-budget-booking">
+              <TicketCheck aria-hidden />
               Book ahead: {booking.map((l) => l.name).join(", ")}. Timed tickets can sell out.
             </p>
           )}
-          <ul className="mt-3 divide-y divide-border text-sm">
+          <ul className="pl-budget-lines">
             {budget.lines.map((l) => (
-              <li key={l.key} className="flex items-start justify-between gap-3 py-2">
+              <li key={l.key}>
                 <span className="min-w-0">
-                  <span className="block truncate font-medium">{l.name}</span>
+                  <span className="pl-budget-name">{l.name}</span>
                   {(l.note || l.url) && (
-                    <span className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
+                    <span className="pl-budget-source pl-small pl-muted">
                       {l.note}
                       {l.url && (
-                        <a href={l.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2 hover:text-foreground">
+                        <a href={l.url} target="_blank" rel="noreferrer" className="pl-link">
                           {l.bookAhead ? "Book" : "Source"}
                           <ExternalLink className="size-2.5" aria-hidden />
                           <span className="sr-only"> for {l.name}</span>
@@ -125,20 +124,20 @@ export function Budget({ request, people, onPeople }: {
                     </span>
                   )}
                 </span>
-                <span className={cn("shrink-0 tabular-nums", l.basis === "free" ? "text-brand" : l.basis === "unknown" ? "text-xs text-muted-foreground" : "font-medium")}>{money(l)}</span>
+                <span className={cn("pl-budget-value", l.basis === "free" ? "pl-red" : l.basis === "unknown" ? "pl-muted" : "")}>{money(l)}</span>
               </li>
             ))}
             {(budget.transit.rides > 0 || budget.transit.note) && (
-              <li className="flex items-start justify-between gap-3 py-2">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <TrainFront className="size-3.5 text-muted-foreground" aria-hidden />
+              <li>
+                <span className="pl-budget-name">
+                  <TrainFront aria-hidden />
                   {budget.transit.rides > 0 ? `Subway · ${budget.transit.rides} ${budget.transit.rides === 1 ? "trip" : "trips"} × $${budget.transit.fare.toFixed(2)} each` : budget.transit.note}
                 </span>
-                {budget.transit.rides > 0 && <span className="shrink-0 font-medium tabular-nums">${budget.transit.total}</span>}
+                {budget.transit.rides > 0 && <span className="pl-budget-value">${budget.transit.total}</span>}
               </li>
             )}
           </ul>
-          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="pl-fine">
             Adult prices found on the web (see links), per person; ~ marks a typical estimate.{people && people > 1 ? " Children's tickets are often cheaper." : ""}{budget.unknown ? ` ${budget.unknown} ${budget.unknown === 1 ? "price" : "prices"} couldn't be found and ${budget.unknown === 1 ? "isn't" : "aren't"} counted.` : ""} Check before you go.
           </p>
         </>
