@@ -86,7 +86,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   if (!mounted) {
     return (
       <div
-        className={`neo-control grid size-10 place-items-center rounded-xl opacity-60 ${className}`}
+        className={`grid size-10 place-items-center opacity-60 ${className}`}
         aria-hidden
       >
         <span className="size-4.5" />
@@ -100,7 +100,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={toggle}
       aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
       title={dark ? "Switch to light theme" : "Switch to dark theme"}
-      className={`neo-control grid size-10 place-items-center rounded-xl transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${className}`}
+      className={`grid size-10 cursor-pointer place-items-center transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${className}`}
     >
       {dark ? (
         <Sun weight="duotone" className="size-4.5 text-amber-400 transition-transform duration-300 hover:rotate-45" aria-hidden />

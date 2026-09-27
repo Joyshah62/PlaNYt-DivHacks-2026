@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, MapPin, Star, UtensilsCrossed, ArrowRight, ArrowLeft } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AlertTriangle, MapPin, Star, UtensilsCrossed } from "lucide-react";
 import { bestOutcome } from "@/lib/plan/choices";
-import { CROWD_COLOR, CROWD_LABEL } from "@/lib/plan/display";
+import { CROWD_LABEL } from "@/lib/plan/display";
 import { encodePlan } from "@/lib/plan/share";
+import { Fold } from "./Fold";
 import { clock, duration, WEEKDAYS } from "@/lib/plan/time";
 import type { Choice, ChoiceOption, ChoiceOutcome, DayPlan } from "@/lib/plan/types";
-import { cn } from "@/lib/utils";
 
 /** The options a slot is compared across: a meal can also go back to "wherever you are". */
 function slotOptions(choice: Choice): (ChoiceOption | null)[] {
@@ -25,10 +24,13 @@ function FoodPhoto({ option }: { option: ChoiceOption }) {
     }).catch(() => { if (!cancelled) setUrl(null); });
     return () => { cancelled = true; };
   }, [option.key, option.name, option.lat, option.lon]);
-  return <div className="relative h-32 overflow-hidden bg-gradient-to-br from-amber-100 via-orange-50 to-rose-100 dark:from-amber-950/60 dark:via-orange-950/40 dark:to-rose-950/50">
-    {url && <img src={url} alt="" loading="lazy" className="size-full object-cover transition duration-500 group-hover:scale-105" referrerPolicy="no-referrer" />}
-    <span className="absolute bottom-2 left-2 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm backdrop-blur">{option.why.split("·")[0].trim()}</span>
-  </div>;
+  return (
+    <span className="pl-photo block">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {url ? <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="pl-photo-empty"><UtensilsCrossed aria-hidden /></span>}
+      <span className="pl-tag pl-over">{option.why.split("·")[0].trim()}</span>
+    </span>
+  );
 }
 
 /** Re-plans the day with each option and keeps the outcomes for the plan they were made for. */
@@ -66,8 +68,8 @@ function useOutcomes(plan: DayPlan, choice: Choice) {
 function Metrics({ outcome, current, dow }: { outcome: ChoiceOutcome; current: ChoiceOutcome | undefined; dow: number }) {
   if (outcome.closed) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-sev-c-soft px-2 py-0.5 text-[11px] font-medium text-sev-c">
-        <AlertTriangle className="size-3" aria-hidden /> Closed on {WEEKDAYS[dow]}s
+      <span className="pl-tag red">
+        <AlertTriangle aria-hidden /> Closed on {WEEKDAYS[dow]}s
       </span>
     );
   }
@@ -76,25 +78,13 @@ function Metrics({ outcome, current, dow }: { outcome: ChoiceOutcome; current: C
   return (
     <>
       {current && current.key !== outcome.key && (
-        <span
-          className={cn(
-            "rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums",
-            delta <= -2 ? "bg-brand-soft text-brand" : delta >= 2 ? "bg-muted text-foreground" : "bg-muted text-muted-foreground",
-          )}
-        >
-          {delta <= -2 ? `${duration(-delta)} less travel` : delta >= 2 ? `+${duration(delta)} travel` : "Same travel"}
-        </span>
+        <span className={delta <= -2 ? "pl-tag red" : "pl-tag"}>{delta <= -2 ? `${duration(-delta)} less travel` : delta >= 2 ? `+${duration(delta)} travel` : "Same travel"}</span>
       )}
-      {outcome.crowdBand && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">
-          <span className="size-1.5 rounded-full" style={{ background: CROWD_COLOR[outcome.crowdBand] }} aria-hidden />
-          {CROWD_LABEL[outcome.crowdBand]}
-        </span>
-      )}
-      {over >= 5 && <span className="rounded-full bg-sev-c-soft px-2 py-0.5 text-[11px] font-medium text-sev-c">Day runs {duration(over)} longer</span>}
+      {outcome.crowdBand && <span className="pl-tag">{CROWD_LABEL[outcome.crowdBand]}</span>}
+      {over >= 5 && <span className="pl-tag red">Day runs {duration(over)} longer</span>}
       {outcome.issue && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-sev-c-soft px-2 py-0.5 text-[11px] font-medium text-sev-c">
-          <AlertTriangle className="size-3" aria-hidden /> {outcome.issue === "late" ? "Misses its set time" : "Hours clash"}
+        <span className="pl-tag red">
+          <AlertTriangle aria-hidden /> {outcome.issue === "late" ? "Misses its set time" : "Hours clash"}
         </span>
       )}
     </>
@@ -126,84 +116,95 @@ function ChoiceGroup({
   const foodTypes = useMemo(() => ["All nearby", ...new Set(choice.options.map((o) => o.why.split("·")[0].trim()).filter(Boolean))], [choice.options]);
   const visibleOptions = choice.kind === "meal" && foodFilter !== "All nearby" ? options.filter((o) => !o || o.why.split("·")[0].trim() === foodFilter) : options;
 
+  const tags = (key: string | null, selected: boolean) => {
+    const outcome = outcomeOf(key);
+    return (
+      <>
+        {selected && <span className="pl-tag ink">In your plan</span>}
+        {best && best.key === key && (
+          <span className="pl-tag red">
+            <Star aria-hidden /> Best fit
+          </span>
+        )}
+        {outcome ? <Metrics outcome={outcome} current={current} dow={plan.dow} /> : !failed && <span className="pl-skeleton inline-block h-[1.6em] w-24" />}
+      </>
+    );
+  };
+
   return (
-    <section className={`neo-raised rounded-2xl p-3.5 ${choice.kind === "meal" ? "overflow-hidden" : ""}`} aria-label={`Options for ${choice.title}`}>
-      <h3 className="flex items-baseline gap-2 px-1 pb-2 text-sm font-semibold">
-        <Icon className="size-3.5 shrink-0 translate-y-0.5 text-brand" aria-hidden />
-        <span>
+    <section className="pl-choice" aria-label={`Options for ${choice.title}`}>
+      <div className="pl-choice-head">
+        <h3 className="pl-h3">
+          <Icon className="mr-2 inline size-[0.7em] align-[0.05em] pl-red" aria-hidden />
           {choice.title}
-          {choice.anchor?.near && <span className="font-normal text-muted-foreground"> near {choice.anchor.near}</span>}
-        </span>
-        {mealStop && <span className="ml-auto text-xs font-normal text-muted-foreground tabular-nums">around {clock(mealStop.startMin)}</span>}
-      </h3>
-      {choice.kind === "meal" && <>
-        <p className="px-1 pb-3 text-xs leading-relaxed text-muted-foreground">Pick a bite near your route. Swipe to browse, then see how each option changes your day.</p>
-        <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]" aria-label="Filter nearby food">
-          {foodTypes.map((type) => <button key={type} type="button" aria-pressed={foodFilter === type} onClick={() => setFoodFilter(type)} className={`neo-control shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition ${foodFilter === type ? "neo-inset text-brand font-semibold" : ""}`}>{type}</button>)}
-        </div>
-      </>}
-      {choice.kind === "meal" && <div className="mb-2 flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground"><ArrowLeft className="size-3" aria-hidden /> Swipe to explore <ArrowRight className="size-3" aria-hidden /></div>}
-      <ul className={choice.kind === "meal" ? "-mx-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:thin]" : "space-y-2"}>
-        {visibleOptions.map((option) => {
-          const key = option?.key ?? null;
-          const selected = key === choice.currentKey;
-          const outcome = outcomeOf(key);
-          // A meal picked on top of a full day has no room; a swap never adds a stop.
-          const noRoom = full && choice.currentKey === null && option !== null;
-          return (
-            <li key={key ?? "anywhere"}>
-              <button
-                type="button"
-                disabled={busy || selected || noRoom}
-                aria-pressed={selected}
-                onClick={() => onPick(choice, option)}
-                className={cn(
-                  choice.kind === "meal" ? "group neo-card flex h-full w-[235px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl text-left" : "neo-control flex w-full items-start gap-3 rounded-xl px-3.5 py-2.5 text-left",
-                  selected && "border-brand/50 ring-1 ring-brand/30",
-                  (busy || noRoom) && !selected && "cursor-not-allowed opacity-60",
-                )}
-              >
-                {choice.kind === "meal" && option && <FoodPhoto option={option} />}
-                {choice.kind === "meal" && !option && <div className="grid h-20 w-full place-items-center bg-muted text-xs text-muted-foreground"><UtensilsCrossed className="size-5" aria-hidden /></div>}
-                {choice.kind !== "meal" && <span
-                  className={cn(
-                    "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border",
-                    selected ? "border-brand bg-brand text-on-color" : "border-foreground/25 bg-background",
-                  )}
-                  aria-hidden
-                >
-                  {selected && <Check className="size-3" />}
-                </span>}
-                <span className={cn("min-w-0 flex-1", choice.kind === "meal" && "w-full p-3")}>
-                  <span className="flex items-baseline justify-between gap-2">
-                    <span className={cn("text-sm font-semibold", choice.kind === "meal" ? "line-clamp-1" : "truncate")}>{option ? option.name : "Wherever you are then"}</span>
-                    {outcome?.startMin != null && !outcome.closed && (
-                      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{clock(outcome.startMin)}</span>
-                    )}
-                  </span>
-                  <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
-                    {option ? option.why : "Decide on the day. No detour, no booking."}
-                  </span>
-                  <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    {selected && <span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-medium text-on-color">In your plan</span>}
-                    {best && best.key === key && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-sev-b-soft px-2 py-0.5 text-[11px] font-medium text-sev-b">
-                        <Star className="size-3" aria-hidden /> Best fit for your day
+          {choice.anchor?.near && <em className="pl-muted"> near {choice.anchor.near}</em>}
+        </h3>
+        {mealStop && <span className="pl-mono pl-muted shrink-0">Around {clock(mealStop.startMin)}</span>}
+      </div>
+      {choice.kind === "meal" ? (
+        <>
+          <div className="pl-chips scroll mt-3" role="group" aria-label="Filter nearby food">
+            {foodTypes.map((type) => (
+              <button key={type} type="button" aria-pressed={foodFilter === type} onClick={() => setFoodFilter(type)} className="pl-chip">
+                {type}
+              </button>
+            ))}
+          </div>
+          <ul className="pl-reel">
+            {visibleOptions.map((option) => {
+              const key = option?.key ?? null;
+              const selected = key === choice.currentKey;
+              const outcome = outcomeOf(key);
+              const noRoom = full && choice.currentKey === null && option !== null;
+              return (
+                <li key={key ?? "anywhere"}>
+                  <button type="button" disabled={busy || selected || noRoom} aria-pressed={selected} onClick={() => onPick(choice, option)} className="pl-food">
+                    {option ? (
+                      <FoodPhoto option={option} />
+                    ) : (
+                      <span className="pl-photo block">
+                        <span className="pl-photo-empty">
+                          <MapPin aria-hidden />
+                        </span>
                       </span>
                     )}
-                    {outcome ? (
-                      <Metrics outcome={outcome} current={current} dow={plan.dow} />
-                    ) : (
-                      !failed && <Skeleton className="h-4 w-28 rounded-full" />
-                    )}
-                  </span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {failed && <p className="px-1 pt-2 text-xs text-muted-foreground">Couldn&apos;t compare these right now. You can still pick one.</p>}
+                    <span className="pl-food-body">
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className="pl-h3 line-clamp-1" style={{ fontSize: "1.15em" }}>
+                          {option ? option.name : "Wherever you are"}
+                        </span>
+                        {outcome?.startMin != null && !outcome.closed && <span className="pl-mono pl-muted shrink-0">{clock(outcome.startMin)}</span>}
+                      </span>
+                      <span className="pl-small pl-muted italic">{option ? option.why : "Decide on the day. No detour, no booking."}</span>
+                      <span className="mt-auto flex flex-wrap gap-1 pt-1">{tags(key, selected)}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      ) : (
+        <ul className="pl-options">
+          {visibleOptions.map((option) => {
+            const key = option?.key ?? null;
+            const selected = key === choice.currentKey;
+            const outcome = outcomeOf(key);
+            return (
+              <li key={key ?? "anywhere"}>
+                <button type="button" disabled={busy || selected} aria-pressed={selected} onClick={() => onPick(choice, option)} className="pl-option">
+                  <span className="pl-radio" aria-hidden />
+                  <span className="pl-option-name">{option ? option.name : "Wherever you are then"}</span>
+                  {outcome?.startMin != null && !outcome.closed ? <span className="pl-mono pl-muted">{clock(outcome.startMin)}</span> : <span />}
+                  <span className="pl-option-why">{option ? option.why : "Decide on the day. No detour, no booking."}</span>
+                  <span className="pl-option-tags">{tags(key, selected)}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {failed && <p className="pl-small pl-muted mt-2">Couldn&apos;t compare these right now. You can still pick one.</p>}
     </section>
   );
 }
@@ -228,18 +229,18 @@ export function ChoicePanel({
   onPick: (choice: Choice, option: ChoiceOption | null) => void;
 }) {
   if (!choices.length && !loadingMeals) return null;
+  const names = choices.map((c) => c.title.toLowerCase());
   return (
-    <div className="mt-5">
-      <h2 className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
-        <MapPin className="size-4 text-brand" aria-hidden /> Make it yours
-      </h2>
-      <p className="mb-3 text-xs text-muted-foreground">We tried each option in your whole day. Pick one and the day re-plans around it.</p>
-      <div className="space-y-3">
-        {choices.map((c) => (
-          <ChoiceGroup key={c.id} plan={plan} choice={c} busy={busy} full={full} onPick={onPick} />
-        ))}
-        {loadingMeals && <Skeleton className="h-24 w-full rounded-2xl" />}
-      </div>
-    </div>
+    <Fold
+      kicker="Your call"
+      title={<>Make it <em>yours</em></>}
+      summary={names.length ? `Options for ${names.join(" and ")}, each tried in your whole day.` : "Looking for places to eat along your route…"}
+    >
+      <p className="pl-dek mt-0 mb-5">Pick one and the day re-plans around it.</p>
+      {choices.map((c) => (
+        <ChoiceGroup key={c.id} plan={plan} choice={c} busy={busy} full={full} onPick={onPick} />
+      ))}
+      {loadingMeals && <div className="pl-skeleton mt-4 h-40 w-full" />}
+    </Fold>
   );
 }

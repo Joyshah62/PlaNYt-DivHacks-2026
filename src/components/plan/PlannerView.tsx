@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ArrowRight, Bookmark, CalendarDays, ChevronDown, Clock, Compass, Footprints, Home, Loader2, MapPin, MessageCircle, RefreshCw, SlidersHorizontal, Trash2, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Segmented } from "@/components/ui/segmented";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, ArrowRight, ChevronUp, Clock, Loader2, MapPin, RefreshCw, Trash2, X } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { haversine } from "@/lib/osm/geo";
 import { ATTRACTION_BY_ID, type Attraction } from "@/lib/plan/attractions";
@@ -16,7 +13,7 @@ import { catalogPhoto } from "@/lib/plan/photoUrls";
 import { nextStep } from "@/lib/plan/live";
 import { buildTimeline } from "@/lib/plan/playback";
 import type { Forecast } from "@/lib/plan/weatherCodes";
-import { BRAND, KIND_COLOR, MODE_LABEL } from "@/lib/plan/display";
+import { BRAND } from "@/lib/plan/display";
 import { DEFAULT_PROFILE, GROUP, isMealBreak, MEAL_WINDOW, suggestFor, visitFor } from "@/lib/plan/profile";
 import {
   decodePlan,
@@ -50,31 +47,35 @@ import type {
 import { ChoicePanel } from "./ChoicePanel";
 import { useDiscover } from "./Discover";
 import { TripChat } from "./TripChat";
+import { Assistant, type AssistantHandle } from "./Assistant";
+import { arrowKeys } from "./arrowKeys";
+import { Fold } from "./Fold";
 import { NextUp, nextLine, useNycNow } from "./NextUp";
 import { DayPicker } from "./DayPicker";
 import { Itinerary } from "./Itinerary";
 import { PlaceSheet, type InspectPlace } from "./PlaceSheet";
-import { ProfileCard, profileSummary } from "./ProfileCard";
 import { ReplanDialog, type ReplanChoice } from "./ReplanDialog";
 import type { MapLeg, MapStop } from "./PlanMap";
 import { StopPicker, stopFromAttraction } from "./StopPicker";
 
 const PlanMap = dynamic(() => import("./PlanMap").then((m) => m.PlanMap), {
   ssr: false,
-  loading: () => <Skeleton className="size-full rounded-none" />,
+  loading: () => <div className="pl-skeleton size-full" />,
 });
 
 const MAX_STOPS = 10;
 const VISIT_OPTIONS = [15, 30, 45, 60, 75, 90, 120, 150, 180, 240];
+/** Days to start from: a photo (a catalog place in the day), a line about it, and the prompt it fills in. */
 const TRIP_STARTERS = [
-  { label: "The 'Friends' Walk", prompt: "A Friends-themed Saturday: coffee in Greenwich Village, visit Monica's apartment on Bedford St, and an afternoon at Washington Square Park." },
-  { label: "The 'Seinfeld' Day", prompt: "Classic Seinfeld NYC: breakfast at Monk's Diner (Tom's Restaurant) on the Upper West Side, Central Park stroll, and stand-up comedy." },
-  { label: "The 'HIMYM' Tour", prompt: "How I Met Your Mother adventure: Empire State Building, Museum of Natural History, yellow cab ride down Broadway, and evening drinks at MacLaren's." },
-  { label: "First time in NYC", prompt: "First time in NYC this Saturday. I want to see a few iconic places, get a great skyline view and eat good pizza. Keep travel simple and avoid the biggest crowds." },
-  { label: "Downtown & Chinatown", prompt: "Plan a day downtown with the 9/11 Memorial, Brooklyn Bridge and Chinatown for lunch. I have about 8 hours and prefer subway plus walking." },
+  { label: "First time in NYC", blurb: "The icons, a skyline view and good pizza", photo: "empire-state", prompt: "First time in NYC this Saturday. I want to see a few iconic places, get a great skyline view and eat good pizza. Keep travel simple and avoid the biggest crowds." },
+  { label: "Downtown & Chinatown", blurb: "The 9/11 Memorial, the Brooklyn Bridge, dumplings", photo: "brooklyn-bridge", prompt: "Plan a day downtown with the 9/11 Memorial, Brooklyn Bridge and Chinatown for lunch. I have about 8 hours and prefer subway plus walking." },
+  { label: "A rainy day of museums", blurb: "The Met, MoMA and somewhere warm to eat", photo: "met", prompt: "It might rain on Saturday. Plan a museum day with the Met and MoMA, a cozy lunch in between, and as little walking outside as possible." },
+  { label: "Parks and the High Line", blurb: "Central Park, the High Line, Chelsea Market", photo: "high-line", prompt: "A slow outdoor day: a morning in Central Park, then the High Line and lunch at Chelsea Market. Relaxed pace, lots of walking is fine." },
+  { label: "The 'Friends' walk", blurb: "Greenwich Village, Bedford St, Washington Square", photo: "washington-square", prompt: "A Friends-themed Saturday: coffee in Greenwich Village, visit Monica's apartment on Bedford St, and an afternoon at Washington Square Park." },
+  { label: "The 'Seinfeld' day", blurb: "Tom's Restaurant, Central Park, stand-up", photo: "central-park", prompt: "Classic Seinfeld NYC: breakfast at Monk's Diner (Tom's Restaurant) on the Upper West Side, Central Park stroll, and stand-up comedy." },
+  { label: "The 'HIMYM' tour", blurb: "The Empire State, Natural History, drinks at MacLaren's", photo: "amnh", prompt: "How I Met Your Mother adventure: Empire State Building, Museum of Natural History, yellow cab ride down Broadway, and evening drinks at MacLaren's." },
 ];
 
-const CROWD_SUMMARY: Record<CrowdPref, string> = { avoid: "Avoid crowds", balanced: "Some crowds okay", ignore: "Crowds okay" };
 
 const ROUTE_PROFILE = { walk: "foot", bike: "bike", car: "car" } as const;
 
@@ -186,14 +187,15 @@ interface Settings {
 }
 
 
+/** One sentence for a screen reader when a day lands. */
+function dayAnnouncement(p: DayPlan): string {
+  const n = p.stops.filter((s) => !isMealBreak(s)).length;
+  return `Your day is planned: ${n} ${n === 1 ? "stop" : "stops"}, ${clock(p.stops[0]?.startMin ?? p.request.startMin)} to ${clock(p.summary.finishMin)}, ${duration(p.summary.travelMin)} of travel.`;
+}
+
 function Logo() {
   return (
-    <Link href="/" aria-label={`${BRAND.name} ${BRAND.suffix} home`} className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight rounded-lg focus-visible:outline-2 focus-visible:outline-brand">
-      <span aria-hidden className="neo-raised grid size-8 place-items-center rounded-lg">
-        <Compass className="size-4 text-brand" />
-      </span>
-      <span className="font-bold">{BRAND.name}<span className="ml-1 font-normal text-muted-foreground">{BRAND.suffix}</span></span>
-    </Link>
+    <Link href="/" aria-label={`${BRAND.name} ${BRAND.suffix} home`} className="ed-wordmark ed-display">{BRAND.name}</Link>
   );
 }
 
@@ -233,6 +235,8 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
   const [view, setView] = useState<"edit" | "plan">("edit");
   const [planning, setPlanning] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+  // Said to screen readers when a new day lands.
+  const [announce, setAnnounce] = useState("");
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [geometry, setGeometry] = useState<{ for: DayPlan | null; legs: KeyedLeg[] }>({ for: null, legs: [] });
   const [inspect, setInspect] = useState<InspectPlace | null>(null);
@@ -252,6 +256,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
   const [replanOpen, setReplanOpen] = useState(false);
 
   const [prompt, setPrompt] = useState(initialPrompt ?? "");
+  const promptRef = useRef<HTMLTextAreaElement>(null);
   const [thinking, setThinking] = useState(false);
   const [assistant, setAssistant] = useState<{ reply: string; unresolved: string[] } | null>(null);
   const [assistantError, setAssistantError] = useState<string | null>(null);
@@ -262,31 +267,44 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
   // Meal spots where no food turned up, so they are not looked up again.
   const [noFood, setNoFood] = useState<Set<string>>(() => new Set());
 
-  const [originText, setOriginText] = useState("");
-  const [originBusy, setOriginBusy] = useState(false);
-  const [originError, setOriginError] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
-  // In the itinerary, the assistant's message box lives in the panel's sticky footer.
-  const [composerEl, setComposerEl] = useState<HTMLDivElement | null>(null);
-  const [panelWidth, setPanelWidth] = useState(500);
+  // The picked places' tray at the foot of the column: collapsed to thumbnails, opened to edit.
+  const [trayOpen, setTrayOpen] = useState(false);
+  // Build: describe the day, or pick places. Coming back with stops lands on picking them.
+  const [mode, setMode] = useState<"describe" | "pick">(() => (shared?.stops.length ? "pick" : "describe"));
+  // The last stop taken out of the tray, for a few seconds, so it can be put back.
+  const [removed, setRemoved] = useState<{ stop: StopInput; index: number } | null>(null);
+  useEffect(() => {
+    if (!removed) return;
+    const id = window.setTimeout(() => setRemoved(null), 6000);
+    return () => window.clearTimeout(id);
+  }, [removed]);
+  // The floating assistant: whether it's open, and a reply waiting while it was closed.
+  const [unread, setUnread] = useState(false);
+  const assistantOpen = useRef(false);
+  const assistantHandle = useRef<AssistantHandle>(null);
+  const onAssistantOpen = useCallback((open: boolean) => {
+    assistantOpen.current = open;
+    if (open) setUnread(false);
+  }, []);
+  // Until the reader drags the divider, the column takes about a third of the window.
+  const [panelWidth, setPanelWidth] = useState<number | null>(null);
   // Phone layout: the panel is a sheet over a full-screen map, dragged between three heights.
   const isPhone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE_QUERY).matches, () => false);
   const viewportH = useSyncExternalStore(subscribePhone, () => window.visualViewport?.height ?? window.innerHeight, () => 800);
   const viewportW = useSyncExternalStore(subscribePhone, () => window.visualViewport?.width ?? window.innerWidth, () => 1280);
   const maxPanelWidth = Math.max(360, Math.min(720, viewportW - 372));
-  const visiblePanelWidth = Math.min(panelWidth, maxPanelWidth);
+  const visiblePanelWidth = Math.min(panelWidth ?? Math.max(420, Math.round(viewportW * 0.36)), maxPanelWidth);
   const [sheet, setSheet] = useState<SheetSnap>("half");
   const [dragH, setDragH] = useState<number | null>(null);
   const sheetDrag = useRef<{ y: number; h: number; moved: boolean } | null>(null);
   // With a plan, the collapsed sheet still shows the assistant's message box.
-  const sheetHeights: Record<SheetSnap, number> = { peek: SHEET_PEEK + (plan && view === "plan" ? 58 : 0), half: Math.round(viewportH * 0.52), full: viewportH - 72 };
+  const sheetHeights: Record<SheetSnap, number> = { peek: SHEET_PEEK + ((view === "edit" || !plan) && stops.length ? 70 : 0), half: Math.round(viewportH * 0.52), full: viewportH - 72 };
   const sheetH = dragH ?? sheetHeights[sheet];
   const now = useNycNow();
   const resizeStart = useRef<{ x: number; width: number } | null>(null);
   const panelRef = useRef<HTMLElement>(null);
 
   const full = stops.length >= MAX_STOPS;
-  const set = <K extends keyof Settings>(key: K, value: Settings[K]) => setSettings((s) => ({ ...s, [key]: value }));
 
   // --- planning ---------------------------------------------------------------
 
@@ -307,6 +325,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
       if (!res.ok) throw new Error(body.error ?? "Couldn't plan the day.");
       const planned = body as DayPlan;
       setPlan(planned);
+      setAnnounce(dayAnnouncement(planned));
       // The server starts a day planned for today from now; keep the form in step so it doesn't read as edited.
       if (planned.request.startMin !== request.startMin) setSettings((s) => ({ ...s, startMin: planned.request.startMin }));
       setView("plan");
@@ -434,6 +453,7 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
 
   function applyChatPlan(next: DayPlan) {
     setPlan(next);
+    setAnnounce(dayAnnouncement(next));
     setStops(next.request.stops);
     setSettings({ ...next.request, keepOrder: next.request.keepOrder ?? false });
     setProfileOverride(next.request.profile);
@@ -549,20 +569,6 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
     );
   }
 
-  function updateProfile(next: Profile) {
-    if (next.pace !== profile.pace) {
-      // Visits still at the old pace's length follow the new pace; ones the reader set stay put.
-      setStops((list) =>
-        list.map((s) => {
-          const a = s.attractionId ? ATTRACTION_BY_ID.get(s.attractionId) : undefined;
-          return a && s.visitMin === visitFor(a, profile.pace) ? { ...s, visitMin: visitFor(a, next.pace) } : s;
-        }),
-      );
-    }
-    setProfileOverride(next);
-    storeProfile(next);
-  }
-
   function setFixed(key: string, fixedStartMin: number | null) {
     setStops((list) => list.map((s) => (s.key === key ? { ...s, fixedStartMin } : s)));
   }
@@ -588,24 +594,6 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
 
   function addStop(stop: StopInput) {
     setStops((list) => (list.some((s) => s.key === stop.key) || list.length >= MAX_STOPS ? list : [...list, stop]));
-  }
-
-  async function setOrigin() {
-    const q = originText.trim();
-    if (q.length < 2) return;
-    setOriginBusy(true);
-    setOriginError(null);
-    try {
-      const res = await fetch(`/api/resolve?q=${encodeURIComponent(q)}`);
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "Couldn't find that.");
-      set("origin", { label: q, lat: body.lat, lon: body.lon });
-      setOriginText("");
-    } catch (e) {
-      setOriginError(e instanceof Error ? e.message : "Couldn't find that.");
-    } finally {
-      setOriginBusy(false);
-    }
   }
 
   // --- map --------------------------------------------------------------------
@@ -722,17 +710,6 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
     [profile, settings.date, stops],
   );
   const stale = plan !== null && currentCode !== null && currentCode !== planCode;
-  const tripSummary = [
-    new Date(`${settings.date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }),
-    `${clock(settings.startMin)}–${clock(settings.endMin)}`,
-    MODE_LABEL[settings.mode],
-    CROWD_SUMMARY[settings.crowd],
-    settings.origin ? `from ${settings.origin.label}` : null,
-    profileSummary(profile),
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
   // --- phone sheet ---------------------------------------------------------------
 
   function sheetDown(e: React.PointerEvent) {
@@ -769,452 +746,487 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
       ? `${stops.length} ${stops.length === 1 ? "stop" : "stops"} picked`
       : "Plan your day";
 
+
+
+  const longDate = new Date(`${showingPlan ? plan.request.date : settings.date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
+  const tabs = plan && <ViewTabs view={view} onChange={setView} />;
+  const atPlaces = duration(stops.reduce((sum, s) => sum + s.visitMin, 0));
+  const buildPlan = () => {
+    // Planning from the builder finds the best order again.
+    const next = { ...settings, keepOrder: false };
+    setSettings(next);
+    setTrayOpen(false);
+    void runPlan(stops, next);
+  };
+
   // ---------------------------------------------------------------------------
 
   return (
-    <div
-      className="flex min-h-dvh flex-col max-lg:h-dvh max-lg:overflow-hidden lg:h-dvh lg:flex-row"
-      style={isPhone ? ({ "--sheet-h": `${sheetH}px` } as React.CSSProperties) : undefined}
-    >
-      <aside
-        ref={panelRef}
-        style={{ "--planner-panel-width": `${visiblePanelWidth}px` } as React.CSSProperties}
-        className={`neo-panel order-2 flex flex-col border-border/60 lg:order-1 lg:h-dvh lg:w-[var(--planner-panel-width)] lg:shrink-0 lg:overflow-y-auto lg:border-r max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:h-(--sheet-h) max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:rounded-t-[28px] max-lg:bg-background max-lg:shadow-[0_-16px_48px_-16px_oklch(0_0_0/0.4)] ${dragH === null ? "max-lg:transition-[height] max-lg:duration-300 max-lg:ease-out" : ""}`}
-      >
-        {/* On phones this bar is the sheet's handle: drag it, or tap the grip to cycle heights. */}
-        <header
-          onPointerDown={sheetDown}
-          onPointerMove={sheetMove}
-          onPointerUp={sheetUp}
-          onPointerCancel={sheetUp}
-          className="sticky top-0 z-30 flex flex-col border-b border-border/60 bg-background/90 px-5 backdrop-blur-xl max-lg:touch-none max-lg:rounded-t-[28px] max-lg:pt-2 max-lg:pb-3 lg:py-4"
-        >
-          <button
-            type="button"
-            onClick={cycleSheet}
-            aria-label={sheet === "full" ? "Collapse the panel" : "Expand the panel"}
-            className="mx-auto mb-2 grid h-4 w-16 place-items-center lg:hidden"
-          >
-            <span className="neo-inset h-1.5 w-11 rounded-full" />
-          </button>
-          <div className="flex items-center justify-between gap-3">
-            <div className="max-lg:hidden">
-              <Logo />
-            </div>
-            <p className={`min-w-0 flex-1 truncate text-sm font-semibold lg:hidden ${isPlanToday ? "text-brand" : ""}`}>{sheetSummary}</p>
-            <div className="flex items-center gap-2">
-              <ThemeToggle className="size-8" />
-              {plan && (
-                <Segmented
-                  label="Panel"
-                  value={view}
-                  onChange={setView}
-                  options={[
-                    { value: "edit", label: "Build" },
-                    { value: "plan", label: "Itinerary" },
-                  ]}
-                />
-              )}
-            </div>
-          </div>
-        </header>
+    <main className="ed-planner" style={isPhone ? ({ "--sheet-h": `${sheetH}px` } as React.CSSProperties) : undefined}>
+      <a href="#planner-content" className="pl-skip">
+        Skip to the planner
+      </a>
+      <p role="status" aria-live="polite" className="sr-only">
+        {announce}
+      </p>
+      <header className="pl-mast">
+        <Logo />
+        <p className="pl-dateline pl-mono">The day planner · New York · {longDate}</p>
+        <nav aria-label="Planner">
+          {tabs}
+          <Link href="/" className="ed-navlink pl-mono">
+            Home
+          </Link>
+          <ThemeToggle className="ed-theme" />
+        </nav>
+      </header>
 
-        <div className="flex-1 px-5 pt-5 pb-10">
-          {/* Kept mounted while editing, so the conversation with the assistant survives a trip to Build. */}
-          {plan && (
-            <div hidden={!showingPlan}>
-              {planning ? (
-                <div role="status" className="mb-5 flex items-center gap-3 rounded-2xl border border-brand/30 bg-brand-soft px-4 py-3 text-sm">
-                  <Loader2 className="size-4 animate-spin text-brand" aria-hidden /> Re-planning your day…
-                </div>
-              ) : (
-                stale && (
-                  <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-brand/30 bg-brand-soft px-4 py-3 text-sm">
-                    <span>You changed your stops or settings.</span>
-                    <Button size="sm" onClick={() => runPlan(stops, settings)} className="rounded-full bg-brand text-on-color hover:bg-brand/90">
-                      <RefreshCw aria-hidden /> Re-plan
-                    </Button>
-                  </div>
-                )
-              )}
-              {planError && (
-                <p role="alert" className="mb-5 text-sm text-sev-c">
-                  {planError}
-                </p>
-              )}
-              {isPlanToday && <NextUp plan={plan} onReplan={() => setReplanOpen(true)} />}
-              <Itinerary
-                plan={plan}
-                activeKey={activeKey}
-                isSaved={isSaved}
-                shareNote={shareNote}
-                onActivate={setActiveKey}
-                onInspect={inspectStop}
-                onEdit={() => setView("edit")}
-                onSave={savePlan}
-                onShare={sharePlan}
-                onCalendar={downloadCalendar}
-                forecast={forecast}
-                photos={photos}
-                assistant={
-                  <TripChat
-                    plan={plan}
-                    discover={discover}
-                    planning={planning || stale}
-                    onApply={applyChatPlan}
-                    composerTarget={composerEl}
-                    onEngage={() => {
-                      if (isPhone && sheet === "peek") setSheet("half");
-                    }}
-                  />
-                }
-                dayPicker={<DayPicker plan={plan} forecast={forecast} busy={planning} onPickDate={pickDate} />}
-                choices={
-                  <ChoicePanel
-                    plan={plan}
-                    choices={choicesFor(plan, choices)}
-                    busy={planning}
-                    full={plan.request.stops.length >= MAX_STOPS}
-                    loadingMeals={mealLookups.length > 0}
-                    onPick={pickChoice}
-                  />
-                }
-              />
-              {replanOpen && <ReplanDialog plan={plan} busy={planning} onReplan={replan} onClose={() => setReplanOpen(false)} />}
+      <div className="pl-body">
+        <aside ref={panelRef} style={isPhone ? undefined : { width: visiblePanelWidth, flex: "none" }} className="pl-col ed-paper" aria-label="Your day">
+          {/* Phones: this bar is the sheet's handle. Drag it, or tap the grip to cycle heights. */}
+          <header onPointerDown={sheetDown} onPointerMove={sheetMove} onPointerUp={sheetUp} onPointerCancel={sheetUp} className="pl-sheetbar ed-paper sticky top-0 z-30">
+            <button type="button" onClick={cycleSheet} aria-label={`Panel ${sheet === "peek" ? "collapsed" : sheet === "half" ? "at half height" : "full height"}. ${sheet === "full" ? "Collapse it" : "Make it taller"}`} className="pl-grip" />
+            <div className="flex items-center justify-between gap-3">
+              <p className={`pl-mono min-w-0 flex-1 truncate ${isPlanToday ? "pl-kicker" : ""}`}>{sheetSummary}</p>
+              <ThemeToggle className="ed-theme" />
             </div>
-          )}
-          {!showingPlan && (
-            <div className="space-y-8">
-              {/* Assistant */}
-              <section aria-labelledby="ask-heading">
-                <h1 id="ask-heading" className="font-display text-4xl leading-none tracking-tight">
-                  Where do you want to go?
-                </h1>
-                <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">Choose places or describe the kind of day you want. Set a date and how you’d like to get around.</p>
-                <div className="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Trip ideas">
-                  {TRIP_STARTERS.map((starter) => (
-                    <button key={starter.label} type="button" onClick={() => setPrompt(starter.prompt)} className="neo-control shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium text-foreground">
-                      {starter.label}
-                    </button>
-                  ))}
-                </div>
-                <form
-                  suppressHydrationWarning
-                  className="neo-raised mt-4 rounded-2xl p-3 shadow-none transition"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void ask(prompt, settings);
+            {tabs}
+          </header>
+
+          <div id="planner-content" tabIndex={-1} className="pl-content">
+            {/* Kept mounted while editing, so the conversation with the assistant survives a trip to Build. */}
+            {plan && (
+              <div hidden={!showingPlan}>
+                {planning ? (
+                  <p role="status" className="pl-note mb-6 flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" aria-hidden /> Re-planning your day…
+                  </p>
+                ) : (
+                  stale && (
+                    <div className="pl-note mb-6 flex flex-wrap items-center justify-between gap-3">
+                      <span>You changed your stops or settings.</span>
+                      <button type="button" onClick={() => runPlan(stops, settings)} className="ed-btn">
+                        <RefreshCw aria-hidden /> Re-plan
+                      </button>
+                    </div>
+                  )
+                )}
+                {planError && (
+                  <p role="alert" className="pl-flag mb-6">
+                    {planError}
+                  </p>
+                )}
+                {isPlanToday && <NextUp plan={plan} onReplan={() => setReplanOpen(true)} />}
+                <Itinerary
+                  plan={plan}
+                  activeKey={activeKey}
+                  isSaved={isSaved}
+                  shareNote={shareNote}
+                  onActivate={setActiveKey}
+                  onInspect={inspectStop}
+                  onEdit={() => {
+                    setMode("pick");
+                    setView("edit");
                   }}
-                >
-                  <div className="neo-inset rounded-2xl p-2.5 outline-none focus-within:outline-none focus-within:ring-0">
-                    <textarea
-                      suppressHydrationWarning
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                          e.preventDefault();
-                          void ask(prompt, settings);
-                        }
-                      }}
-                      rows={3}
-                      maxLength={1500}
-                      placeholder="What would make this a great NYC day? Try: ‘Saturday with my parents, a museum, skyline view and pizza. Avoid crowds.’"
-                      aria-label="Describe your day"
-                      className="w-full resize-none bg-transparent px-1 py-1 text-[15px] leading-relaxed outline-none focus:outline-none focus:ring-0 placeholder:text-muted-foreground caret-brand"
+                  onAsk={() => assistantHandle.current?.open()}
+                  onSave={savePlan}
+                  onShare={sharePlan}
+                  onCalendar={downloadCalendar}
+                  forecast={forecast}
+                  photos={photos}
+                  dayPicker={<DayPicker plan={plan} forecast={forecast} busy={planning} onPickDate={pickDate} />}
+                  choices={
+                    <ChoicePanel
+                      plan={plan}
+                      choices={choicesFor(plan, choices)}
+                      busy={planning}
+                      full={plan.request.stops.length >= MAX_STOPS}
+                      loadingMeals={mealLookups.length > 0}
+                      onPick={pickChoice}
                     />
-                  </div>
-                  <div className="flex items-center justify-between gap-2 px-1 pt-3">
-                    <span className="text-[11px] text-muted-foreground max-sm:hidden">Places, timing and travel are worked out for you</span>
-                    <Button type="submit" disabled={thinking || prompt.trim().length < 3} className="neo-primary ml-auto rounded-xl px-4 py-2 font-semibold">
-                      {thinking ? <Loader2 className="animate-spin" aria-hidden /> : <ArrowRight aria-hidden />}
-                      {thinking ? "Building your day…" : "Build my day"}
-                    </Button>
-                  </div>
-                </form>
-                <div aria-live="polite">
-                  {assistantError && <p className="mt-3 text-sm text-sev-c">{assistantError}</p>}
-                  {assistant && (
-                    <div className="neo-raised mt-3 rounded-2xl p-4 text-sm leading-relaxed">
-                      <p className="flex gap-2">
-                        <MessageCircle className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-                        {assistant.reply}
-                      </p>
-                      {assistant.unresolved.length > 0 && (
-                        <p className="mt-2 text-xs text-muted-foreground">Couldn&apos;t find on the map: {assistant.unresolved.join(", ")}. Try adding them by address.</p>
+                  }
+                />
+                {replanOpen && <ReplanDialog plan={plan} busy={planning} onReplan={replan} onClose={() => setReplanOpen(false)} />}
+              </div>
+            )}
+
+            {!showingPlan && (
+              <div>
+                {mode === "describe" ? (
+                  // The main way in: say the day. The assistant reads the date, hours, company, pace and start point from it.
+                  <section aria-labelledby="ask-heading">
+                    <p className="pl-mono pl-kicker">Plan a day · New York</p>
+                    <h1 id="ask-heading" className="pl-title">
+                      Where to, <em>today?</em>
+                    </h1>
+                    <p className="pl-dek">Tell us the day you want: when, who&apos;s coming, what you love, where you&apos;re staying. We plan it around the crowds and the travel.</p>
+                    <form
+                      suppressHydrationWarning
+                      className="ed-prompt pl-prompt"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void ask(prompt, settings);
+                      }}
+                    >
+                      <textarea
+                        ref={promptRef}
+                        suppressHydrationWarning
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            void ask(prompt, settings);
+                          }
+                        }}
+                        rows={3}
+                        maxLength={1500}
+                        placeholder="Saturday with my parents, staying in Midtown: a museum, a skyline view and pizza. Avoid crowds."
+                        aria-label="Describe your day"
+                      />
+                      <div className="pl-prompt-foot">
+                        <span className="pl-small pl-muted max-sm:hidden">Enter to plan · Shift+Enter for a new line</span>
+                        <button type="submit" disabled={thinking || prompt.trim().length < 3} className="ed-btn ml-auto">
+                          {thinking ? <Loader2 className="animate-spin" aria-hidden /> : null}
+                          {thinking ? "Building your day…" : "Build my day"}
+                          {!thinking && <ArrowRight aria-hidden />}
+                        </button>
+                      </div>
+                    </form>
+                    <p className="pl-alt">
+                      <span className="pl-muted">Know exactly where you want to go?</span>{" "}
+                      <button type="button" onClick={() => setMode("pick")} className="pl-link">
+                        Pick places yourself{stops.length ? ` (${stops.length} picked)` : ""}
+                      </button>
+                    </p>
+                    <div aria-live="polite">
+                      {assistantError && <p className="pl-flag mt-4">{assistantError}</p>}
+                      {assistant && (
+                        <div className="pl-note mt-4">
+                          <p>{assistant.reply}</p>
+                          {assistant.unresolved.length > 0 && <p className="pl-muted mt-2">Couldn&apos;t find on the map: {assistant.unresolved.join(", ")}. Try naming them differently, or pick them yourself.</p>}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-              </section>
 
-              {savedPlans.length > 0 && (
-                <section aria-labelledby="saved-heading">
-                  <h2 id="saved-heading" className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
-                    <Bookmark className="size-4 text-brand" aria-hidden /> Pick up a saved plan
-                  </h2>
-                  <ul className="neo-raised divide-y divide-border/60 rounded-2xl overflow-hidden">
-                    {savedPlans.slice(0, 5).map((p) => (
-                      <li key={p.id} className="flex items-center gap-2 pr-2">
-                        <button type="button" onClick={() => openSaved(p)} disabled={planning} className="min-w-0 flex-1 truncate px-4 py-2.5 text-left text-sm font-medium hover:text-brand">
-                          {p.title}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => storeSaved(savedPlans.filter((x) => x.id !== p.id))}
-                          className="neo-control grid size-7 place-items-center rounded-full text-muted-foreground hover:text-foreground"
-                          aria-label={`Delete saved plan ${p.title}`}
-                        >
-                          <Trash2 className="size-3.5" aria-hidden />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
-              {/* Everything below is what the assistant fills in; it's here to check or do by hand. */}
-              <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
-                <span className="h-px flex-1 bg-border/60" aria-hidden />
-                Or plan it yourself
-                <span className="h-px flex-1 bg-border/60" aria-hidden />
-              </div>
-
-              {stops.length > 0 && (
-                <section aria-labelledby="stops-heading">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 id="stops-heading" className="text-sm font-semibold">Your day so far</h2>
-                    <span className="neo-inset shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-brand tabular-nums">{stops.length}/{MAX_STOPS} stops</span>
-                  </div>
-                  <ul className="neo-raised mt-3 divide-y divide-border/60 rounded-2xl overflow-hidden">
-                    {stops.map((s) => {
-                      const a = s.attractionId ? ATTRACTION_BY_ID.get(s.attractionId) : undefined;
-                      const options = VISIT_OPTIONS.includes(s.visitMin) ? VISIT_OPTIONS : [...VISIT_OPTIONS, s.visitMin].sort((x, y) => x - y);
-                      return (
-                        <li key={s.key} className="flex items-center gap-3 px-4 py-2.5">
-                          <span className="size-2 shrink-0 rounded-full" style={{ background: a ? KIND_COLOR[a.kind] : "var(--muted-foreground)" }} aria-hidden />
-                          <button type="button" onClick={() => inspectStop(s)} aria-haspopup="dialog" className="min-w-0 flex-1 truncate text-left text-sm font-medium hover:text-brand">
-                            {s.name}
-                          </button>
-                          {s.fixedStartMin != null ? (
-                            <span className="neo-inset inline-flex items-center gap-1 rounded-lg py-0.5 pr-0.5 pl-1.5 text-xs text-brand">
-                              <Clock className="size-3" aria-hidden />
-                              <label className="sr-only" htmlFor={`fixed-${s.key}`}>
-                                Start time for {s.name}
-                              </label>
-                              <input
-                                id={`fixed-${s.key}`}
-                                type="time"
-                                value={toHHMM(s.fixedStartMin)}
-                                onChange={(e) => {
-                                  const m = toMinutes(e.target.value);
-                                  if (m !== null) setFixed(s.key, m);
+                    {/* Ideas: a tap fills the prompt, ready to change or send. */}
+                    <section aria-labelledby="ideas-heading" className="pl-ideas">
+                      <h2 id="ideas-heading" className="pl-mono pl-kicker">
+                        Or start from an idea
+                      </h2>
+                      <ul>
+                        {TRIP_STARTERS.map((idea) => {
+                          const photo = catalogPhoto(idea.photo);
+                          return (
+                            <li key={idea.label}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPrompt(idea.prompt);
+                                  promptRef.current?.focus();
                                 }}
-                                className="w-[5.5rem] bg-transparent tabular-nums outline-none"
-                              />
-                              <button type="button" onClick={() => setFixed(s.key, null)} aria-label={`Clear the set time for ${s.name}`} className="grid size-5 place-items-center rounded hover:bg-brand/15">
-                                <X className="size-3" aria-hidden />
+                                className="pl-idea"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <span className="pl-idea-photo">{photo && <img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" />}</span>
+                                <span className="min-w-0">
+                                  <span className="pl-idea-title">{idea.label}</span>
+                                  <span className="pl-idea-blurb">{idea.blurb}</span>
+                                </span>
+                                <ArrowRight className="pl-idea-arrow" aria-hidden />
                               </button>
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setFixed(s.key, Math.max(settings.startMin, 12 * 60))}
-                              title="Must start at a set time (a booking, a show)"
-                              aria-label={`Set a start time for ${s.name}`}
-                              className="neo-control grid size-7 place-items-center rounded-full text-muted-foreground hover:text-foreground"
-                            >
-                              <Clock className="size-3.5" aria-hidden />
-                            </button>
-                          )}
-                          <label className="sr-only" htmlFor={`visit-${s.key}`}>
-                            Time at {s.name}
-                          </label>
-                          <select
-                            id={`visit-${s.key}`}
-                            value={s.visitMin}
-                            onChange={(e) => {
-                              const v = Number(e.target.value);
-                              setStops((list) => list.map((x) => (x.key === s.key ? { ...x, visitMin: v } : x)));
-                            }}
-                            className="neo-inset rounded-lg px-2 py-1 text-xs tabular-nums bg-transparent"
-                          >
-                            {options.map((m) => (
-                              <option key={m} value={m} className="bg-background text-foreground">
-                                {duration(m)}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => setStops((list) => list.filter((x) => x.key !== s.key))}
-                            className="neo-control grid size-7 place-items-center rounded-full text-muted-foreground hover:text-foreground"
-                            aria-label={`Remove ${s.name}`}
-                          >
-                            <X className="size-4" aria-hidden />
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Clock className="size-3.5" aria-hidden /> About {duration(stops.reduce((s, x) => s + x.visitMin, 0))} at places, plus travel and breaks</p>
-                </section>
-              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  </section>
+                ) : (
+                  // The quieter way in: choose places by hand; they collect in the tray below.
+                  <section aria-labelledby="pick-heading">
+                    <button type="button" onClick={() => setMode("describe")} className="pl-textbtn pl-mono">
+                      <ArrowLeft aria-hidden /> Describe it instead
+                    </button>
+                    <h1 id="pick-heading" className="pl-title">
+                      Pick places, <em>we&apos;ll order them</em>
+                    </h1>
+                    <p className="pl-dek mb-5">
+                      {stops.length ? `${stops.length} picked. Add more, or plan your day from the tray below.` : `Tap + on a photo, or a dot on the map. Add at least one place (up to ${MAX_STOPS}), then plan.`}
+                    </p>
+                    <StopPicker stops={stops} suggestions={suggestions} onAdd={addStop} onToggle={toggleAttraction} onInspect={inspectAttraction} full={full} />
+                  </section>
+                )}
 
-              {/* Trip details: a one-line summary of what's set, opened to change it. */}
-              <section aria-labelledby="details-heading" className="neo-raised rounded-2xl overflow-hidden">
-                <button type="button" aria-expanded={showSettings} aria-controls="trip-details" onClick={() => setShowSettings((v) => !v)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
-                  <span className="neo-inset grid size-8 shrink-0 place-items-center rounded-full text-brand">
-                    <SlidersHorizontal className="size-4" aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span id="details-heading" className="block text-sm font-semibold">Trip details</span>
-                    <span className="block text-xs leading-relaxed text-muted-foreground">
-                      {tripSummary}
-                    </span>
-                  </span>
-                  <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition ${showSettings ? "rotate-180" : ""}`} aria-hidden />
-                </button>
-                {showSettings && (
-                  <div id="trip-details" className="space-y-5 border-t border-border/60 px-4 pt-4 pb-5">
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-3 text-sm"><CalendarDays className="size-4 text-muted-foreground" aria-hidden /><span className="w-14 text-xs text-muted-foreground">Visit</span><input type="date" value={settings.date} min={nycToday()} onChange={(e) => e.target.value && set("date", e.target.value)} className="neo-inset min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-sm bg-transparent" /></label>
-                      <div className="flex items-center gap-3"><Footprints className="size-4 text-muted-foreground" aria-hidden /><span className="w-14 text-xs text-muted-foreground">Getting around</span><Segmented label="Getting around" value={settings.mode} onChange={(v) => set("mode", v)} options={(Object.keys(MODE_LABEL) as TravelMode[]).map((m) => ({ value: m, label: MODE_LABEL[m] }))} className="min-w-0 flex-1 overflow-x-auto" /></div>
-                      <div className="flex items-center gap-3"><MapPin className="size-4 text-muted-foreground" aria-hidden /><span className="w-14 text-xs text-muted-foreground">Crowds</span><Segmented label="Crowds" value={settings.crowd} onChange={(v) => set("crowd", v)} options={[{ value: "avoid", label: "Avoid" }, { value: "balanced", label: "Balance" }, { value: "ignore", label: "Okay" }]} className="min-w-0 flex-1 overflow-x-auto" /></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-xs"><label className="flex flex-col gap-1 text-muted-foreground">Start time<input type="time" value={toHHMM(settings.startMin)} onChange={(e) => { const m = toMinutes(e.target.value); if (m !== null) set("startMin", m); }} className="neo-inset rounded-lg px-2.5 py-1.5 text-sm text-foreground bg-transparent" /></label><label className="flex flex-col gap-1 text-muted-foreground">Wrap up<input type="time" value={toHHMM(settings.endMin)} onChange={(e) => { const m = toMinutes(e.target.value); if (m !== null) set("endMin", m <= settings.startMin ? m + 1440 : m); }} className="neo-inset rounded-lg px-2.5 py-1.5 text-sm text-foreground bg-transparent" /></label></div>
-                    <div className="space-y-2"><span className="text-xs text-muted-foreground">Food breaks</span><div className="flex gap-2">{(["lunch", "dinner"] as const).map((m) => <label key={m} className={`neo-control flex items-center gap-2 rounded-xl px-3 py-2 text-sm cursor-pointer ${settings.meals[m] ? "neo-inset text-brand font-semibold" : ""}`}><input type="checkbox" checked={settings.meals[m]} onChange={(e) => set("meals", { ...settings.meals, [m]: e.target.checked })} className="size-4 accent-(--brand)" />{m === "lunch" ? "Lunch" : "Dinner"}</label>)}</div><p className="text-[11px] text-muted-foreground">Roam finds a good time and nearby food for your route.</p></div>
-                    <div className="space-y-2"><span className="text-xs text-muted-foreground">Start from</span>{settings.origin ? <div className="flex flex-wrap items-center gap-2"><span className="neo-raised inline-flex items-center gap-2 rounded-full py-1.5 pr-1.5 pl-3 text-sm"><Home className="size-3.5 text-brand" aria-hidden />{settings.origin.label}<button type="button" onClick={() => set("origin", null)} className="neo-control grid size-6 place-items-center rounded-full hover:bg-muted" aria-label="Clear starting point"><X className="size-3.5" aria-hidden /></button></span><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={settings.returnToOrigin} onChange={(e) => set("returnToOrigin", e.target.checked)} className="size-4 accent-(--brand)" />Return here</label></div> : <form suppressHydrationWarning className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void setOrigin(); }}><input suppressHydrationWarning value={originText} onChange={(e) => { setOriginText(e.target.value); setOriginError(null); }} placeholder="Hotel, address or neighborhood" aria-label="Starting point" className="neo-inset min-w-0 flex-1 rounded-xl px-3 py-2 text-sm outline-none bg-transparent" /><Button type="submit" variant="outline" disabled={originBusy || originText.trim().length < 2} className="neo-control">{originBusy ? <Loader2 className="animate-spin" aria-hidden /> : "Set"}</Button></form>}{originError && <p className="text-sm text-sev-c">{originError}</p>}</div>
-                    <ProfileCard profile={profile} onChange={updateProfile} />
+                {savedPlans.length > 0 && (
+                  <div className="pl-folds">
+                    <Fold kicker="Saved on this device" title={<>Pick up <em>where you left off</em></>} summary={`${savedPlans.length} saved ${savedPlans.length === 1 ? "plan" : "plans"}: ${savedPlans[0].title}${savedPlans.length > 1 ? "…" : ""}`}>
+                      <ul className="pl-saved">
+                        {savedPlans.slice(0, 5).map((p) => (
+                          <li key={p.id}>
+                            <button type="button" onClick={() => openSaved(p)} disabled={planning} className="name">
+                              {p.title}
+                            </button>
+                            <button type="button" onClick={() => storeSaved(savedPlans.filter((x) => x.id !== p.id))} className="pl-icon" aria-label={`Delete saved plan ${p.title}`}>
+                              <Trash2 aria-hidden />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </Fold>
                   </div>
                 )}
-              </section>
+              </div>
+            )}
+          </div>
 
-              {/* Catalog */}
-              <section aria-labelledby="add-heading">
-                <h2 id="add-heading" className="text-sm font-semibold">
-                  Browse places
-                </h2>
-                <p className="mt-0.5 mb-3 text-xs text-muted-foreground">Add them here, or tap a dot on the map.</p>
-                <StopPicker
-                  stops={stops}
-                  suggestions={suggestions}
-                  onAdd={addStop}
-                  onToggle={toggleAttraction}
-                  onInspect={inspectAttraction}
-                  full={full}
-                />
-              </section>
-            </div>
-          )}
+          {!showingPlan &&
+            (stops.length > 0 || planError || removed) && (
+              <div className="pl-dock ed-paper">
+                {stops.length > 0 && (
+                  <>
+                    <button type="button" aria-expanded={trayOpen} aria-controls="tray-list" onClick={() => setTrayOpen((v) => !v)} className="pl-tray-head">
+                      <span className="pl-thumbs" aria-hidden>
+                        {stops.map((s, i) => {
+                          const photo = catalogPhoto(s.attractionId);
+                          return (
+                            <span key={s.key} className="pl-thumb">
+                              {photo ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={photo} alt="" referrerPolicy="no-referrer" />
+                              ) : (
+                                <MapPin className="m-auto mt-[0.55em] size-[1em] opacity-50" />
+                              )}
+                              <b>{i + 1}</b>
+                            </span>
+                          );
+                        })}
+                      </span>
+                      <span className="pl-mono min-w-0 shrink-0">
+                        {stops.length}/{MAX_STOPS} · {atPlaces}
+                        <span className="pl-muted max-sm:hidden"> · {trayOpen ? "Done" : "Edit"}</span>
+                      </span>
+                      <ChevronUp aria-hidden />
+                    </button>
+                    {trayOpen && (
+                      <ol id="tray-list" className="pl-tray-list" aria-label="Your stops">
+                        {stops.map((s, i) => {
+                          const options = VISIT_OPTIONS.includes(s.visitMin) ? VISIT_OPTIONS : [...VISIT_OPTIONS, s.visitMin].sort((x, y) => x - y);
+                          return (
+                            <li key={s.key}>
+                              <span className="pl-bullet" aria-hidden>
+                                {i + 1}
+                              </span>
+                              <button type="button" onClick={() => inspectStop(s)} aria-haspopup="dialog" className="name">
+                                {s.name}
+                              </button>
+                              <span className="flex items-center gap-1">
+                                {s.fixedStartMin != null ? (
+                                  <span className="inline-flex items-center pl-red">
+                                    <label className="sr-only" htmlFor={`fixed-${s.key}`}>
+                                      Start time for {s.name}
+                                    </label>
+                                    <input
+                                      id={`fixed-${s.key}`}
+                                      type="time"
+                                      value={toHHMM(s.fixedStartMin)}
+                                      onChange={(e) => {
+                                        const m = toMinutes(e.target.value);
+                                        if (m !== null) setFixed(s.key, m);
+                                      }}
+                                      className="pl-select"
+                                    />
+                                    <button type="button" onClick={() => setFixed(s.key, null)} aria-label={`Clear the set time for ${s.name}`} className="pl-icon">
+                                      <X aria-hidden />
+                                    </button>
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setFixed(s.key, Math.max(settings.startMin, 12 * 60))}
+                                    title="Must start at a set time (a booking, a show)"
+                                    aria-label={`Set a start time for ${s.name}`}
+                                    className="pl-icon"
+                                  >
+                                    <Clock aria-hidden />
+                                  </button>
+                                )}
+                                <label className="sr-only" htmlFor={`visit-${s.key}`}>
+                                  Time at {s.name}
+                                </label>
+                                <select
+                                  id={`visit-${s.key}`}
+                                  value={s.visitMin}
+                                  onChange={(e) => {
+                                    const v = Number(e.target.value);
+                                    setStops((list) => list.map((x) => (x.key === s.key ? { ...x, visitMin: v } : x)));
+                                  }}
+                                  className="pl-select"
+                                >
+                                  {options.map((m) => (
+                                    <option key={m} value={m}>
+                                      {duration(m)}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRemoved({ stop: s, index: i });
+                                    setStops((list) => list.filter((x) => x.key !== s.key));
+                                  }}
+                                  className="pl-icon"
+                                  aria-label={`Remove ${s.name}`}
+                                >
+                                  <X aria-hidden />
+                                </button>
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    )}
+                  </>
+                )}
+                {removed && (
+                  <p role="status" className="pl-undo">
+                    <span className="min-w-0 truncate">Removed {removed.stop.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const { stop, index } = removed;
+                        setStops((list) => (list.some((x) => x.key === stop.key) || list.length >= MAX_STOPS ? list : [...list.slice(0, index), stop, ...list.slice(index)]));
+                        setRemoved(null);
+                      }}
+                      className="pl-link"
+                    >
+                      Undo
+                    </button>
+                  </p>
+                )}
+                {planError && (
+                  <p role="alert" className="pl-flag mb-2">
+                    {planError}
+                  </p>
+                )}
+                <button type="button" onClick={buildPlan} disabled={planning || stops.length === 0} className="ed-btn">
+                  {planning ? <Loader2 className="animate-spin" aria-hidden /> : null}
+                  {planning ? "Finding the best order…" : stops.length ? `Plan my day · ${stops.length} stop${stops.length > 1 ? "s" : ""}` : "Add a place to start"}
+                  {!planning && stops.length > 0 && <ArrowRight aria-hidden />}
+                </button>
+              </div>
+            )}
+        </aside>
+
+        <div
+          role="separator"
+          aria-label="Resize map and itinerary panel"
+          aria-orientation="vertical"
+          aria-valuemin={360}
+          aria-valuemax={maxPanelWidth}
+          aria-valuenow={visiblePanelWidth}
+          tabIndex={0}
+          onPointerDown={(e) => {
+            resizeStart.current = { x: e.clientX, width: visiblePanelWidth };
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            if (!resizeStart.current) return;
+            setPanelWidth(Math.max(360, Math.min(maxPanelWidth, resizeStart.current.width + e.clientX - resizeStart.current.x)));
+          }}
+          onPointerUp={() => {
+            resizeStart.current = null;
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+              e.preventDefault();
+              setPanelWidth(Math.max(360, Math.min(maxPanelWidth, visiblePanelWidth + (e.key === "ArrowRight" ? 24 : -24))));
+            }
+          }}
+          className="pl-resizer"
+        >
+          <span />
         </div>
 
-        {showingPlan ? (
-          <div ref={setComposerEl} className="sticky bottom-0 z-30 border-t border-border/60 bg-background/90 px-5 py-3 backdrop-blur-xl" />
-        ) : (
-          (stops.length > 0 || planError) && (
-            <div className="sticky bottom-0 z-30 border-t border-border/60 bg-background/90 px-5 py-4 backdrop-blur-xl">
-              {planError && (
-                <p role="alert" className="mb-2 text-sm text-sev-c">
-                  {planError}
-                </p>
-              )}
-              <Button
-                onClick={() => {
-                  // Planning from the builder finds the best order again.
-                  const next = { ...settings, keepOrder: false };
-                  setSettings(next);
-                  void runPlan(stops, next);
-                }}
-                disabled={planning || stops.length === 0}
-                className="neo-primary h-12 w-full rounded-xl text-[15px] font-semibold"
-              >
-                {planning ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
-                {planning ? "Finding the best order…" : stops.length ? `Plan my day · ${stops.length} stop${stops.length > 1 ? "s" : ""}` : "Add a stop to start"}
-                {!planning && stops.length > 0 && <ArrowRight className="size-5" aria-hidden />}
-              </Button>
-            </div>
-          )
+        {/* Kept mounted with a plan, hidden in Build, so the conversation survives a trip there. */}
+        {plan && (
+          <div hidden={!showingPlan}>
+            <Assistant unread={unread} onOpenChange={onAssistantOpen} handle={assistantHandle}>
+              <TripChat plan={plan} discover={discover} planning={planning || stale} onApply={applyChatPlan} onReply={() => !assistantOpen.current && setUnread(true)} />
+            </Assistant>
+          </div>
         )}
-      </aside>
 
-      <div
-        role="separator"
-        aria-label="Resize map and itinerary panel"
-        aria-orientation="vertical"
-        aria-valuemin={360}
-        aria-valuemax={maxPanelWidth}
-        aria-valuenow={visiblePanelWidth}
-        tabIndex={0}
-        onPointerDown={(e) => {
-          resizeStart.current = { x: e.clientX, width: visiblePanelWidth };
-          e.currentTarget.setPointerCapture(e.pointerId);
-        }}
-        onPointerMove={(e) => {
-          if (!resizeStart.current) return;
-          setPanelWidth(Math.max(360, Math.min(maxPanelWidth, resizeStart.current.width + e.clientX - resizeStart.current.x)));
-        }}
-        onPointerUp={() => { resizeStart.current = null; }}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-            e.preventDefault();
-            setPanelWidth((width) => Math.max(360, Math.min(maxPanelWidth, width + (e.key === "ArrowRight" ? 24 : -24))));
-          }
-        }}
-        className="group hidden w-3 shrink-0 cursor-col-resize items-center justify-center bg-background transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-brand lg:order-2 lg:flex"
-      >
-        <span className="h-12 w-1 rounded-full bg-border transition group-hover:h-16 group-hover:bg-brand" />
+        <div className="pl-mobile-brand ed-paper">
+          <Logo />
+        </div>
+        <figure className="pl-plate">
+          <figcaption className="pl-caption pl-mono">
+            <span>Plate · {showingPlan ? "Your day, live" : "New York, live"}</span>
+            <span>{showingPlan ? "Press play to watch the day" : "Tap a place to look closer"}</span>
+          </figcaption>
+          <div className="pl-frame">
+            <PlanMap
+              stops={mapStops}
+              origin={mapOrigin}
+              legs={mapLegs}
+              chosen={chosen}
+              activeKey={activeKey}
+              onPickAttraction={onPickAttraction}
+              onPickStop={onPickStop}
+              player={player}
+              onPlayerKey={followStop}
+              bottomInset={isPhone ? sheetHeights[sheet] : 0}
+              // On a phone the player steps aside while the sheet is full or found places are on the map.
+              hideOverlays={isPhone && (sheet === "full" || discover.preview !== null)}
+              discover={discover.preview}
+              onDiscoverSelect={discover.select}
+              onPlayingChange={(playing) => {
+                // Watching the day play out needs the map, not the list.
+                if (playing && isPhone) setSheet("peek");
+              }}
+              focus={inspect ? { key: inspect.key, lat: inspect.lat, lon: inspect.lon } : null}
+              showFilter={!showingPlan && mode === "pick"}
+              className="size-full"
+            />
+            {inspect && (
+              <PlaceSheet
+                key={inspect.key}
+                place={inspect}
+                date={showingPlan ? plan.request.date : settings.date}
+                inDay={stops.some((s) => s.key === inspect.key)}
+                full={full}
+                planned={showingPlan ? (plan.stops.find((s) => s.key === inspect.key) ?? null) : null}
+                stopNumber={(() => {
+                  if (!showingPlan) return null;
+                  const i = plan.stops.filter((s) => !isMealBreak(s)).findIndex((s) => s.key === inspect.key);
+                  return i === -1 ? null : i + 1;
+                })()}
+                onToggle={() => toggleInspected(inspect)}
+                onClose={closeInspect}
+              />
+            )}
+          </div>
+        </figure>
       </div>
+    </main>
+  );
+}
 
-      <div className="neo-raised fixed top-3 left-3 z-30 rounded-full py-1.5 pr-4 pl-1.5 lg:hidden">
-        <Logo />
-      </div>
-      <div className="relative order-1 shrink-0 max-lg:fixed max-lg:inset-0 lg:order-3 lg:h-dvh lg:flex-1">
-        <PlanMap
-          stops={mapStops}
-          origin={mapOrigin}
-          legs={mapLegs}
-          chosen={chosen}
-          activeKey={activeKey}
-          onPickAttraction={onPickAttraction}
-          onPickStop={onPickStop}
-          player={player}
-          onPlayerKey={followStop}
-          bottomInset={isPhone ? sheetHeights[sheet] : 0}
-          // On a phone the player steps aside while the sheet is full or found places are on the map.
-          hideOverlays={isPhone && (sheet === "full" || discover.preview !== null)}
-          discover={discover.preview}
-          onDiscoverSelect={discover.select}
-          onPlayingChange={(playing) => {
-            // Watching the day play out needs the map, not the list.
-            if (playing && isPhone) setSheet("peek");
-          }}
-          focus={inspect ? { key: inspect.key, lat: inspect.lat, lon: inspect.lon } : null}
-          className="size-full"
-        />
-        {!showingPlan && (
-          <p className="neo-raised pointer-events-none absolute top-3 left-3 rounded-full max-lg:hidden px-3.5 py-1.5 text-xs text-muted-foreground backdrop-blur">
-            Tap a dot for photos, hours and crowds
-          </p>
-        )}
-        {inspect && (
-          <PlaceSheet
-            key={inspect.key}
-            place={inspect}
-            date={showingPlan ? plan.request.date : settings.date}
-            inDay={stops.some((s) => s.key === inspect.key)}
-            full={full}
-            planned={showingPlan ? (plan.stops.find((s) => s.key === inspect.key) ?? null) : null}
-            stopNumber={(() => {
-              if (!showingPlan) return null;
-              const i = plan.stops.filter((s) => !isMealBreak(s)).findIndex((s) => s.key === inspect.key);
-              return i === -1 ? null : i + 1;
-            })()}
-            onToggle={() => toggleInspected(inspect)}
-            onClose={closeInspect}
-          />
-        )}
-      </div>
+/** Build / Your day, as two tabs. */
+function ViewTabs({ view, onChange }: { view: "edit" | "plan"; onChange: (v: "edit" | "plan") => void }) {
+  return (
+    <div role="tablist" aria-label="Panel" className="pl-tabs" onKeyDown={(e) => arrowKeys(e, '[role="tab"]')}>
+      {(
+        [
+          ["edit", "I", "Build"],
+          ["plan", "II", "Your day"],
+        ] as const
+      ).map(([value, numeral, label]) => (
+        <button key={value} type="button" role="tab" aria-selected={view === value} tabIndex={view === value ? 0 : -1} aria-controls="planner-content" onClick={() => onChange(value)} className="pl-tab">
+          <b aria-hidden>{numeral}.</b>
+          {label}
+        </button>
+      ))}
     </div>
   );
 }

@@ -69,43 +69,27 @@ export function NextUp({ plan, onReplan }: { plan: DayPlan; onReplan: () => void
   const countdown = step.kind === "moving" ? step.arriveBy - now : leaveBy !== null ? leaveBy - now : null;
 
   return (
-    <section
-      aria-label="Right now"
-      aria-live="polite"
-      className="neo-raised mb-5 overflow-hidden rounded-3xl border border-white/15 bg-[radial-gradient(130%_130%_at_0%_0%,var(--brand)_0%,oklch(0.32_0.12_275)_60%,oklch(0.22_0.06_265)_100%)] p-4 text-white"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.14em] uppercase text-white/80">
-          <span className="relative flex size-2">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-white/70" />
-            <span className="relative inline-flex size-2 rounded-full bg-white" />
-          </span>
+    <section aria-label="Right now" aria-live="polite" className="pl-now">
+      <div className="pl-mono flex items-center justify-between gap-3">
+        <span className="pl-kicker inline-flex items-center">
+          <span className="pl-live" aria-hidden />
           Live · {clock(now)}
         </span>
         {countdown !== null && (
-          <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold tabular-nums backdrop-blur">
+          <span>
             {step.kind === "moving" ? "Arrive" : "Leave"} {until(countdown)}
           </span>
         )}
       </div>
-      <h2 className="mt-2 font-display text-3xl leading-tight">{headline}</h2>
-      <p className="mt-1 text-sm text-white/85">{detail}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <h2>{headline}</h2>
+      <p className="pl-dek">{detail}</p>
+      <div className="mt-4 flex flex-wrap gap-3">
         {directions && (
-          <a
-            href={directions}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-[oklch(0.25_0.08_270)] shadow-[0_3px_8px_rgba(0,0,0,0.25)] transition hover:shadow-sm active:scale-95 active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
-          >
+          <a href={directions} target="_blank" rel="noreferrer" className="ed-btn">
             <Navigation className="size-4" aria-hidden /> Directions
           </a>
         )}
-        <button
-          type="button"
-          onClick={onReplan}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/15 px-4 text-sm font-semibold backdrop-blur shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] transition hover:bg-white/25 active:scale-95 active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]"
-        >
+        <button type="button" onClick={onReplan} className="ed-btn ed-btn--ghost">
           <RotateCcw className="size-4" aria-hidden /> Running late?
         </button>
       </div>

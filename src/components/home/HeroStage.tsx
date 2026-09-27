@@ -73,6 +73,9 @@ export function HeroStage() {
     }
     const hero = heroRef.current!, knock = knockRef.current!, word = wordRef.current!;
     const layers = hero.querySelectorAll<HTMLElement>(".ed-knock"); // cut + paper, moved together
+    // The prompt is invisible until the page lands: keep it out of the tab order until then.
+    const late = hero.querySelector<HTMLElement>(".ed-late--2");
+    if (late) late.inert = true;
     let raf = 0, cancelled = false;
     const timers: number[] = [];
     const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
@@ -107,7 +110,10 @@ export function HeroStage() {
         const { pre, dive } = DIVE_TIMING;
         at(pre + dive * 0.7, () => hero.classList.add("revealed"));
         at(pre + dive + 250, () => hero.classList.add("zoomed"));
-        at(pre + dive + 1000, () => hero.classList.add("landed"));
+        at(pre + dive + 1000, () => {
+          hero.classList.add("landed");
+          if (late) late.inert = false;
+        });
       });
     });
 
@@ -115,6 +121,7 @@ export function HeroStage() {
       cancelled = true;
       cancelAnimationFrame(raf);
       timers.forEach(clearTimeout);
+      if (late) late.inert = false;
     };
   }, [map, skip]);
 

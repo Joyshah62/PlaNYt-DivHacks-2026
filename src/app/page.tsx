@@ -1,7 +1,7 @@
 import { preconnect } from "react-dom";
 import "./home.css";
 import { Colophon } from "@/components/home/Colophon";
-import { edFonts } from "@/components/home/fonts";
+import { edFonts } from "@/components/editorial/fonts";
 import { HeroStage } from "@/components/home/HeroStage";
 import { NeighborhoodStory } from "@/components/home/NeighborhoodStory";
 import { PlanDemo } from "@/components/home/PlanDemo";

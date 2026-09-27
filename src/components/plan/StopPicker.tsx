@@ -1,17 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, Loader2, MapPin, Plus, Search } from "lucide-react";
 import { ATTRACTIONS, KIND_LABELS, searchAttractions, type Attraction, type AttractionKind } from "@/lib/plan/attractions";
-import { KIND_COLOR } from "@/lib/plan/display";
+import { catalogPhoto } from "@/lib/plan/photoUrls";
+import { arrowKeys } from "./arrowKeys";
 import type { StopInput } from "@/lib/plan/types";
-import { cn } from "@/lib/utils";
 
 export function stopFromAttraction(a: Attraction): StopInput {
-  return { key: a.id, name: a.name, lat: a.lat, lon: a.lon, visitMin: a.visitMin, attractionId: a.id };
+  return {
+    key: a.id,
+    name: a.name,
+    lat: a.lat,
+    lon: a.lon,
+    visitMin: a.visitMin,
+    attractionId: a.id,
+  };
 }
 
-const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+type Filter = AttractionKind | "all" | "for-you";
+
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
 
 export function StopPicker({
   stops,
@@ -30,12 +44,14 @@ export function StopPicker({
   full: boolean;
 }) {
   const [query, setQuery] = useState("");
-  const [kind, setKind] = useState<AttractionKind | "all">("all");
+  // "For you" leads when the traveler's interests pick something out.
+  const [kind, setKind] = useState<Filter>(() => (suggestions.length ? "for-you" : "all"));
   const [finding, setFinding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const chosen = new Set(stops.map((s) => s.key));
   const matches = searchAttractions(query, 5);
-  const list = kind === "all" ? ATTRACTIONS : ATTRACTIONS.filter((a) => a.kind === kind);
+  const list =
+    kind === "all" ? ATTRACTIONS : kind === "for-you" ? (suggestions.length ? suggestions : ATTRACTIONS) : ATTRACTIONS.filter((a) => a.kind === kind);
 
   async function find() {
     const q = query.trim();
@@ -46,7 +62,14 @@ export function StopPicker({
       const res = await fetch(`/api/resolve?q=${encodeURIComponent(q)}`);
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Couldn't find that place.");
-      onAdd({ key: `place-${slug(q)}`, name: q, lat: body.lat, lon: body.lon, visitMin: 60, attractionId: null });
+      onAdd({
+        key: `place-${slug(q)}`,
+        name: q,
+        lat: body.lat,
+        lon: body.lon,
+        visitMin: 60,
+        attractionId: null,
+      });
       setQuery("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't find that place.");
@@ -55,33 +78,63 @@ export function StopPicker({
     }
   }
 
+  const matchList = useRef<HTMLUListElement>(null);
+  const firstMatch = () => matchList.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+
   return (
     <div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (matches[0] && !chosen.has(matches[0].id)) {
-            onToggle(matches[0]);
-            setQuery("");
-          } else find();
-        }}
-        className="relative"
-      >
-        <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setError(null);
+      <div className="pl-searchrow">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            // Enter never adds a guess: it moves to the matches to choose from, or looks up an address.
+            if (matches.length) firstMatch();
+            else find();
           }}
-          placeholder="Search a place, restaurant or address"
-          aria-label="Search for a place to add"
-          className="neo-inset w-full rounded-full py-2.5 pr-4 pl-10 text-sm outline-none focus:outline-none focus:ring-0 bg-transparent caret-brand transition placeholder:text-muted-foreground"
-        />
-      </form>
+          className="pl-search"
+        >
+          <Search aria-hidden />
+          <input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setError(null);
+            }}
+            placeholder="Search a place, restaurant or address"
+            aria-label="Search for a place to add"
+            aria-controls="place-matches"
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown" && matches.length) {
+                e.preventDefault();
+                firstMatch();
+              }
+            }}
+            className="pl-input"
+          />
+        </form>
+        <label className="sr-only" htmlFor="place-kind">
+          Show
+        </label>
+        <select id="place-kind" value={kind} onChange={(e) => setKind(e.target.value as Filter)} className="pl-select">
+          {(["all", ...(suggestions.length ? ["for-you"] : []), ...Object.keys(KIND_LABELS)] as Filter[]).map((k) => (
+            <option key={k} value={k}>
+              {k === "all" ? "Popular" : k === "for-you" ? "For you" : KIND_LABELS[k]}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {query.trim().length >= 2 && (
-        <ul className="neo-raised mt-2 overflow-hidden rounded-2xl text-sm">
+        <ul
+          id="place-matches"
+          ref={matchList}
+          aria-label="Matching places"
+          className="pl-matches"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") document.querySelector<HTMLInputElement>('[aria-controls="place-matches"]')?.focus();
+            else arrowKeys(e, "button", false);
+          }}
+        >
           {matches.map((a) => (
             <li key={a.id}>
               <button
@@ -91,119 +144,80 @@ export function StopPicker({
                   onToggle(a);
                   setQuery("");
                 }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-accent disabled:opacity-50"
               >
-                <span className="size-2 rounded-full" style={{ background: KIND_COLOR[a.kind] }} aria-hidden />
-                <span className="font-medium">{a.name}</span>
-                <span className="truncate text-muted-foreground">{a.area}</span>
-                {chosen.has(a.id) ? <Check className="ml-auto size-4 text-brand" aria-label="Added" /> : <Plus className="ml-auto size-4" aria-hidden />}
+                {chosen.has(a.id) ? <Check className="pl-red" aria-label="Added" /> : <Plus aria-hidden />}
+                <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                <span className="pl-mono pl-muted truncate">{a.area}</span>
               </button>
             </li>
           ))}
           <li>
-            <button
-              type="button"
-              onClick={find}
-              disabled={finding || full}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-muted-foreground transition hover:bg-accent disabled:opacity-50"
-            >
-              {finding ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <MapPin className="size-4" aria-hidden />}
+            <button type="button" onClick={find} disabled={finding || full} className="pl-muted">
+              {finding ? <Loader2 className="animate-spin" aria-hidden /> : <MapPin aria-hidden />}
               Find &ldquo;{query.trim()}&rdquo; on the map
             </button>
           </li>
         </ul>
       )}
       {error && (
-        <p role="alert" className="mt-2 text-sm text-sev-c">
+        <p role="alert" className="pl-flag mt-2">
           {error}
         </p>
       )}
 
-      {suggestions.length > 0 && (
-        <div className="mt-5">
-          <h3 className="text-xs font-semibold tracking-wide text-muted-foreground">Matches your preferences</h3>
-          <ul className="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
-            {suggestions.map((a) => (
-              <li key={a.id} className="w-40 shrink-0">
-                <div className="neo-raised flex h-full flex-col rounded-2xl p-3 border-brand/20">
-                  <button type="button" onClick={() => onInspect(a)} aria-haspopup="dialog" className="text-left">
-                    <span className="block text-sm leading-snug font-medium hover:text-brand">{a.name}</span>
-                    <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <span className="size-1.5 shrink-0 rounded-full" style={{ background: KIND_COLOR[a.kind] }} aria-hidden />
-                      <span className="truncate">{a.area}</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={full}
-                    onClick={() => onToggle(a)}
-                    className="mt-auto inline-flex items-center gap-1 self-start pt-2 text-xs font-medium text-brand hover:underline disabled:opacity-50"
-                  >
-                    <Plus className="size-3.5" aria-hidden /> Add
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="mt-5 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]" role="radiogroup" aria-label="Filter spots by kind">
-        {(["all", ...Object.keys(KIND_LABELS)] as (AttractionKind | "all")[]).map((k) => (
-          <button
-            key={k}
-            type="button"
-            role="radio"
-            aria-checked={kind === k}
-            onClick={() => setKind(k)}
-            className={cn(
-              "neo-control inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
-              kind === k && "neo-inset text-brand font-semibold",
-            )}
-          >
-            {k !== "all" && <span className="size-1.5 rounded-full" style={{ background: KIND_COLOR[k] }} aria-hidden />}
-            {k === "all" ? "Popular" : KIND_LABELS[k]}
-          </button>
+      <ul className="pl-grid">
+        {list.map((a) => (
+          <PlaceCard key={a.id} a={a} on={chosen.has(a.id)} full={full} onToggle={onToggle} onInspect={onInspect} />
         ))}
-      </div>
-
-      <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
-        {list.map((a) => {
-          const on = chosen.has(a.id);
-          return (
-            <li key={a.id}>
-              <div
-                className={cn(
-                  "neo-card flex h-full w-full items-start gap-3 rounded-2xl p-3 transition-all duration-200",
-                  on && "border-brand/40 ring-1 ring-brand/30",
-                )}
-              >
-                <button
-                  type="button"
-                  aria-pressed={on}
-                  aria-label={on ? `Remove ${a.name} from your day` : `Add ${a.name} to your day`}
-                  disabled={full && !on}
-                  onClick={() => onToggle(a)}
-                  className={cn(
-                    "mt-0.5 grid size-7 shrink-0 place-items-center rounded-full transition disabled:opacity-45",
-                    on ? "neo-primary" : "neo-control text-muted-foreground",
-                  )}
-                >
-                  {on ? <Check className="size-3.5" aria-hidden /> : <Plus className="size-3.5" aria-hidden />}
-                </button>
-                <button type="button" onClick={() => onInspect(a)} aria-haspopup="dialog" className="group min-w-0 flex-1 text-left">
-                  <span className="block text-sm leading-snug font-medium group-hover:text-brand">{a.name}</span>
-                  <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="size-1.5 shrink-0 rounded-full" style={{ background: KIND_COLOR[a.kind] }} aria-hidden />
-                    <span className="truncate">{a.area}</span>
-                  </span>
-                  <span className="mt-1 block text-xs leading-snug text-muted-foreground">{a.blurb}</span>
-                </button>
-              </div>
-            </li>
-          );
-        })}
       </ul>
     </div>
+  );
+}
+
+/** One place: its photo (with the add button on it), name, kind and area, and a line about it. */
+function PlaceCard({
+  a,
+  on,
+  full,
+  onToggle,
+  onInspect,
+}: {
+  a: Attraction;
+  on: boolean;
+  full: boolean;
+  onToggle: (a: Attraction) => void;
+  onInspect: (a: Attraction) => void;
+}) {
+  const photo = catalogPhoto(a.id);
+  return (
+    <li className={on ? "pl-card on" : "pl-card"}>
+      <button
+        type="button"
+        aria-pressed={on}
+        aria-label={on ? `Remove ${a.name} from your day` : `Add ${a.name} to your day`}
+        disabled={full && !on}
+        onClick={() => onToggle(a)}
+        className="pl-add"
+      >
+        {on ? <Check aria-hidden /> : <Plus aria-hidden />}
+      </button>
+      <button type="button" onClick={() => onInspect(a)} aria-haspopup="dialog" className="pl-card-open">
+        <span className="pl-photo block">
+          {photo ? (
+            // Bundled Wikipedia photos; next/image would need the host allow-listed.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" />
+          ) : (
+            <span className="pl-photo-empty">
+              <MapPin aria-hidden />
+            </span>
+          )}
+        </span>
+        <span className="pl-card-name">{a.name}</span>
+        <span className="pl-card-meta pl-mono">
+          {KIND_LABELS[a.kind].replace(/s$/, "")} · {a.area}
+        </span>
+      </button>
+    </li>
   );
 }

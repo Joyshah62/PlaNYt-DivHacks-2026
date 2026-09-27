@@ -1,17 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Clock, ExternalLink, ImageOff, Navigation, Plus, Users, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Check, Clock, ImageOff, Navigation, Plus, Users, X } from "lucide-react";
 import { ATTRACTION_BY_ID, KIND_LABELS, type OpenWindow, type WeeklyHours } from "@/lib/plan/attractions";
-import { crowdBand } from "@/lib/plan/crowd";
-import { CROWD_COLOR, CROWD_LABEL, KIND_COLOR } from "@/lib/plan/display";
+import { CROWD_LABEL } from "@/lib/plan/display";
 import { mapsPoint } from "@/lib/plan/maps";
 import { clock, duration, WEEKDAYS } from "@/lib/plan/time";
 import type { PlannedStop } from "@/lib/plan/types";
-import { cn } from "@/lib/utils";
 import { CrowdStrip } from "./CrowdStrip";
+import { useFocusTrap } from "./useFocusTrap";
 
 export interface InspectPlace {
   key: string;
@@ -99,6 +96,10 @@ export function PlaceSheet({
   const photo = useFetched<Photo>(`/api/photo?${where}`);
   const [imgFailed, setImgFailed] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLElement>(null);
+  // On a phone the sheet covers the map and is modal; on a desktop it's a card beside the column.
+  const [modal] = useState(() => window.matchMedia("(max-width: 1023px)").matches);
+  useFocusTrap(sheetRef, modal);
   const weekday = WEEKDAYS[info.value?.dow ?? new Date(`${date}T12:00:00Z`).getUTCDay()];
 
   useEffect(() => {
@@ -112,48 +113,31 @@ export function PlaceSheet({
 
   return (
     <>
-      {/* Phones get a bottom sheet over a dimmed map; desktop a card floating on the map. */}
-      <button type="button" aria-label="Close details" onClick={onClose} className="fixed inset-0 z-40 bg-black/30 lg:hidden" />
-      <section
-        role="dialog"
-        aria-label={place.name}
-        className="animate-rise neo-raised-lg fixed inset-x-0 bottom-0 z-50 max-h-[82dvh] overflow-y-auto rounded-t-3xl lg:absolute lg:inset-x-auto lg:top-4 lg:bottom-auto lg:left-4 lg:max-h-[calc(100%-2rem)] lg:w-[min(380px,calc(100vw_-_2rem))] lg:rounded-3xl"
-        style={{ "--delay": "0ms" } as React.CSSProperties}
-      >
-        <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted lg:rounded-t-3xl">
+      {/* Phones get a bottom sheet over a dimmed map; desktop a card on the map's corner. */}
+      <div aria-hidden onClick={onClose} className="pl-scrim place" />
+      <section ref={sheetRef} role="dialog" aria-modal={modal} aria-label={place.name} className="pl-sheet place">
+        <div className="pl-photo">
           {photo.loading ? (
-            <Skeleton className="size-full rounded-none" />
+            <div className="pl-skeleton size-full" />
           ) : showPhoto ? (
             // Remote, per-place images from Google or Wikimedia; next/image would need every host allow-listed.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={photo.value!.url} alt={`${place.name}`} className="size-full object-cover" onError={() => setImgFailed(photo.value!.url)} referrerPolicy="no-referrer" />
+            <img src={photo.value!.url} alt={place.name} onError={() => setImgFailed(photo.value!.url)} referrerPolicy="no-referrer" />
           ) : (
-            <div className="grid size-full place-items-center text-muted-foreground">
-              <span className="flex flex-col items-center gap-2 text-xs">
-                <ImageOff className="size-6" aria-hidden /> No photo available
-              </span>
-            </div>
-          )}
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            aria-label="Close details"
-            className="absolute top-3 right-3 grid size-9 place-items-center rounded-full bg-background/85 text-foreground shadow backdrop-blur transition hover:bg-background"
-          >
-            <X className="size-4" aria-hidden />
-          </button>
-          {stopNumber !== null && (
-            <span className="absolute top-3 left-3 grid size-9 place-items-center rounded-full bg-foreground text-sm font-semibold text-background shadow">
-              {stopNumber}
+            <span className="pl-photo-empty">
+              <ImageOff aria-hidden />
             </span>
           )}
+          <button ref={closeRef} type="button" onClick={onClose} aria-label="Close details" className="pl-sheet-close">
+            <X aria-hidden />
+          </button>
+          {stopNumber !== null && <span className="pl-bullet pl-sheet-num">{stopNumber}</span>}
         </div>
         {showPhoto && (
-          <p className="truncate px-5 pt-2 text-[10px] text-muted-foreground">
+          <p className="pl-credit">
             Photo:{" "}
             {photo.value!.creditUrl ? (
-              <a href={photo.value!.creditUrl} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+              <a href={photo.value!.creditUrl} target="_blank" rel="noreferrer" className="pl-link">
                 {photo.value!.credit}
               </a>
             ) : (
@@ -164,77 +148,58 @@ export function PlaceSheet({
           </p>
         )}
 
-        <div className="space-y-5 p-5 pt-3">
+        <div className="pl-sheet-pad">
           <div>
             {attraction && (
-              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <span className="size-2 rounded-full" style={{ background: KIND_COLOR[attraction.kind] }} aria-hidden />
+              <p className="pl-mono pl-kicker">
                 {KIND_LABELS[attraction.kind].replace(/s$/, "")} · {attraction.area}
               </p>
             )}
-            <h2 className="mt-1 font-display text-3xl leading-tight tracking-tight">{place.name}</h2>
-            {attraction && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{attraction.blurb}</p>}
+            <h2 className="pl-h2">{place.name}</h2>
+            {attraction && <p className="pl-dek">{attraction.blurb}</p>}
           </div>
 
           {planned && (
-            <div className="rounded-2xl bg-brand-soft px-4 py-3 text-sm">
-              <p className="font-medium">
-                Stop {stopNumber}: {clock(planned.startMin)} – {clock(planned.endMin)}
-              </p>
-              <p className="text-muted-foreground">
-                {duration(planned.visitMin)} here
-                {planned.crowd && (
-                  <>
-                    {" · "}
-                    <span style={{ color: CROWD_COLOR[planned.crowd.band] }}>{CROWD_LABEL[planned.crowd.band].toLowerCase()}</span> then
-                  </>
-                )}
-              </p>
-            </div>
+            <p className="pl-note">
+              <span className="pl-mono">
+                Stop {stopNumber} · {clock(planned.startMin)} – {clock(planned.endMin)}
+              </span>
+              <br />
+              {duration(planned.visitMin)} here
+              {planned.crowd && <>, {CROWD_LABEL[planned.crowd.band].toLowerCase()} then</>}
+            </p>
           )}
 
-          <div className="flex gap-2">
-            <Button
-              onClick={onToggle}
-              disabled={!inDay && full}
-              className={cn(
-                "h-10 flex-1 rounded-full text-sm font-semibold",
-                inDay ? "neo-control neo-inset text-brand" : "neo-primary",
-              )}
-            >
+          <div className="pl-sheet-buttons">
+            <button type="button" onClick={onToggle} disabled={!inDay && full} className={inDay ? "ed-btn ed-btn--ghost" : "ed-btn"}>
               {inDay ? <Check aria-hidden /> : <Plus aria-hidden />}
               {inDay ? "In your day · remove" : full ? "Day is full" : "Add to my day"}
-            </Button>
-            <a
-              href={mapsDirections(place)}
-              target="_blank"
-              rel="noreferrer"
-              className="neo-control inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition"
-            >
-              <Navigation className="size-4" aria-hidden /> Directions
+            </button>
+            <a href={mapsDirections(place)} target="_blank" rel="noreferrer" className="ed-btn ed-btn--ghost">
+              <Navigation aria-hidden /> Directions
             </a>
           </div>
 
           <div>
-            <h3 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              <Clock className="size-3.5" aria-hidden /> {weekday}
+            <h3 className="pl-mono pl-muted flex items-center gap-1.5">
+              <Clock className="size-[1.1em]" aria-hidden /> {weekday}
             </h3>
             {info.loading ? (
-              <Skeleton className="mt-2 h-5 w-40" />
+              <div className="pl-skeleton mt-2 h-5 w-40" />
             ) : info.value ? (
-              <p className={cn("mt-1 text-sm", info.value.window === null && "font-medium text-sev-c")}>
+              <p className={info.value.window === null ? "pl-flag mt-1" : "pl-small mt-1"}>
                 {info.value.window === null ? `Usually closed on ${weekday}s` : hoursText(info.value.window)}
-                {!attraction && info.value.window === "always" && <span className="text-muted-foreground"> (hours not known; check before you go)</span>}
+                {!attraction && info.value.window === "always" && <span className="pl-muted"> (hours not known; check before you go)</span>}
               </p>
             ) : null}
             {info.value?.week && (
-              <details className="mt-1 text-xs text-muted-foreground">
-                <summary className="cursor-pointer select-none hover:text-foreground">Typical weekly hours</summary>
-                <ul className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5">
+              <details className="mt-1 pl-small pl-muted">
+                <summary className="cursor-pointer select-none hover:text-(--ink)">Typical weekly hours</summary>
+                <ul className="pl-hours">
                   {info.value.week.map((w, d) => (
-                    <li key={d} className={cn("contents", d === info.value!.dow && "font-medium text-foreground")}>
-                      <span>{WEEKDAYS[d].slice(0, 3)}</span>
-                      <span className="tabular-nums">{hoursText(w)}</span>
+                    <li key={d} className={d === info.value!.dow ? "contents today" : "contents"}>
+                      <span className={d === info.value!.dow ? "today" : undefined}>{WEEKDAYS[d].slice(0, 3)}</span>
+                      <span className={d === info.value!.dow ? "today" : undefined}>{hoursText(w)}</span>
                     </li>
                   ))}
                 </ul>
@@ -244,8 +209,8 @@ export function PlaceSheet({
 
           {info.value?.crowd && (
             <div>
-              <h3 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <Users className="size-3.5" aria-hidden /> Crowds nearby, typical {weekday}
+              <h3 className="pl-mono pl-muted flex items-center gap-1.5">
+                <Users className="size-[1.1em]" aria-hidden /> Crowds nearby, typical {weekday}
               </h3>
               <CrowdStrip
                 className="mt-2"
@@ -255,27 +220,20 @@ export function PlaceSheet({
                 fromHour={7}
                 toHour={23}
               />
-              <p className="mt-2 text-sm">
-                {planned && (
-                  <span className="block text-muted-foreground">
-                    Lit up: your visit, {clock(planned.startMin)} – {clock(planned.endMin)}.
-                  </span>
-                )}
+              <p className="pl-small mt-2">
+                {planned ? `In red: your visit, ${clock(planned.startMin)} – ${clock(planned.endMin)}. ` : ""}
                 {info.value.quietest && (
                   <>
-                    Quietest while open:{" "}
-                    <span className="font-medium" style={{ color: CROWD_COLOR[crowdBand(info.value.quietest.level)] }}>
-                      around {clock(info.value.quietest.startMin)}
-                    </span>
+                    Quietest while open: <span className="pl-red">around {clock(info.value.quietest.startMin)}</span>.
                   </>
                 )}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">From subway ridership around {info.value.crowd.station}. Street busyness, not the line inside.</p>
+              <p className="pl-small pl-muted mt-1">From subway ridership around {info.value.crowd.station}. Street busyness, not the line inside.</p>
             </div>
           )}
 
-          <a href={mapsSearch(place)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand underline-offset-4 hover:underline">
-            Reviews, photos and more on Google Maps <ExternalLink className="size-3.5" aria-hidden />
+          <a href={mapsSearch(place)} target="_blank" rel="noreferrer" className="pl-link pl-small">
+            Reviews, photos and more on Google Maps ↗
           </a>
         </div>
       </section>

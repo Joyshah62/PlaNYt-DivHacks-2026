@@ -100,7 +100,8 @@ export const TRANSIT_STYLE = {
 };
 
 export const STYLES: Record<string, string | typeof SATELLITE_STYLE | typeof SATELLITE_3D_STYLE | typeof TRANSIT_STYLE> = {
-  day: "https://tiles.openfreemap.org/styles/liberty",
+  // Positron: quiet greys that sit on the planner's paper, so the route and pins carry the colour.
+  day: "https://tiles.openfreemap.org/styles/positron",
   night: "https://tiles.openfreemap.org/styles/dark",
   satellite: SATELLITE_3D_STYLE,
   transit: TRANSIT_STYLE,
@@ -192,12 +193,15 @@ export const CATEGORY_IDS = [
 
 const COLOR_VARS = ["--brand", "--background", "--foreground", "--muted", "--muted-foreground", "--card", ...CATEGORY_IDS.map((c) => `--cat-${c}`)];
 
-/** MapLibre cannot read CSS variables or oklch(); resolve them to rgb via a canvas pixel. */
-export function resolveColors(): Record<string, string> {
+/**
+ * MapLibre cannot read CSS variables or oklch(); resolve them to rgb via a canvas pixel.
+ * Read from `from` to pick up a page's own palette (the planner's paper and ink).
+ */
+export function resolveColors(from: Element = document.documentElement): Record<string, string> {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 1;
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-  const style = getComputedStyle(document.documentElement);
+  const style = getComputedStyle(from);
   return Object.fromEntries(
     COLOR_VARS.map((name) => {
       ctx.clearRect(0, 0, 1, 1);

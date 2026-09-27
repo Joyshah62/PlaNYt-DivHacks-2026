@@ -8,33 +8,34 @@ import {
   BookmarkCheck,
   CalendarPlus,
   Car,
-  Clock,
-  ExternalLink,
+  ChevronDown,
   Footprints,
   Hourglass,
   Lightbulb,
   Link2,
   Map as MapIcon,
+  MessageCircle,
+  MapPin,
   Pencil,
+  Share2,
   TrainFront,
   Users,
   Umbrella,
   UtensilsCrossed,
 } from "lucide-react";
-import type { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ATTRACTION_BY_ID } from "@/lib/plan/attractions";
 import { crowdBand } from "@/lib/plan/crowd";
 import { isMealBreak } from "@/lib/plan/profile";
-import { CROWD_COLOR, CROWD_LABEL, KIND_COLOR, LEG_VERB, MODE_LABEL } from "@/lib/plan/display";
+import { CROWD_LABEL, LEG_VERB, MODE_LABEL } from "@/lib/plan/display";
 import { clock, duration, nycToday, WEEKDAYS } from "@/lib/plan/time";
 import { mapsDayRoute, mapsDirections, mapsPoint, type MapsPoint } from "@/lib/plan/maps";
 import type { DayPlan, Leg, LegMode, PlannedStop, StopInput } from "@/lib/plan/types";
 import { WEATHER_LABEL, weatherKind, type Forecast } from "@/lib/plan/weatherCodes";
 import { WeatherIcon } from "./WeatherIcon";
 import { stopFromAttraction } from "./StopPicker";
-import { cn } from "@/lib/utils";
-import { CrowdStrip } from "./CrowdStrip";
+import { Fold } from "./Fold";
+import { arrowKeys } from "./arrowKeys";
 
 const LEG_ICON: Record<LegMode, typeof Footprints> = { walk: Footprints, subway: TrainFront, bike: Bike, car: Car };
 /** Places where rain changes the visit. */
@@ -48,28 +49,6 @@ function countdown(date: string): string | null {
   if (days < 14) return `In ${days} days`;
   return `In ${Math.round(days / 7)} weeks`;
 }
-
-/** Up to three of the day's photos, as the header's backdrop. */
-function Mosaic({ photos }: { photos: string[] }) {
-  if (!photos.length) {
-    return <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,var(--brand)_0%,oklch(0.3_0.1_280)_55%,oklch(0.18_0.03_260)_100%)]" aria-hidden />;
-  }
-  return (
-    <div className={cn("absolute inset-0 grid gap-0.5", photos.length === 1 ? "grid-cols-1" : "grid-cols-[1.6fr_1fr]", photos.length === 3 && "grid-rows-2")} aria-hidden>
-      {photos.map((url, i) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={url}
-          src={url}
-          alt=""
-          className={cn("hero-kenburns size-full object-cover", photos.length === 3 && i === 0 && "row-span-2")}
-          style={{ animationDelay: `${i * -6}s` }}
-        />
-      ))}
-    </div>
-  );
-}
-
 
 const mapsFoodNearby = (s: PlannedStop) =>
   `https://www.google.com/maps/search/?${new URLSearchParams({ api: "1", query: `restaurants near ${s.lat.toFixed(5)},${s.lon.toFixed(5)}` })}`;
@@ -86,30 +65,93 @@ interface LegEnds {
 function LegRow({ leg, ends }: { leg: Leg; ends: LegEnds }) {
   const Icon = LEG_ICON[leg.mode];
   return (
-    <li className="flex items-center gap-3 py-2 pl-[3px] text-sm text-muted-foreground">
-      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted">
-        <Icon className="size-3.5" aria-hidden />
+    <li className="pl-tl pl-leg" data-mode={leg.mode}>
+      <span className="pl-rail">
+        <span className="pl-leg-icon">
+          <Icon aria-hidden />
+        </span>
       </span>
-      <span className="flex-1 leading-snug">
-        <span className="font-medium text-foreground tabular-nums">
+      <span className="pl-leg-body">
+        <span className="pl-mono">
           {leg.estimated ? "~" : ""}
-          {duration(leg.minutes)}
-        </span>{" "}
-        {LEG_VERB[leg.mode]}
+          {duration(leg.minutes)} {LEG_VERB[leg.mode]}
+        </span>
+        <a href={mapsDirections(ends.from, ends.to, leg.mode)} target="_blank" rel="noreferrer" className="pl-link">
+          Directions<span className="sr-only"> to {ends.to.name} in Google Maps</span> ↗
+        </a>
       </span>
-      <a
-        href={mapsDirections(ends.from, ends.to, leg.mode)}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-brand transition hover:bg-brand-soft"
-      >
-        Directions<span className="sr-only"> to {ends.to.name} in Google Maps</span>
-        <ExternalLink className="size-3" aria-hidden />
-      </a>
     </li>
   );
 }
 
+/** Up to three of the day's photos, as its cover. */
+function Mosaic({ photos }: { photos: string[] }) {
+  if (!photos.length) return null;
+  return (
+    <div className={`pl-mosaic n${photos.length}`} aria-hidden>
+      {photos.map((url, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={url} src={url} alt="" referrerPolicy="no-referrer" style={{ animationDelay: `${i * -7}s` }} />
+      ))}
+    </div>
+  );
+}
+
+/** Copy link, calendar and Google Maps, behind one Share button. */
+function ShareMenu({ onShare, onCalendar, dayRoute }: { onShare: () => void; onCalendar: () => void; dayRoute: string | null }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    // Open: focus the first item. Escape: back to the Share button.
+    list.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    const onDown = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      button.current?.focus();
+    };
+    window.addEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const pick = (fn: () => void) => () => {
+    fn();
+    setOpen(false);
+  };
+  return (
+    <div ref={root} className="pl-menu">
+      <button ref={button} type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="pl-textbtn">
+        <Share2 aria-hidden /> Share <ChevronDown aria-hidden />
+      </button>
+      {open && (
+        <div role="menu" aria-label="Share this day" className="pl-menu-list" ref={list} onKeyDown={(e) => arrowKeys(e, '[role="menuitem"]', false)}>
+          <button type="button" role="menuitem" onClick={pick(onShare)}>
+            <Link2 aria-hidden /> Copy link
+          </button>
+          <button type="button" role="menuitem" onClick={pick(onCalendar)}>
+            <CalendarPlus aria-hidden /> Add to calendar
+          </button>
+          {dayRoute && (
+            <a role="menuitem" href={dayRoute} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+              <MapIcon aria-hidden /> Open in Google Maps ↗
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The planned day, in the order you read it: the cover (when, how long, the weather), what to do
+ * with it (save, share), the numbers, the stops themselves, then what you could change.
+ */
 export function Itinerary({
   plan,
   activeKey,
@@ -121,7 +163,7 @@ export function Itinerary({
   onSave,
   onShare,
   onCalendar,
-  assistant,
+  onAsk,
   choices,
   dayPicker,
   forecast,
@@ -137,9 +179,9 @@ export function Itinerary({
   onSave: () => void;
   onShare: () => void;
   onCalendar: () => void;
-  /** The trip assistant, right under the day's summary and actions. */
-  assistant?: ReactNode;
-  /** Options for the day's open slots, shown under the summary. */
+  /** Opens the trip assistant: the main way to change the day. */
+  onAsk: () => void;
+  /** Options for the day's open slots ("Your call"). */
   choices?: ReactNode;
   /** The strip for choosing which day to go. */
   dayPicker?: ReactNode;
@@ -150,324 +192,246 @@ export function Itinerary({
   const { summary, baseline, request } = plan;
   const savedMin = baseline ? baseline.travelMin - summary.travelMin : 0;
   const dayRoute = mapsDayRoute(plan);
-  const fromHour = Math.max(6, Math.floor(request.startMin / 60) - 1);
-  const toHour = Math.min(24, Math.max(fromHour + 6, Math.ceil(Math.max(summary.finishMin, request.endMin) / 60)));
   const band = summary.crowdLevel === null ? null : crowdBand(summary.crowdLevel);
   const isToday = request.date === nycToday();
   const until = isToday ? null : countdown(request.date);
   const dayWeather = forecast?.days.find((d) => d.date === request.date) ?? null;
   const hourly = forecast?.hours[request.date] ?? null;
   const placeCount = plan.stops.filter((s) => !isMealBreak(s)).length;
-  const heroPhotos = [...new Set(plan.stops.flatMap((s) => (photos[s.key] ? [photos[s.key]] : [])))].slice(0, 3);
+  const coverPhotos = [...new Set(plan.stops.flatMap((s) => (photos[s.key] ? [photos[s.key]] : [])))].slice(0, 3);
 
   return (
     <div className="animate-rise">
-      {/* The day at a glance, over its own photos. */}
-      <header className="relative -mx-5 -mt-5 h-[clamp(14rem,34dvh,18rem)] overflow-hidden text-white">
-        <Mosaic photos={heroPhotos} />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" aria-hidden />
-        <Button variant="outline" size="sm" className="absolute top-4 right-4 rounded-full border-white/30 bg-black/30 text-white backdrop-blur-md hover:bg-black/50 hover:text-white" onClick={onEdit}>
-          <Pencil aria-hidden /> Edit
-        </Button>
-        {until && (
-          <span className="absolute top-4 left-5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold tracking-wide uppercase backdrop-blur-md">{until}</span>
-        )}
-        <div className="absolute inset-x-5 bottom-5">
-          <p className="text-xs font-semibold tracking-[0.14em] text-white/75 uppercase">
+      <header className="pl-cover">
+        <Mosaic photos={coverPhotos} />
+        {until && <span className="pl-cover-badge pl-mono">{until}</span>}
+        <div className="pl-cover-text">
+          <p className="pl-mono pl-kicker">
             {WEEKDAYS[plan.dow]} · {new Date(`${request.date}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" })}
           </p>
-          <h2 className="mt-1.5 font-display text-5xl leading-none tracking-tight drop-shadow-sm">
-            {clock(plan.stops[0]?.startMin ?? request.startMin)} – {clock(summary.finishMin)}
+          <h2 className="pl-cover-time">
+            {clock(plan.stops[0]?.startMin ?? request.startMin)} <em>to</em> {clock(summary.finishMin)}
           </h2>
-          <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/85">
+          <p className="pl-cover-dek">
             <span>
-              {placeCount} {placeCount === 1 ? "stop" : "stops"} · {duration(summary.travelMin)} getting around
+              {placeCount} {placeCount === 1 ? "stop" : "stops"}
             </span>
+            <span>
+              {duration(summary.travelMin)} by {MODE_LABEL[request.mode].toLowerCase()}
+            </span>
+            {savedMin > 0 && <span>{duration(savedMin)} saved</span>}
+            {band && <span>{CROWD_LABEL[band].replace(" time", "")} crowds</span>}
             {dayWeather ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-0.5 backdrop-blur-md">
-                <WeatherIcon code={dayWeather.code} className="size-3.5 text-white" />
-                {WEATHER_LABEL[weatherKind(dayWeather.code)]} · {dayWeather.hi}°/{dayWeather.lo}°
-                {dayWeather.rain >= 20 && <span className="text-white/75">· {dayWeather.rain}% rain</span>}
+              <span>
+                <WeatherIcon code={dayWeather.code} /> {WEATHER_LABEL[weatherKind(dayWeather.code)]}, {dayWeather.hi}°/{dayWeather.lo}°{dayWeather.rain >= 20 && `, ${dayWeather.rain}% rain`}
               </span>
             ) : (
-              forecast && <span className="text-white/70">Forecast opens ~16 days out</span>
+              forecast && <span>Forecast opens ~16 days out</span>
             )}
           </p>
         </div>
       </header>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={onSave} className={cn("neo-control rounded-full", isSaved ? "neo-inset text-brand font-semibold" : "")}>
-          {isSaved ? <BookmarkCheck aria-hidden /> : <Bookmark aria-hidden />}
-          {isSaved ? "Saved" : "Save plan"}
-        </Button>
-        <Button size="sm" variant="outline" onClick={onCalendar} className="neo-control rounded-full">
-          <CalendarPlus aria-hidden /> Add to calendar
-        </Button>
-        <Button size="sm" variant="outline" onClick={onShare} className="neo-control rounded-full">
-          <Link2 aria-hidden /> Copy link
-        </Button>
-        {dayRoute && (
-          <a
-            href={dayRoute}
-            target="_blank"
-            rel="noreferrer"
-            className="neo-control inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8rem] font-medium"
-          >
-            <MapIcon className="size-3.5" aria-hidden /> Google Maps
-          </a>
-        )}
-        <span role="status" aria-live="polite" className="text-xs text-muted-foreground">
+      {/* Changing the day is a conversation first; the manual tools sit beside it. */}
+      <button type="button" onClick={onAsk} className="ed-btn pl-ask">
+        <MessageCircle aria-hidden /> Ask the planner to change anything
+      </button>
+
+      <div className="pl-actions pl-mono">
+        <button type="button" onClick={onSave} className="pl-textbtn" aria-pressed={isSaved}>
+          {isSaved ? <BookmarkCheck className="pl-red" aria-hidden /> : <Bookmark aria-hidden />}
+          {isSaved ? "Saved" : "Save"}
+        </button>
+        <ShareMenu onShare={onShare} onCalendar={onCalendar} dayRoute={dayRoute} />
+        <button type="button" onClick={onEdit} className="pl-textbtn end">
+          <Pencil aria-hidden /> Edit stops
+        </button>
+        <span role="status" aria-live="polite" className="pl-toast">
           {shareNote}
         </span>
       </div>
 
-      {assistant}
-
-      {dayPicker}
-
-      <dl className="mt-5 grid grid-cols-3 gap-2.5">
-        <div className="neo-raised rounded-2xl p-3">
-          <dt className="text-xs text-muted-foreground">Travel</dt>
-          <dd className="mt-0.5 font-display text-2xl leading-tight">{duration(summary.travelMin)}</dd>
-          <dd className="text-[11px] text-muted-foreground">{MODE_LABEL[request.mode]}</dd>
-        </div>
-        <div className="neo-raised rounded-2xl p-3">
-          <dt className="text-xs text-muted-foreground">Saved</dt>
-          <dd className="mt-0.5 font-display text-2xl leading-tight text-brand">{savedMin > 0 ? duration(savedMin) : "—"}</dd>
-          <dd className="text-[11px] text-muted-foreground">vs. your order</dd>
-        </div>
-        <div className="neo-raised rounded-2xl p-3">
-          <dt className="text-xs text-muted-foreground">Crowds</dt>
-          <dd className="mt-0.5 flex items-center gap-1.5 font-display text-2xl leading-tight">
-            {band ? (
-              <>
-                <span className="size-2.5 rounded-full" style={{ background: CROWD_COLOR[band] }} aria-hidden />
-                {CROWD_LABEL[band].replace(" time", "")}
-              </>
-            ) : (
-              "—"
-            )}
-          </dd>
-          <dd className="text-[11px] text-muted-foreground">on average</dd>
-        </div>
-      </dl>
-
-      {choices}
-
-      {plan.insights.length > 0 && (
-        <ul className="neo-raised mt-5 space-y-2 rounded-2xl p-4 text-sm leading-relaxed border-brand/20">
-          {plan.insights.map((line) => (
-            <li key={line} className="flex gap-2.5">
-              <Lightbulb className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-              <span>{line}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
       {plan.skipped.length > 0 && (
-        <p className="mt-3 text-sm text-muted-foreground">
-          Left out: {plan.skipped.map((s) => `${s.name} (${s.reason.toLowerCase()})`).join(", ")}
+        <p className="pl-flag mt-4">
+          <AlertTriangle aria-hidden />
+          <span>Left out: {plan.skipped.map((s) => `${s.name} (${s.reason.toLowerCase()})`).join(", ")}</span>
         </p>
       )}
 
-      <ol className="mt-6 space-y-1" aria-label="Your day, in order">
+      <ol className="pl-timeline" aria-label="Your day, in order">
         {plan.stops.map((s, i) => {
           const attraction = s.attractionId ? ATTRACTION_BY_ID.get(s.attractionId) : undefined;
-          const active = s.key === activeKey;
           const prevPlace = plan.stops.slice(0, i).reverse().find((x) => !isMealBreak(x)) ?? null;
+          const leg = s.leg && <LegRow key={`${s.key}-leg`} leg={s.leg} ends={{ from: prevPlace ? mapsPoint(prevPlace) : mapsPoint(request.origin!), to: { ...mapsPoint(s), name: s.name } }} />;
           if (isMealBreak(s)) {
             const food = s.nearbyFood ? ATTRACTION_BY_ID.get(s.nearbyFood.id) : undefined;
-            return (
-              <li key={s.key} className="py-2">
-                <div className="neo-inset flex items-start gap-3 rounded-2xl px-4 py-3.5">
-                  <span className="neo-control grid size-8 shrink-0 place-items-center rounded-full text-sev-b">
-                    <UtensilsCrossed className="size-3.5" aria-hidden />
+            return [
+              leg,
+              <li key={s.key} className="pl-tl pl-stop pl-meal" style={{ cursor: "default" }}>
+                <span className="pl-rail">
+                  <span className="pl-meal-mark">
+                    <UtensilsCrossed aria-hidden />
                   </span>
-                  <div className="min-w-0 flex-1 text-sm">
-                    <p className="text-xs font-medium text-muted-foreground tabular-nums">
-                      {clock(s.startMin)} – {clock(s.endMin)} · {duration(s.visitMin)}
-                    </p>
-                    <h3 className="font-semibold">
-                      {s.name}
-                      {prevPlace ? <span className="font-normal text-muted-foreground"> near {prevPlace.name}</span> : null}
-                    </h3>
-                    {food && (
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Close by:{" "}
-                        <button type="button" onClick={() => onInspect(stopFromAttraction(food))} className="font-medium text-foreground underline-offset-2 hover:underline">
-                          {food.name}
-                        </button>
-                      </p>
-                    )}
-                  </div>
-                  <a href={mapsFoodNearby(s)} target="_blank" rel="noreferrer" className="neo-control inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold text-brand">
-                    Find food <ExternalLink className="size-3" aria-hidden />
-                  </a>
+                </span>
+                <div className="pl-stop-body">
+                  <p className="pl-stop-time pl-mono">
+                    {clock(s.startMin)} – {clock(s.endMin)} · {duration(s.visitMin)}
+                  </p>
+                  <h3 className="pl-stop-name">{s.name}</h3>
+                  {prevPlace && <p className="pl-stop-area">near {prevPlace.name}</p>}
+                  <p className="pl-notes">
+                    <span>
+                      {food && (
+                        <>
+                          Close by:{" "}
+                          <button type="button" onClick={() => onInspect(stopFromAttraction(food))} className="pl-link">
+                            {food.name}
+                          </button>
+                          {" · "}
+                        </>
+                      )}
+                      <a href={mapsFoodNearby(s)} target="_blank" rel="noreferrer" className="pl-link">
+                        Food nearby on Google Maps ↗
+                      </a>
+                    </span>
+                  </p>
                 </div>
-              </li>
-            );
+              </li>,
+            ];
           }
           const number = plan.stops.slice(0, i + 1).filter((x) => !isMealBreak(x)).length;
           const weather = hourly?.[Math.floor(s.startMin / 60) % 24] ?? null;
           const wet = weather && weather.rain >= 40 && attraction && OUTDOOR.has(attraction.kind);
-          return (
-            <li key={s.key}>
-              <ol>
-                {s.leg && (
-                  <LegRow
-                    leg={s.leg}
-                    ends={{ from: prevPlace ? mapsPoint(prevPlace) : mapsPoint(request.origin!), to: { ...mapsPoint(s), name: s.name } }}
-                  />
+          return [
+            leg,
+            // The whole entry is a pointer target; the name is the keyboard one.
+            <li
+              key={s.key}
+              data-stop={s.key}
+              data-active={s.key === activeKey}
+              onClick={() => {
+                onActivate(s.key);
+                onInspect(s);
+              }}
+              onMouseEnter={() => onActivate(s.key)}
+              className="pl-tl pl-stop"
+            >
+              <span className="pl-rail">
+                <span className="pl-bullet">{number}</span>
+              </span>
+              <div className="pl-stop-body">
+                <p className="pl-stop-time pl-mono">
+                  <span>
+                    {clock(s.startMin)} – {clock(s.endMin)} · {duration(s.visitMin)}
+                  </span>
+                  {weather && (
+                    <span>
+                      <WeatherIcon code={weather.code} /> {weather.temp}°
+                    </span>
+                  )}
+                  {s.crowd && (
+                    <span className={s.crowd.band === "busy" || s.crowd.band === "peak" ? "pl-red" : undefined}>
+                      <Users aria-hidden /> {CROWD_LABEL[s.crowd.band]}
+                    </span>
+                  )}
+                </p>
+                {photos[s.key] && (
+                  <div className="pl-photo">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photos[s.key]} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                  </div>
                 )}
-                <li>
-                  {/* The whole card is a pointer target; the name is the keyboard one. */}
-                  <div
-                    data-stop={s.key}
-                    onClick={() => {
+                <h3 className="pl-stop-name">
+                  <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    onClick={(e) => {
+                      e.stopPropagation();
                       onActivate(s.key);
                       onInspect(s);
                     }}
-                    onMouseEnter={() => onActivate(s.key)}
-                    className={cn(
-                      "group neo-raised w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-all duration-300",
-                      active ? "ring-2 ring-brand border-brand/50 shadow-lg scale-[1.01]" : "hover:-translate-y-0.5 hover:shadow-md",
-                    )}
                   >
-                    {photos[s.key] && (
-                      <div className="relative h-36 overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={photos[s.key]} alt="" loading="lazy" className="size-full object-cover transition duration-700 group-hover:scale-105" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" aria-hidden />
-                        <span className="absolute bottom-3 left-4 font-display text-2xl leading-none text-white tabular-nums drop-shadow">{clock(s.startMin)}</span>
-                        {weather && (
-                          <span className="absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5 text-xs text-white backdrop-blur-md">
-                            <WeatherIcon code={weather.code} className="size-3.5 text-white" /> {weather.temp}°
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex items-start gap-3 p-4">
-                      <span
-                        className={cn(
-                          "grid size-7 shrink-0 place-items-center rounded-full text-[13px] font-semibold tabular-nums transition",
-                          active ? "neo-primary" : "neo-inset text-brand",
-                        )}
-                      >
-                        {number}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-muted-foreground tabular-nums">
-                          {clock(s.startMin)} – {clock(s.endMin)} · {duration(s.visitMin)}
-                        </p>
-                        <h3 className="mt-0.5 text-[17px] font-semibold leading-snug">
-                          <button
-                            type="button"
-                            aria-haspopup="dialog"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onActivate(s.key);
-                              onInspect(s);
-                            }}
-                            className="text-left outline-none focus-visible:underline"
-                          >
-                            {s.name}
-                          </button>
-                        </h3>
-                        {attraction && (
-                          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            <span className="size-2 rounded-full" style={{ background: KIND_COLOR[attraction.kind] }} aria-hidden />
-                            {attraction.area}
-                          </p>
-                        )}
-                        {s.waitMin > 0 && (
-                          <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Hourglass className="size-3.5" aria-hidden /> Arrive {clock(s.arriveMin)},{" "}
-                            {s.fixedStartMin != null && s.startMin === s.fixedStartMin ? `${duration(s.waitMin)} before your ${clock(s.startMin)} time` : `doors open ${clock(s.startMin)}`}
-                          </p>
-                        )}
-                        {(s.fixedStartMin != null || (s.meal && !isMealBreak(s))) && (
-                          <p className="mt-1.5 flex flex-wrap gap-1.5">
-                            {s.fixedStartMin != null && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-medium text-brand">
-                                <AlarmClock className="size-3" aria-hidden /> Set for {clock(s.fixedStartMin)}
-                              </span>
-                            )}
-                            {s.meal && !isMealBreak(s) && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-sev-b-soft px-2 py-0.5 text-[11px] font-medium text-sev-b">
-                                <UtensilsCrossed className="size-3" aria-hidden /> Your {s.meal}
-                              </span>
-                            )}
-                          </p>
-                        )}
-                        {s.issue && (
-                          <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-sev-c-soft px-2.5 py-1.5 text-xs font-medium text-sev-c">
-                            <AlertTriangle className="mt-px size-3.5 shrink-0" aria-hidden />
-                            {s.issue === "closed"
-                              ? `Usually closed on ${WEEKDAYS[plan.dow]}s`
-                              : s.issue === "late"
-                                ? `You'd arrive at ${clock(s.arriveMin)}, after the ${clock(s.fixedStartMin ?? s.startMin)} start`
-                                : `Closes at ${clock((s.window as [number, number])[1])}, before this visit ends`}
-                          </p>
-                        )}
-                        {wet && (
-                          <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-sev-a-soft px-2.5 py-1.5 text-xs font-medium text-sev-a">
-                            <Umbrella className="size-3.5 shrink-0" aria-hidden /> {weather!.rain}% chance of rain around {clock(s.startMin)}. Bring an umbrella.
-                          </p>
-                        )}
-                        {!photos[s.key] && weather && (
-                          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <WeatherIcon code={weather.code} className="size-3.5" /> {weather.temp}° at {clock(s.startMin)}
-                          </p>
-                        )}
-                        {s.window && s.window !== "always" && !s.issue && (
-                          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Clock className="size-3.5" aria-hidden /> Typically open {clock(s.window[0])} – {clock(s.window[1])}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    {s.crowd && (
-                      <div className="px-4 pb-4">
-                        <p className="mb-1.5 flex items-center gap-1.5 text-xs">
-                          <Users className="size-3.5 text-muted-foreground" aria-hidden />
-                          <span className="font-medium" style={{ color: CROWD_COLOR[s.crowd.band] }}>
-                            {CROWD_LABEL[s.crowd.band]}
-                          </span>
-                          <span className="truncate text-muted-foreground">· area around {s.crowd.station}</span>
-                        </p>
-                        <CrowdStrip levels={s.crowd.levels} visitStart={s.startMin} visitEnd={s.endMin} fromHour={fromHour} toHour={toHour} />
-                      </div>
-                    )}
-                  </div>
-                </li>
-              </ol>
-            </li>
-          );
+                    {s.name}
+                  </button>
+                </h3>
+                {attraction && <p className="pl-stop-area">{attraction.area}</p>}
+                <div className="pl-notes">
+                  {s.issue && (
+                    <p className="red">
+                      <AlertTriangle aria-hidden />
+                      {s.issue === "closed"
+                        ? `Usually closed on ${WEEKDAYS[plan.dow]}s`
+                        : s.issue === "late"
+                          ? `You'd arrive at ${clock(s.arriveMin)}, after the ${clock(s.fixedStartMin ?? s.startMin)} start`
+                          : `Closes at ${clock((s.window as [number, number])[1])}, before this visit ends`}
+                    </p>
+                  )}
+                  {wet && (
+                    <p className="red">
+                      <Umbrella aria-hidden /> {weather!.rain}% chance of rain around {clock(s.startMin)}. Bring an umbrella.
+                    </p>
+                  )}
+                  {s.fixedStartMin != null && (
+                    <p className="red">
+                      <AlarmClock aria-hidden /> Set for {clock(s.fixedStartMin)}
+                    </p>
+                  )}
+                  {s.waitMin > 0 && (
+                    <p>
+                      <Hourglass aria-hidden /> Arrive {clock(s.arriveMin)},{" "}
+                      {s.fixedStartMin != null && s.startMin === s.fixedStartMin ? `${duration(s.waitMin)} before your ${clock(s.startMin)} time` : `doors open ${clock(s.startMin)}`}
+                    </p>
+                  )}
+                  {s.meal && !isMealBreak(s) && (
+                    <p>
+                      <UtensilsCrossed aria-hidden /> Your {s.meal}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </li>,
+          ];
         })}
         {plan.returnLeg && request.origin && (
-          <li>
-            <ol>
-              <LegRow
-                leg={plan.returnLeg}
-                ends={{ from: mapsPoint(plan.stops[plan.stops.length - 1]), to: { ...mapsPoint(request.origin), name: request.origin.label } }}
-              />
-              <li className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-3 text-sm">
-                <span className="text-muted-foreground">Back at</span>
-                <span className="font-medium">{request.origin.label}</span>
-                <span className="ml-auto text-muted-foreground tabular-nums">{clock(summary.finishMin)}</span>
-              </li>
-            </ol>
-          </li>
+          <>
+            <LegRow leg={plan.returnLeg} ends={{ from: mapsPoint(plan.stops[plan.stops.length - 1]), to: { ...mapsPoint(request.origin), name: request.origin.label } }} />
+            <li className="pl-tl">
+              <span className="pl-rail">
+                <span className="pl-bullet ink">
+                  <MapPin className="size-[1.1em]" aria-hidden />
+                </span>
+              </span>
+              <p className="pl-end">
+                <span>Back at {request.origin.label}</span>
+                <span className="pl-mono ml-auto">{clock(summary.finishMin)}</span>
+              </p>
+            </li>
+          </>
         )}
       </ol>
 
-      <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
-        Crowd levels are area busyness from MTA subway ridership near each stop ({plan.crowdSource.weeks.length} recent weeks, typical {WEEKDAYS[plan.dow]}),
-        compared with that area&apos;s busiest hour of the day. They describe the streets around a place, not the line inside it. Hours are typical;
-        check before you go. Routes: {plan.routing.ok ? "OSRM on OpenStreetMap" : "straight-line estimates (routing was unavailable)"}; times marked ~ are estimates.
-      </p>
+      {/* The extras, one line each until opened. */}
+      <div className="pl-folds">
+        {choices}
+        {dayPicker}
+        <Fold kicker="Why this order" title={<>The thinking, <em>briefly</em></>} summary={plan.insights[0] ?? "Where the crowds, hours and travel times come from."}>
+          {plan.insights.length > 0 && (
+            <ul className="pl-insights">
+              {plan.insights.map((line) => (
+                <li key={line}>
+                  <Lightbulb aria-hidden />
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="pl-fine">
+            Crowd levels are area busyness from MTA subway ridership near each stop ({plan.crowdSource.weeks.length} recent weeks, typical {WEEKDAYS[plan.dow]}),
+            compared with that area&apos;s busiest hour of the day. They describe the streets around a place, not the line inside it. Hours are typical;
+            check before you go. Routes: {plan.routing.ok ? "OSRM on OpenStreetMap" : "straight-line estimates (routing was unavailable)"}; times marked ~ are estimates.
+          </p>
+        </Fold>
+      </div>
     </div>
   );
 }

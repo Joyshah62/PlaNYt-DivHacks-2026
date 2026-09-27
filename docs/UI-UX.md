@@ -265,7 +265,7 @@ Two typefaces:
 
 ## Accessibility
 
-- All interactive map markers are keyboard accessible (tab + enter)
+- The day's stop pins are buttons (Tab, Enter; focus shows the preview card). The catalog dots are drawn on the map canvas and are not focusable: every one of them is also a card in the Build view's place grid, which is the keyboard route
 - The panel resize handle has `role="separator"` with `aria-valuemin/max/now` and responds to arrow keys
 - Sheet collapse/expand button has `aria-label` ("Collapse the panel")
 - Live regions (`aria-live="polite"`) for assistant replies and error messages

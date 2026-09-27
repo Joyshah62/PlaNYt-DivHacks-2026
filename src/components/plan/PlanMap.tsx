@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AttributionControl, LngLatBounds, Map as MapLibre, Marker, NavigationControl, Popup, type GeoJSONSource } from "maplibre-gl";
-import { Box, Crosshair, Flame, Pause, Play, RotateCcw } from "lucide-react";
+import { AttributionControl, LngLatBounds, Map as MapLibre, Marker, Popup, type GeoJSONSource } from "maplibre-gl";
+import { Box, Compass, Crosshair, Ellipsis, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapThemeSwitcher } from "@/components/map/MapThemeSwitcher";
 import { STYLES, ensureWorker, prefersReducedMotion, resolveColors, resolveMissingStyleImages, useDarkScheme, useMapTheme } from "@/components/map/mapStyle";
 import { ATTRACTIONS } from "@/lib/plan/attractions";
 import { positionAt, type Timeline } from "@/lib/plan/playback";
-import { clock, nycToday, weekdayOf, WEEKDAYS } from "@/lib/plan/time";
+import { clock, WEEKDAYS } from "@/lib/plan/time";
 import type { LegMode, PointLabel } from "@/lib/plan/types";
 
 export interface MapStop {
@@ -53,38 +53,14 @@ export interface PlanMapProps {
   /** The map is mostly covered (a fully open sheet): hide the floating player. */
   hideOverlays?: boolean;
   onPlayingChange?: (playing: boolean) => void;
+  /** The place-type filter over the map: only while picking places. */
+  showFilter?: boolean;
   className?: string;
 }
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
-const KIND_VAR: Record<string, string> = {
-  museum: "--cat-nightlife",
-  view: "--cat-subway",
-  landmark: "--cat-entertainment",
-  park: "--cat-parks",
-  food: "--cat-restaurants",
-  neighborhood: "--cat-groceries",
-};
 /** A whole day plays back in about this many seconds. */
 const PLAY_SECONDS = 24;
-
-/** Station weight at a fractional time: blend this hour's level into the next. */
-function heatWeight(t: number): unknown {
-  const h = Math.floor(t / 60) % 24;
-  const f = (t % 60) / 60;
-  return ["+", ["*", 1 - f, ["get", `h${h}`]], ["*", f, ["get", `h${(h + 1) % 24}`]]];
-}
-
-/** A small hexagon around a station. */
-function hexagon(lon: number, lat: number, meters = 55): [number, number][] {
-  const dLat = meters / 111_320;
-  const dLon = meters / (111_320 * Math.cos((lat * Math.PI) / 180));
-  const ring = Array.from({ length: 6 }, (_, i) => {
-    const a = (Math.PI / 3) * i;
-    return [lon + dLon * Math.cos(a), lat + dLat * Math.sin(a)] as [number, number];
-  });
-  return [...ring, ring[0]];
-}
 
 /** Compass bearing from a to b, in degrees. */
 function bearingOf(a: [number, number], b: [number, number]): number {
@@ -113,7 +89,6 @@ export function PlanMap(props: PlanMapProps) {
   const colors = useRef<Record<string, string>>({});
   const markers = useRef<Marker[]>([]);
   const traveler = useRef<Marker | null>(null);
-  const heatData = useRef<{ dow: number; data: GeoJSON.FeatureCollection; columns: GeoJSON.FeatureCollection } | null>(null);
   /** Ride-along camera: where the traveler was last frame, which way the camera faces, when following may start. */
   const camera = useRef<{ last: [number, number] | null; bearing: number; from: number }>({ last: null, bearing: 0, from: 0 });
   const latest = useRef(props);
@@ -185,8 +160,8 @@ export function PlanMap(props: PlanMapProps) {
   // Playback state belongs to one timeline; a new plan starts it over.
   const [scrub, setScrub] = useState<{ for: Timeline | null; t: number; engaged: boolean }>({ for: null, t: 0, engaged: false });
   const [playing, setPlaying] = useState(false);
-  const [showHeat, setShowHeat] = useState(true);
   const [is3d, setIs3d] = useState(false);
+  const [moreTools, setMoreTools] = useState(false);
   const [, setStyleLoads] = useState(0);
   const current = timeline && scrub.for === timeline ? scrub : timeline ? { for: timeline, t: timeline.startMin, engaged: false } : null;
   const t = current?.t ?? 0;
@@ -203,7 +178,7 @@ export function PlanMap(props: PlanMapProps) {
       type: "FeatureCollection",
       features: ATTRACTIONS.map((a) => ({
         type: "Feature" as const,
-        properties: { id: a.id, name: a.name, kind: a.kind, color: colors.current[KIND_VAR[a.kind]], chosen: chosen.has(a.id) },
+        properties: { id: a.id, name: a.name, kind: a.kind, chosen: chosen.has(a.id) },
         geometry: { type: "Point" as const, coordinates: [a.lon, a.lat] },
       })),
     });
@@ -243,6 +218,7 @@ export function PlanMap(props: PlanMapProps) {
     if (origin) {
       const el = document.createElement("div");
       el.className = "home-marker";
+      el.setAttribute("role", "img");
       el.setAttribute("aria-label", `Start: ${origin.label}`);
       el.innerHTML = `<span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21H3z"/></svg></span>`;
       markers.current.push(new Marker({ element: el }).setLngLat([origin.lon, origin.lat]).addTo(map));
@@ -265,7 +241,8 @@ export function PlanMap(props: PlanMapProps) {
         e.stopPropagation();
         latest.current.onPickStop(s.key);
       });
-      el.addEventListener("mouseenter", () => {
+      // The preview card: on hover, and on keyboard focus too.
+      const preview = () => {
         const root = document.createElement("div");
         if (s.photo) {
           const img = document.createElement("img");
@@ -284,8 +261,11 @@ export function PlanMap(props: PlanMapProps) {
         }
         root.append(text);
         pinCard.setLngLat([s.lon, s.lat]).setDOMContent(root).addTo(map);
-      });
+      };
+      el.addEventListener("mouseenter", preview);
+      el.addEventListener("focus", preview);
       el.addEventListener("mouseleave", () => pinCard.remove());
+      el.addEventListener("blur", () => pinCard.remove());
       markers.current.push(new Marker({ element: el }).setLngLat([s.lon, s.lat]).addTo(map));
     }
   }
@@ -329,7 +309,6 @@ export function PlanMap(props: PlanMapProps) {
     });
     resolveMissingStyleImages(map);
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
-    map.addControl(new NavigationControl({ visualizePitch: true }), "top-right");
     mapRef.current = map;
     const tooltip = new Popup({ closeButton: false, closeOnClick: false, offset: 10, className: "rc-tooltip" });
     const pinCard = new Popup({ closeButton: false, closeOnClick: false, offset: 26, className: "pin-card", maxWidth: "240px" });
@@ -337,40 +316,10 @@ export function PlanMap(props: PlanMapProps) {
 
     map.on("style.load", () => {
       readyRef.current = false;
-      colors.current = resolveColors();
+      colors.current = resolveColors(map.getContainer());
       const c = colors.current;
       if (activeStyleKey === "night" && map.getLayer("background")) {
         map.setPaintProperty("background", "background-color", c["--background"]);
-      }
-
-      // The city's pulse: where people are, hour by hour, under everything else.
-      if (!map.getSource("heat")) {
-        map.addSource("heat", { type: "geojson", data: EMPTY });
-      }
-      if (!map.getLayer("heat")) {
-        map.addLayer({
-          id: "heat",
-          type: "heatmap",
-          source: "heat",
-          layout: { visibility: "none" },
-          paint: {
-            "heatmap-weight": heatWeight(12 * 60) as never,
-            "heatmap-radius": ["interpolate", ["exponential", 1.6], ["zoom"], 10, 14, 13, 38, 16, 110],
-            "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 1.4, 15, 2.2],
-            "heatmap-opacity": 0.8,
-            "heatmap-color": [
-              "interpolate",
-              ["linear"],
-              ["heatmap-density"],
-              0, "rgba(0,0,0,0)",
-              0.1, "rgba(56,189,248,0.28)",
-              0.3, "rgba(129,140,248,0.5)",
-              0.5, "rgba(250,204,21,0.6)",
-              0.72, "rgba(249,115,22,0.72)",
-              1, "rgba(239,68,68,0.85)",
-            ],
-          },
-        });
       }
 
       // 3D vector buildings: only attach if openmaptiles source exists in this style
@@ -395,30 +344,20 @@ export function PlanMap(props: PlanMapProps) {
         }
       }
 
-      // Columns source kept inactive to avoid giant obstructing pillars
-      if (!map.getSource("columns")) {
-        map.addSource("columns", { type: "geojson", data: EMPTY });
-      }
-      if (!map.getLayer("columns")) {
-        map.addLayer({
-          id: "columns",
-          type: "fill-extrusion",
-          source: "columns",
-          layout: { visibility: "none" },
-          paint: { "fill-extrusion-opacity": 0, "fill-extrusion-base": 0 },
-        });
-      }
-
       if (!map.getSource("legs")) {
         map.addSource("legs", { type: "geojson", data: EMPTY });
       }
+      // Route ink follows the map, not the page: dark ink on the light styles, paper on night and satellite.
+      const darkMap = activeStyleKey === "night" || activeStyleKey === "satellite";
+      const ink = darkMap ? "#efe8da" : "#15120e";
+      const halo = darkMap ? "#1a1815" : "#f3ede1";
       if (!map.getLayer("legs-casing")) {
         map.addLayer({
           id: "legs-casing",
           type: "line",
           source: "legs",
           layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": c["--background"], "line-width": 8, "line-opacity": 0.9 },
+          paint: { "line-color": halo, "line-width": 8, "line-opacity": 0.9 },
         });
       }
       const leg = (id: string, modes: LegMode[], paint: Record<string, unknown>) =>
@@ -430,10 +369,11 @@ export function PlanMap(props: PlanMapProps) {
           layout: { "line-cap": "round", "line-join": "round" },
           paint: paint as never,
         });
-      leg("legs-subway", ["subway"], { "line-color": c["--cat-subway"], "line-width": 4.5 });
-      leg("legs-car", ["car"], { "line-color": c["--foreground"], "line-width": 4 });
-      leg("legs-bike", ["bike"], { "line-color": c["--cat-parks"], "line-width": 4, "line-dasharray": [2, 1.5] });
-      leg("legs-walk", ["walk"], { "line-color": c["--brand"], "line-width": 4.5, "line-dasharray": [0.1, 1.9] });
+      // Editorial ink: the subway in red, everything on foot or wheels in ink.
+      leg("legs-subway", ["subway"], { "line-color": c["--brand"], "line-width": 4.5 });
+      leg("legs-car", ["car"], { "line-color": ink, "line-width": 4 });
+      leg("legs-bike", ["bike"], { "line-color": ink, "line-width": 4, "line-dasharray": [0.1, 1.9] });
+      leg("legs-walk", ["walk"], { "line-color": ink, "line-width": 3.5, "line-dasharray": [2, 1.5] });
 
       // The part of the day already played: a glowing trail over the route.
       map.addSource("trail", { type: "geojson", data: EMPTY });
@@ -459,14 +399,14 @@ export function PlanMap(props: PlanMapProps) {
         type: "line",
         source: "detour",
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#f97316", "line-width": 12, "line-blur": 6, "line-opacity": 0.35 },
+        paint: { "line-color": c["--brand"], "line-width": 12, "line-blur": 6, "line-opacity": 0.3 },
       });
       map.addLayer({
         id: "detour",
         type: "line",
         source: "detour",
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#f97316", "line-width": 4, "line-dasharray": [1.2, 1.4] },
+        paint: { "line-color": c["--brand"], "line-width": 4, "line-dasharray": [1.2, 1.4] },
       });
       map.addSource("found", { type: "geojson", data: EMPTY });
       map.addLayer({
@@ -474,7 +414,7 @@ export function PlanMap(props: PlanMapProps) {
         type: "circle",
         source: "found",
         paint: {
-          "circle-color": "#f97316",
+          "circle-color": c["--brand"],
           "circle-radius": ["case", ["get", "selected"], 15, 11],
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": ["case", ["get", "selected"], 4, 2.5],
@@ -494,10 +434,11 @@ export function PlanMap(props: PlanMapProps) {
         type: "circle",
         source: "catalog",
         paint: {
-          "circle-color": ["get", "color"],
+          // Places to explore in the map's ink; the day's own stops carry the colour.
+          "circle-color": ink,
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.5, 15, 7],
           "circle-opacity": ["case", ["get", "chosen"], 0.25, 0.9],
-          "circle-stroke-color": c["--card"],
+          "circle-stroke-color": halo,
           "circle-stroke-width": 1.5,
         },
       });
@@ -515,13 +456,9 @@ export function PlanMap(props: PlanMapProps) {
           "text-offset": [0, 0.8],
           "text-optional": true,
         },
-        paint: { "text-color": c["--muted-foreground"], "text-halo-color": c["--card"], "text-halo-width": 1.6 },
+        paint: { "text-color": ink, "text-halo-color": halo, "text-halo-width": 1.6 },
       });
       readyRef.current = true;
-      if (heatData.current) {
-        (map.getSource("heat") as GeoJSONSource | undefined)?.setData(heatData.current.data);
-        (map.getSource("columns") as GeoJSONSource | undefined)?.setData(heatData.current.columns);
-      }
       applyCatalog(map);
       applyLegs(map);
       applyFound(map);
@@ -541,7 +478,10 @@ export function PlanMap(props: PlanMapProps) {
       const hint = document.createElement("span");
       hint.textContent = f.properties.chosen ? "In your day · tap for details" : "Tap for photos, hours and crowds";
       root.append(name, hint);
-      tooltip.setLngLat(f.geometry.coordinates as [number, number]).setDOMContent(root).addTo(map);
+      tooltip
+        .setLngLat(f.geometry.coordinates as [number, number])
+        .setDOMContent(root)
+        .addTo(map);
     });
     map.on("mouseleave", "catalog", () => {
       map.getCanvas().style.cursor = "";
@@ -592,7 +532,10 @@ export function PlanMap(props: PlanMapProps) {
     run((map) => {
       const filter = kindFilter === "all" ? null : ["==", ["get", "kind"], kindFilter];
       map.setFilter("catalog", filter as never);
-      map.setFilter("catalog-label", kindFilter === "all" ? ["!", ["get", "chosen"]] : ["all", ["!", ["get", "chosen"]], ["==", ["get", "kind"], kindFilter]] as never);
+      map.setFilter(
+        "catalog-label",
+        kindFilter === "all" ? ["!", ["get", "chosen"]] : (["all", ["!", ["get", "chosen"]], ["==", ["get", "kind"], kindFilter]] as never),
+      );
     });
   }, [kindFilter]);
   useEffect(() => run(applyLegs), [props.legs]);
@@ -610,7 +553,11 @@ export function PlanMap(props: PlanMapProps) {
       for (const p of pts) bounds.extend(p);
       const { clientHeight: h } = map.getContainer();
       const inset = latest.current.bottomInset ?? 0;
-      map.fitBounds(bounds, { padding: { top: 80, right: 50, bottom: Math.min(inset + 40, h * 0.7), left: 50 }, maxZoom: 16, duration: prefersReducedMotion() ? 0 : 700 });
+      map.fitBounds(bounds, {
+        padding: { top: 80, right: 50, bottom: Math.min(inset + 40, h * 0.7), left: 50 },
+        maxZoom: 16,
+        duration: prefersReducedMotion() ? 0 : 700,
+      });
     });
     // Reframe for a new set of results or a new detour, not for every render.
   }, [foundKey, detourKey]);
@@ -628,61 +575,13 @@ export function PlanMap(props: PlanMapProps) {
     run((map) => map.easeTo({ center: [f.lon, f.lat], zoom: Math.max(map.getZoom(), 14.2), duration: prefersReducedMotion() ? 0 : 900 }));
   }, [focusKey]);
 
-  // Crowd levels for the plan's weekday (or today's, before there's a plan), once per weekday.
-  const dow = props.player?.dow ?? weekdayOf(nycToday());
-  useEffect(() => {
-    if (heatData.current?.dow === dow) return;
-    let cancelled = false;
-    fetch(`/api/crowd-heat?dow=${dow}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body: { stations: number[][] } | null) => {
-        if (cancelled || !body) return;
-        const data: GeoJSON.FeatureCollection = {
-          type: "FeatureCollection",
-          features: body.stations.map(([lon, lat, ...hours]) => ({
-            type: "Feature",
-            properties: Object.fromEntries(hours.map((v, h) => [`h${h}`, v])),
-            geometry: { type: "Point", coordinates: [lon, lat] },
-          })),
-        };
-        const columns: GeoJSON.FeatureCollection = {
-          type: "FeatureCollection",
-          features: body.stations.map(([lon, lat, ...hours]) => ({
-            type: "Feature",
-            properties: Object.fromEntries(hours.map((v, h) => [`h${h}`, v])),
-            geometry: { type: "Polygon", coordinates: [hexagon(lon, lat)] },
-          })),
-        };
-        heatData.current = { dow, data, columns };
-        run((map) => {
-          (map.getSource("heat") as GeoJSONSource | undefined)?.setData(data);
-          (map.getSource("columns") as GeoJSONSource | undefined)?.setData(columns);
-        });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [dow]);
-
-  // Draw the playback state: heat for the hour, the trail so far, the traveler.
+  // Draw the playback state: the trail so far, the traveler.
   const engaged = current?.engaged ?? false;
   useEffect(() => {
     const draw = (map: MapLibre) => {
-      // Heatmap visibility: visible when user toggles Crowds
-      if (map.getLayer("heat")) {
-        map.setLayoutProperty("heat", "visibility", showHeat ? "visible" : "none");
-        if (timeline) {
-          map.setPaintProperty("heat", "heatmap-weight", heatWeight(t) as never);
-        }
-      }
       // Vector buildings (only if layer exists in current style)
       if (map.getLayer("buildings-3d")) {
         map.setLayoutProperty("buildings-3d", "visibility", is3d ? "visible" : "none");
-      }
-      // Columns are permanently hidden to eliminate giant obstructing pillars
-      if (map.getLayer("columns")) {
-        map.setLayoutProperty("columns", "visibility", "none");
       }
       const trail = engaged && position ? position.trail.filter((p) => p.length > 1) : [];
       (map.getSource("trail") as GeoJSONSource | undefined)?.setData({
@@ -763,8 +662,7 @@ export function PlanMap(props: PlanMapProps) {
         // Tilt, then fit the day into the tilted view.
         map.easeTo({ pitch: 58, bearing: -24, zoom: Math.max(map.getZoom(), 13.4), duration });
         if (latest.current.stops.length) map.once("moveend", () => frame(map));
-      }
-      else map.easeTo({ pitch: 0, bearing: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, duration });
+      } else map.easeTo({ pitch: 0, bearing: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, duration });
     });
   }, [is3d]);
 
@@ -796,162 +694,150 @@ export function PlanMap(props: PlanMapProps) {
     }
   }
 
-  const hours = timeline ? Array.from({ length: Math.floor(timeline.endMin / 60) - Math.ceil(timeline.startMin / 60) + 1 }, (_, i) => Math.ceil(timeline.startMin / 60) + i) : [];
+  const hours = timeline
+    ? Array.from({ length: Math.floor(timeline.endMin / 60) - Math.ceil(timeline.startMin / 60) + 1 }, (_, i) => Math.ceil(timeline.startMin / 60) + i)
+    : [];
+
+  const inset = props.bottomInset ? { bottom: props.bottomInset + 10 } : undefined;
 
   return (
     <div className={cn("relative", props.discover?.points.length && "is-discovering", props.className)}>
       <div ref={container} className="size-full" role="region" aria-label="Map of your day" />
-      <div
-        className={cn(
-          "neo-inset absolute top-14 left-3 z-10 flex max-w-[calc(100%-4rem)] gap-1 overflow-x-auto rounded-2xl p-1.5 backdrop-blur-md [scrollbar-width:none]",
-          // On a phone the planned day needs the room; exploring is for building it.
-          props.player && "max-sm:hidden",
-        )}
-        aria-label="Explore places by type"
-      >
-        {[
-          { id: "all", label: "Explore" },
-          { id: "view", label: "Views" },
-          { id: "food", label: "Food" },
-          { id: "museum", label: "Museums" },
-          { id: "park", label: "Parks" },
-          { id: "landmark", label: "Landmarks" },
-        ].map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            aria-pressed={kindFilter === item.id}
-            onClick={() => setKindFilter(item.id)}
-            className={cn(
-              "shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200",
-              kindFilter === item.id ? "neo-control font-bold text-brand shadow-xs" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
 
-      <div className="absolute top-[106px] left-2.5 z-10 hidden sm:block">
-        <MapThemeSwitcher showLayersDialog={true} />
-      </div>
+      {/* Top left: what to show. Top right: how to look. Bottom: the day, played. */}
+      {props.showFilter && (
+        <div className="pl-mapbar pl-mapbar-kinds" role="group" aria-label="Show places by type">
+          {[
+            { id: "all", label: "All" },
+            { id: "view", label: "Views" },
+            { id: "food", label: "Food" },
+            { id: "museum", label: "Museums" },
+            { id: "park", label: "Parks" },
+            { id: "landmark", label: "Landmarks" },
+          ].map((item) => (
+            <button key={item.id} type="button" aria-pressed={kindFilter === item.id} onClick={() => setKindFilter(item.id)}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      <div className="absolute top-[106px] right-2.5 z-10 flex items-center gap-1.5">
+      <div className="pl-maptools" style={{ top: "var(--s-1)", right: "var(--s-1)" }}>
+        <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => mapRef.current?.zoomIn()} className="pl-maptool">
+          <Plus aria-hidden />
+        </button>
+        <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => mapRef.current?.zoomOut()} className="pl-maptool">
+          <Minus aria-hidden />
+        </button>
         <button
           type="button"
           onClick={handleLocateMe}
           disabled={locating}
           title={userLocation ? "Re-center on my location" : "Show my location on the map"}
           aria-label="Locate me"
-          className={cn(
-            "grid size-8 place-items-center rounded-xl text-[11px] font-bold transition shadow-xs",
-            userLocation ? "neo-raised text-blue-500 font-bold" : "neo-control text-foreground",
-            locating && "animate-pulse"
-          )}
+          aria-pressed={userLocation !== null}
+          className="pl-maptool"
         >
-          <Crosshair className={cn("size-4", locating && "animate-spin text-brand")} aria-hidden />
+          <Crosshair className={cn(locating && "animate-spin")} aria-hidden />
         </button>
-
+        {/* Everyday tools show; the rest wait behind "More". */}
         <button
           type="button"
-          aria-pressed={is3d}
-          onClick={() => setIs3d((v) => !v)}
-          title={is3d ? "Back to flat map" : "See the city in 3D perspective"}
-          className={cn(
-            "grid size-8 place-items-center rounded-xl text-[11px] font-bold transition",
-            is3d ? "neo-primary" : "neo-control text-foreground",
-          )}
+          aria-expanded={moreTools}
+          aria-label={moreTools ? "Fewer map tools" : "More map tools"}
+          title="More map tools"
+          onClick={() => setMoreTools((v) => !v)}
+          className="pl-maptool"
         >
-          {is3d ? "2D" : "3D"}
+          <Ellipsis aria-hidden />
         </button>
+        {moreTools && (
+          <>
+            <button
+              type="button"
+              aria-label="Reset the map to north up"
+              title="North up"
+              onClick={() => {
+                // Flat and facing north again, so leave 3D too.
+                setIs3d(false);
+                mapRef.current?.resetNorthPitch({ duration: prefersReducedMotion() ? 0 : 500 });
+              }}
+              className="pl-maptool"
+            >
+              <Compass aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-pressed={is3d}
+              onClick={() => setIs3d((v) => !v)}
+              title={is3d ? "Back to the flat map" : "See the city in 3D"}
+              className="pl-maptool"
+            >
+              {is3d ? "2D" : "3D"}
+            </button>
+            <MapThemeSwitcher />
+          </>
+        )}
       </div>
 
       {locationStatus && (
-        <div className="neo-raised absolute top-28 left-1/2 -translate-x-1/2 z-20 rounded-xl px-3.5 py-1.5 text-xs font-semibold backdrop-blur-md animate-rise shadow-md border">
+        <p role="status" className="pl-mapnote" style={{ top: "var(--s-1)", left: "50%", transform: "translateX(-50%)" }}>
           {locationStatus}
-        </div>
+        </p>
       )}
       {is3d && !timeline && (
-        <div
-          style={props.bottomInset ? { bottom: props.bottomInset + 10 } : undefined}
-          className="neo-raised pointer-events-none absolute bottom-8 left-3 z-10 max-w-xs animate-rise rounded-2xl px-4 py-3 text-xs backdrop-blur-xl border">
-          <p className="flex items-center gap-1.5 font-semibold">
-            <Box className="size-3.5 text-brand" aria-hidden /> 3D Perspective Mode
-          </p>
-          <p className="mt-0.5 text-muted-foreground">Tilted aerial view with elevation terrain. Follow your itinerary routes and explore the city from above.</p>
-        </div>
+        <p
+          className="pl-mapnote pointer-events-none flex items-center gap-2"
+          style={{ left: "var(--s-1)", bottom: inset?.bottom ?? "calc(var(--s-1) + 1.6em)" }}
+        >
+          <Box className="size-4 pl-red" aria-hidden /> 3D view: a tilted aerial look at the city.
+        </p>
       )}
 
       {timeline && props.player && !props.hideOverlays && (
-        <div
-          style={props.bottomInset ? { bottom: props.bottomInset + 10 } : undefined}
-          className="neo-raised-lg absolute right-2 bottom-7 left-2 z-10 mx-auto max-w-2xl animate-rise rounded-3xl p-3 sm:right-3 sm:bottom-8 sm:left-3 sm:p-4 backdrop-blur-xl">
+        <div style={inset} className="pl-player">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={togglePlay}
               aria-label={playing ? "Pause" : ended ? "Replay your day" : "Play your day"}
-              className={cn(
-                "neo-primary relative grid size-10 shrink-0 place-items-center sm:size-12 rounded-full transition hover:scale-105 active:scale-95",
-                !engaged && "play-halo",
-              )}
+              className={cn("pl-play", !engaged && "halo")}
             >
-              {playing ? <Pause className="size-5" aria-hidden /> : ended ? <RotateCcw className="size-5" aria-hidden /> : <Play className="size-5 translate-x-px" aria-hidden />}
+              {playing ? <Pause aria-hidden /> : ended ? <RotateCcw aria-hidden /> : <Play className="translate-x-px" aria-hidden />}
             </button>
             <div className="min-w-0 flex-1">
-              <p className="font-display text-2xl leading-none tabular-nums sm:text-3xl">{clock(t)}</p>
-              <p className="mt-1 truncate text-xs text-muted-foreground" aria-live="polite">
+              <p className="pl-clock">{clock(t)}</p>
+              <p className="pl-small pl-muted mt-1 truncate italic" aria-live="polite">
                 {engaged
                   ? (position?.label ?? "")
                   : is3d
                     ? `Ride along your ${WEEKDAYS[props.player.dow]} in 3D`
-                    : `Play your ${WEEKDAYS[props.player.dow]}: watch the route and the city's crowds`}
+                    : `Play your ${WEEKDAYS[props.player.dow]}: the route, hour by hour`}
               </p>
             </div>
-            <button
-              type="button"
-              aria-pressed={showHeat}
-              onClick={() => setShowHeat((v) => !v)}
-              className={cn(
-                "neo-control inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition",
-                showHeat && "neo-inset text-brand",
-              )}
-            >
-              <Flame className="size-3.5" aria-hidden /> Crowds
-            </button>
           </div>
-          <div className="relative mt-1.5 sm:mt-3">
-            <input
-              type="range"
-              min={timeline.startMin}
-              max={timeline.endMin}
-              step={1}
-              value={Math.round(t)}
-              onChange={(e) => {
-                setPlaying(false);
-                setScrub({ for: timeline, t: Number(e.target.value), engaged: true });
-              }}
-              aria-label="Time of day"
-              aria-valuetext={clock(t)}
-              className="day-scrubber w-full"
-              style={{ "--progress": `${((t - timeline.startMin) / (timeline.endMin - timeline.startMin)) * 100}%` } as React.CSSProperties}
-            />
-            <div className="pointer-events-none mt-1 flex justify-between max-sm:hidden text-[10px] text-muted-foreground tabular-nums" aria-hidden>
-              {hours.filter((_, i) => i % Math.ceil(hours.length / 7) === 0).map((h) => (
+          <input
+            type="range"
+            min={timeline.startMin}
+            max={timeline.endMin}
+            step={1}
+            value={Math.round(t)}
+            onChange={(e) => {
+              setPlaying(false);
+              setScrub({ for: timeline, t: Number(e.target.value), engaged: true });
+            }}
+            aria-label="Time of day"
+            aria-valuetext={clock(t)}
+            className="pl-scrub mt-2"
+            style={{ "--progress": `${((t - timeline.startMin) / (timeline.endMin - timeline.startMin)) * 100}%` } as React.CSSProperties}
+          />
+          <div className="pl-mono pl-muted pointer-events-none flex justify-between max-sm:hidden" aria-hidden>
+            {hours
+              .filter((_, i) => i % Math.ceil(hours.length / 7) === 0)
+              .map((h) => (
                 <span key={h}>{clock(h * 60).replace(":00", "")}</span>
               ))}
-            </div>
           </div>
-          {showHeat && (
-            <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground max-sm:hidden">
-              <span>Quiet</span>
-              <span className="heat-legend h-1.5 flex-1 rounded-full" aria-hidden />
-              <span>Packed</span>
-              <span className="max-sm:hidden">
-                · subway riders, typical {WEEKDAYS[props.player.dow]}
-              </span>
-            </div>
-          )}
         </div>
       )}
     </div>

@@ -1,34 +1,7 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Playfair_Display, Outfit, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./editorial.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
-
-const sans = Plus_Jakarta_Sans({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
-
-const display = Playfair_Display({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800", "900"],
-  display: "swap",
-});
-
-const accentFont = Outfit({
-  variable: "--font-accent",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Roam NYC · Plan a day in New York around the crowds",
@@ -43,7 +16,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${sans.variable} ${geistMono.variable} ${display.variable} ${accentFont.variable} min-h-dvh w-full antialiased`}
+      className="min-h-dvh w-full antialiased"
     >
       <head>
         <script

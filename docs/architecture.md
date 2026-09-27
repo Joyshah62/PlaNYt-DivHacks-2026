@@ -25,7 +25,6 @@ Server (Next.js API Routes)
 ├── POST /api/plan         — optimizer → DayPlan
 ├── POST /api/plan/compare — compare options (choices panel)
 ├── GET  /api/plan/days    — multi-day overview
-├── GET  /api/crowd-heat   — crowd heatmap data
 ├── POST /api/discover     — find new places that fit the plan
 ├── GET  /api/food         — nearby restaurants for meal breaks
 ├── GET  /api/photo        — place photos

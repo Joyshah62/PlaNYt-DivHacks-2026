@@ -57,7 +57,7 @@ export function NeighborhoodStory() {
             <span className="ed-mono ed-kicker">{i === 0 ? `Neighborhoods · ${n.numeral}` : n.numeral}</span>
             <h3>{n.name} <i>{n.italic}</i></h3>
             <p>{n.body}</p>
-            <Link href={{ pathname: "/plan", query: { q: n.query } }} className="ed-mono">Plan a day here →</Link>
+            <Link href={{ pathname: "/plan", query: { q: n.query } }} className="ed-mono">Plan a day here<span className="sr-only"> in {n.name}</span> →</Link>
           </article>
         ))}
       </div>

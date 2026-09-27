@@ -4,8 +4,16 @@ The home page (`/`) is the reference implementation of this system. Every new pa
 redesign of the planner (`/plan`), should read like another page of the same magazine. This
 document is the handoff: what the system is, where it lives in code, and how to extend it.
 
-> Status (2026-09-27): the home page is complete. The planner still uses the previous
-> glass-neumorphic styles (`.neo-*` in `src/app/globals.css`) and is the next page to redesign.
+> Status (2026-09-26): the home page and the planner (`/plan`) are both in this system. The
+> planner's styles are `src/app/plan/planner.css` (`.pl-*`, scoped under `.ed-planner`); the old
+> glass-neumorphic `.neo-*` layer and its fonts are gone. The planner is AI-first: Build is the
+> prompt (date, hours, company, pace and start point are read from what people type; there are no
+> manual settings), with "Pick places yourself" as a quiet alternative that collects places in a
+> tray with Undo. Your day = photo cover → "Ask the planner to change anything" → Save / Share ▾ /
+> Edit stops → the timeline → folded "Your call", "The best day", "Why this order". The assistant
+> sits in the map's bottom-right corner; it opens on click, tap or Enter and closes on ×, Escape
+> or a click in the column (clicks on the map leave it open). Map tools: zoom and locate, with
+> north-up, 3D and layers behind "More"; the place filter shows only while picking places.
 
 ---
 
