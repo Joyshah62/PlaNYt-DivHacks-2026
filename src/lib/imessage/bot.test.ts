@@ -3,7 +3,7 @@ import type { ChatReply } from "@/lib/discover/chat";
 import { DEFAULT_PROFILE } from "@/lib/plan/profile";
 import type { AssistantResult, DayPlan, PlannedStop, PlanRequest, StopInput } from "@/lib/plan/types";
 import { createBot } from "./bot";
-import { normalizeHandle, parseCommand, plain } from "./format";
+import { chatReply, normalizeHandle, parseCommand, plain } from "./format";
 import { dueNudges } from "./nudges";
 import type { Roam } from "./roam";
 import { newThread } from "./store";
@@ -63,7 +63,7 @@ describe("the iMessage conversation", () => {
 
     const both = await bot.handle(thread, "add times square and a cafe there");
     expect(both.join("\n")).toContain("1. 787 Coffee");
-    expect(both.join("\n")).toContain("Reply YES to apply");
+    expect(both.join("\n")).toContain("YES to apply just the change");
 
     // Applying Times Square keeps the café options: they were worked out on top of it.
     await bot.handle(thread, "yes");
@@ -127,6 +127,38 @@ describe("short replies", () => {
     expect(parseCommand("Yes!", ctx)).toEqual({ kind: "yes" });
     expect(parseCommand("yes", { ...ctx, proposal: false })).toEqual({ kind: "text", text: "yes" });
     expect(parseCommand("show my day", ctx)).toEqual({ kind: "show" });
+  });
+  it("lists places briefly, saying what they share once", () => {
+    const place = (name: string, travelDelta: number, over: number) => ({ name, after: "SIMÒ PIZZA", startMin: 860, travelDelta, reasons: ["4.5★ from 883 reviews", "$$"], conflicts: [`The day would run ${over} min past 9pm`], closed: false });
+    const [texts] = [chatReply({
+      message: "Here are 2 options for cafe cappuccino. Which feels right? Pick a place below, or tell me what you'd change about these options.",
+      choices: [{ label: "Closer", message: "" }, { label: "Cheaper", message: "" }],
+      discovery: { results: [place("Cafe Luna", 2, 27), place("Frisson Espresso", 12, 37)] } as never,
+    })];
+    expect(texts).toHaveLength(1);
+    expect(texts[0]).toBe([
+      "Here are 2 options for cafe cappuccino. Which one sounds good?",
+      "",
+      "All right after SIMÒ PIZZA:",
+      "1. Cafe Luna · 2:20pm · +2 min · 4.5★ $$",
+      "2. Frisson Espresso · 2:20pm · +12 min · 4.5★ $$",
+      "⚠️ Any of these runs your day past 9pm.",
+      "",
+      "Reply with a number to add one, or A) Closer  B) Cheaper.",
+    ].join("\n"));
+  });
+  it("shows only the problems a change causes, and how to answer", () => {
+    const plan = planOf(request([met, moma]));
+    const [words, change] = chatReply({
+      message: "Adding it runs your day 27 minutes late. Keep the later finish?",
+      choices: [],
+      proposal: { title: "Fit Cafe Luna into your day", plan, warnings: ["The Met: Usually closed on Wednesdays", "The day finishes 27 minutes after your requested end time."], problems: ["The day finishes 27 minutes after your requested end time."] },
+    });
+    expect(words).toBe("Adding it runs your day 27 minutes late. Keep the later finish?");
+    expect(change).toContain("⚠️ The day finishes 27 minutes");
+    expect(change).not.toContain("The Met: Usually closed");
+    expect(change).toContain("(1 issue your day already had)");
+    expect(change).toContain("Reply YES to apply it, NO to keep your day, or tell me what to change.");
   });
   it("turns the model's markdown into plain text", () => {
     expect(plain("1. **Chinatown** (11:30am)\n* Brooklyn Bridge\n## Next")).toBe("1. Chinatown (11:30am)\n• Brooklyn Bridge\nNext");
