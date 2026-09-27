@@ -26,6 +26,8 @@ import { evaluate } from "./evaluate";
 import { candidateStop, exactPlace, lookupCandidates, lookupIntent, placeName } from "./placeLookup";
 import type { DiscoverResponse } from "./types";
 import type { DayPlan, PlannedStop } from "@/lib/plan/types";
+import { nycForecast } from "@/lib/plan/weather";
+import { WEATHER_LABEL, weatherKind, type Forecast } from "@/lib/plan/weatherCodes";
 
 const choice = z.object({ label: z.string().min(1).max(55), message: z.string().min(1).max(300) });
 export const ChatInput = z.object({
@@ -108,7 +110,8 @@ export interface ChatReply {
   sources?: { title: string; url: string }[];
   choices: { label: string; message: string }[];
   discovery?: DiscoverResponse;
-  proposal?: { title: string; plan: DayPlan; warnings: string[] };
+  /** problems: the warnings this change causes, when it waits for the traveler's say. */
+  proposal?: { title: string; plan: DayPlan; warnings: string[]; problems?: string[] };
   resolution?: "apply" | "discard";
   /** The traveler's memory id, for the app to send back next time. */
   memoryId?: string;
@@ -230,9 +233,12 @@ function offeredStop(input: Input, request: Request, name: string) {
  * A time as the traveler meant it. The model sometimes reads a bare "6:30" as
  * 6:30am when the day is an evening one; their "am"/"pm" or "morning"/"evening"
  * settles it. Otherwise a bare hour stays pm on a day that's already in the
- * afternoon or evening, and a day never ends before it starts.
+ * afternoon or evening, and a bare end time is pm.
  */
 export function meantTime(min: number, words: string, day: { startMin: number }, end = false): number {
+  // The model sometimes sends "9:30" as the number 930, which is 3:30pm in minutes.
+  const [hh, mm2] = [Math.floor(min / 100), min % 100];
+  if (hh >= 1 && hh <= 12 && mm2 > 0 && mm2 < 60 && new RegExp(`\\b${hh}:${String(mm2).padStart(2, "0")}\\b`).test(words)) min = hh * 60 + mm2;
   if (min < 60 || min >= 720) return min;
   const later = min + 720;
   const h = Math.floor(min / 60);
@@ -241,7 +247,8 @@ export function meantTime(min: number, words: string, day: { startMin: number },
   if (said) return said[1].toLowerCase() === "a" ? min : later;
   if (/\b(afternoon|evening|tonight|night)\b/i.test(words)) return later;
   if (/\bmorning\b/i.test(words)) return min;
-  return day.startMin >= 720 || (end && min <= day.startMin) ? later : min;
+  // A day ends in the evening unless they said morning.
+  return day.startMin >= 720 || end ? later : min;
 }
 
 async function change(name: string, args: unknown, request: Request, input: Input, turn: Turn): Promise<{ request: Request; title: string } | null> {
@@ -543,7 +550,7 @@ async function search(args: unknown, input: Input, request: Request, added: stri
   return data as DiscoverResponse;
 }
 
-const foundLine = (found: DiscoverResponse) => found.results.length ? `Here are ${found.results.length} options for ${found.intent.summary.toLowerCase()}.` : "No matching places turned up for that search. Try a wider area or a different type of place.";
+const foundLine = (found: DiscoverResponse) => found.results.length ? `${found.results.length === 1 ? "Here's 1 option" : `Here are ${found.results.length} options`} for ${found.intent.summary.toLowerCase()}.` : "No matching places turned up for that search. Try a wider area or a different type of place.";
 
 /**
  * Everything asked for in one message: changes stack into a single preview,
@@ -698,6 +705,8 @@ Conversation:
 - "You pick" delegates the choice under the preferences already given. Choose a suitable tool action using known route/timing facts. Never invent a place or silently drop a must-see or a booking.
 - A pending preview is a draft, not the saved trip. Refine that draft across turns; do not lose its earlier edits. If asked about the saved trip, distinguish it from the draft. Use resolve_proposal only for an explicit acceptance or rejection of that preview, not an answer to another question. A request to adjust it creates another preview.
 - When asking, call ONLY reply_with_choices. Never queue speculative changes alongside a question. When a request is clear, avoid unnecessary follow-ups.
+- When one message asks for several things ("add it, and what's the weather then?"), handle every part: call the tools for the changes and answer each question in the same short reply. Never leave part of a message unanswered.
+- Weather questions: answer from WEATHER below for the times in their day. Don't search the web for the forecast.
 
 Each turn, do exactly one of these:
 1. ACT with tools when the request is clear enough to make the right change: which place, and roughly what to do with it. Clear: "add Times Square", "drop MoMA", "find a café after the Met", "move Central Park to a quieter time", "add option 2", "make it more relaxed".
@@ -755,6 +764,19 @@ function tripFacts(plan: DayPlan, input: z.infer<typeof ChatInput>): string {
   return lines.filter(Boolean).join("\n");
 }
 
+/** The forecast for the trip's day, every two hours while it runs, so "will it rain at 2?" needs no web search. */
+function weatherFacts(forecast: Forecast | null, r: Request): string {
+  const day = forecast?.days.find((d) => d.date === r.date);
+  if (!day) return "WEATHER: no forecast for this date yet (forecasts cover the next 16 days).";
+  const hours = forecast!.hours[r.date] ?? [];
+  const by: string[] = [];
+  for (let h = Math.floor(r.startMin / 60); h <= Math.min(23, Math.ceil(r.endMin / 60)); h += 2) {
+    const w = hours[h];
+    if (w) by.push(`${clock(h * 60)} ${Math.round(w.temp)}° ${WEATHER_LABEL[weatherKind(w.code)].toLowerCase()}${w.rain >= 20 ? `, ${w.rain}% rain` : ""}`);
+  }
+  return `WEATHER (forecast, °F): ${WEATHER_LABEL[weatherKind(day.code)].toLowerCase()}, high ${day.hi}°, low ${day.lo}°, up to ${day.rain}% chance of rain.${by.length ? ` By hour: ${by.join("; ")}.` : ""}`;
+}
+
 /** The chat so far as real turns, so an answer to a question lands as the answer to that question. */
 export function conversation(history: z.infer<typeof ChatInput>["history"], message: string): GeminiMessage[] {
   const turns: { role: "user" | "assistant"; content: string }[] = [];
@@ -779,7 +801,10 @@ async function daysOutlook(args: unknown, input: Input): Promise<string> {
   }).join("\n");
 }
 
-const lowerFirst = (t: string) => t[0].toLowerCase() + t.slice(1);
+// Names in capitals ("SIMÒ PIZZA") stay as they are.
+const lowerFirst = (t: string) => (/^[A-Z][A-Z]/.test(t) ? t : t[0].toLowerCase() + t.slice(1));
+/** What the model says after queuing changes when nothing else was asked. */
+const DONE = "done";
 
 /** What the app is about to do, said plainly: "Saving your plan and adding it to your calendar." */
 function actionsDone(actions: AppAction[]): string {
@@ -830,11 +855,11 @@ export async function chat(input: z.infer<typeof ChatInput>, progress: Progress 
   }
   // What they said before about themselves, found by what they're asking now and just before.
   const lastAsked = input.history.filter((h) => h.role === "user").at(-1)?.text ?? "";
-  const [currentPlan, remembered, draft] = await Promise.all([buildPlan(input.request), recall(input.memoryId, `${lastAsked}\n${input.message}`), input.pending ? buildPlan(input.pending.request) : Promise.resolve(null)]);
+  const [currentPlan, remembered, draft, forecast] = await Promise.all([buildPlan(input.request), recall(input.memoryId, `${lastAsked}\n${input.message}`), input.pending ? buildPlan(input.pending.request) : Promise.resolve(null), nycForecast().catch(() => null)]);
   // Prices already looked up for the itinerary's budget card; the chat never waits on a lookup.
   const budget = /\b(budget|cost|price|prices|expensive|cheaper|afford|spend)\b/i.test(input.message) ? await budgetFor(currentPlan, true).catch(() => null) : null;
   const costs = budget ? `\nBUDGET per person (estimates, ~ = typical): ${budget.lines.map((l) => `${l.name} ${money(l)}${l.bookAhead ? " (book ahead)" : ""}`).join("; ")}; ${budget.transit.rides ? `subway: ${budget.transit.rides} separate ${budget.transit.rides === 1 ? "trip" : "trips"} (one per subway leg) × $${budget.transit.fare} fare, for one person` : "no subway fares (the legs are walks)"}${budget.transit.note ? ` (${budget.transit.note.toLowerCase()})` : ""}. About $${budget.perPerson} in all${budget.unknown ? `, not counting ${budget.unknown} unknown` : ""}. For "cheaper", swap paid stops for free ones or cheaper food.` : "";
-  const systemInstruction = `${TRAVEL_SCOPE}\n\n${PERSONA}${rememberedFacts(remembered)}\n\nSAVED TRIP\n${tripFacts(currentPlan, input)}${costs}${draft ? `\n\nPENDING PREVIEW (not applied): ${input.pending!.title}\n${tripFacts(draft, input)}\nUse the pending preview as the starting point for refinements.` : "\nThere is no pending preview to accept or discard."}`;
+  const systemInstruction = `${TRAVEL_SCOPE}\n\n${PERSONA}${rememberedFacts(remembered)}\n\nSAVED TRIP\n${tripFacts(currentPlan, input)}\n${weatherFacts(forecast, (input.pending ?? input).request)}${costs}${draft ? `\n\nPENDING PREVIEW (not applied): ${input.pending!.title}\n${tripFacts(draft, input)}\nUse the pending preview as the starting point for refinements.` : "\nThere is no pending preview to accept or discard."}`;
   const messages: GeminiMessage[] = [{ role: "system", content: systemInstruction }, ...conversation(input.history, input.message)];
   // The model often does one thing per call, so it gets a few rounds to cover the whole message.
   // A lookup (the web, other days) always earns another round: the model reads what came back, then answers or acts.
@@ -866,7 +891,7 @@ export async function chat(input: z.infer<typeof ChatInput>, progress: Progress 
     const all = response.calls;
     // A plain answer or question, with no tool: the reply, or the model saying it's done.
     if (!all.length) {
-      said = response.text;
+      said = response.text?.trim().replace(/[.!]$/, "").toLowerCase() === DONE ? null : response.text;
       break;
     }
     const looks = all.filter((c) => INFO.has(c.name));
@@ -896,7 +921,9 @@ export async function chat(input: z.infer<typeof ChatInput>, progress: Progress 
         if (found) sources.push(...found.results.slice(0, 3).map(({ title, url }) => ({ title, url })));
         output = found ? { answer: found.answer, results: found.results } : "No web results are available right now. Say you couldn't check, and suggest the place's official site.";
       } else {
-        output = !fresh.includes(c) ? "Already queued." : c.name === "add_place" ? `Queued. Refer to this place as afterStopKey "new:${++added}".` : "Queued.";
+        // The app says what changed; the model's words are only for the rest of the message.
+        const queued = `Queued; the app will confirm it, so don't describe it. Continue with anything else they asked; if it was a question, answer it briefly, otherwise reply with just "${DONE}".`;
+        output = !fresh.includes(c) ? "Already queued." : c.name === "add_place" ? `${queued} Refer to this place as afterStopKey "new:${++added}".` : queued;
       }
       answers.push(toolReply(c.id, output));
     }
@@ -905,9 +932,12 @@ export async function chat(input: z.infer<typeof ChatInput>, progress: Progress 
   }
   console.info("[trip-chat] tools:", calls.map((c) => `${c.name}(${JSON.stringify(c.args ?? {})})`).join(" ") || "none", said ? `| said: ${said.slice(0, 120)}` : "");
   const cited = sources.filter((s, i) => sources.findIndex((x) => x.url === s.url) === i).slice(0, 3);
+  // What the model answered alongside its changes ("and what's the weather then?") goes with the app's reply.
+  let answered = false;
   const withExtras = (reply: ChatReply, actions: AppAction[]): ChatReply => ({
     ...reply,
-    ...(cited.length && { sources: cited, message: said && reply.message !== said ? `${said}\n\n${reply.message}` : reply.message }),
+    message: said && !answered && reply.message !== said ? `${said}\n\n${reply.message}` : reply.message,
+    ...(cited.length && { sources: cited }),
     ...(actions.length && { actions }),
   });
   const appActions = (list: ToolCall[]) => list.filter((c) => c.name === "app_action").flatMap((c) => {
@@ -925,7 +955,7 @@ export async function chat(input: z.infer<typeof ChatInput>, progress: Progress 
   // hears exactly what and gets one chance to fix it before asking the traveler.
   let { reply, problems } = await settle(await runTools(work, input, progress), input);
   if (problems.length && reply.proposal) {
-    const check = `Planner check: those changes would ${problems.join("; ")}. If a further change that the traveler's words allow fixes this (another time, another spot, skipping a wait), make it now. Otherwise don't change anything else: explain the problem in one or two sentences and ask whether to apply it anyway or keep the day as it is.`;
+    const check = `Planner check: those changes would ${problems.join("; ")}. Nothing is applied yet. If a further change that the traveler's words allow fixes this (another time, another spot, skipping a wait), make it now. Otherwise don't change anything else: in two or three short sentences, explain the problem, answer anything else they asked in this message, and ask whether to apply it anyway or keep the day as it is.`;
     if (open) messages.push(open, ...(open.tool_calls ?? []).map((c) => toolReply(c.id, check)));
     else messages.push({ role: "user", content: `(${check})` });
     const response = await ask(1);
@@ -937,7 +967,13 @@ export async function chat(input: z.infer<typeof ChatInput>, progress: Progress 
     }
     if (problems.length && reply.proposal) {
       const why = response?.text;
-      reply = { ...reply, message: why || `I tried to ${lowerFirst(reply.proposal.title)}, but it doesn't quite fit: ${problems.map((p) => lowerFirst(p.replace(/\.$/, ""))).join("; ")}. Apply it anyway, or keep your day as it is?` };
+      // The explanation already covers the rest of the message.
+      answered = !!why;
+      reply = {
+        ...reply,
+        message: why || `I tried to ${lowerFirst(reply.proposal.title)}, but it doesn't quite fit: ${problems.map((p) => lowerFirst(p.replace(/\.$/, ""))).join("; ")}. Apply it anyway, or keep your day as it is?`,
+        proposal: { ...reply.proposal, problems: problems.filter((p) => reply.proposal!.warnings.includes(p)) },
+      };
     }
   }
   return withExtras(reply, appActions(calls));

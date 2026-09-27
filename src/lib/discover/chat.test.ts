@@ -179,6 +179,10 @@ describe("times the traveler said", () => {
     expect(meantTime(420, "start at 7", { startMin: 540 })).toBe(420);
     expect(meantTime(360, "finish by 6", { startMin: 540 }, true)).toBe(1080);
     expect(meantTime(420, "start at 7pm", { startMin: 540 })).toBe(1140);
+    // "9:30" sent as 930 (3:30pm), and a bare end time is in the evening.
+    expect(meantTime(930, "my day should end at 9:30", { startMin: 540 }, true)).toBe(1290);
+    expect(meantTime(570, "finish by 9:30", { startMin: 540 }, true)).toBe(1290);
+    expect(meantTime(930, "finish by 3:30pm", { startMin: 540 }, true)).toBe(930);
   });
 
   it("changes only the start when the model repeats every setting with morning times", async () => {

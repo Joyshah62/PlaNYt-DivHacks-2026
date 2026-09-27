@@ -76,41 +76,80 @@ export function plain(text: string): string {
     .replace(/^#{1,6}\s+/gm, "");
 }
 
-/** A trip-chat answer as texts: the words, then numbered places or the change to approve. */
+/** The website points at its cards and buttons; over text the list and YES/NO do that job. */
+const WEB_ONLY: [RegExp, string][] = [
+  [/\s*Which feels right\? Pick a place below, or tell me what you'd change about these options\./, " Which one sounds good?"],
+  [/\s*Pick one below and I'll fit it in\./, " Which one should I fit in?"],
+  [/\s*Choose Add on its card to preview it[^.]*\./g, ""],
+  [/\s*Adding one of these includes that change too, or apply it on its own first\./, ""],
+  [/\s*Apply it below, or tell me what you'd like to adjust\./, ""],
+  [/\s*Review them below before applying it\./, ""],
+  [/Below is a preview to/, "I can"],
+];
+const forText = (message: string) => WEB_ONLY.reduce((m, [from, to]) => m.replace(from, to), plain(message)).trim();
+
+/** "4.5★ from 883 reviews" is "4.5★" in a list. */
+const shortReason = (r: string) => r.replace(/\s+from [\d,]+ reviews?/, "");
+const RUNS_LATE = /^The day would run .+ past (.+)$/;
+
+/** Numbered places, one short line each; what they all share is said once, above them. */
+function placeList(results: NonNullable<ChatReply["discovery"]>["results"]): string {
+  const after = results[0].after && results.every((r) => r.after === results[0].after) ? results[0].after : null;
+  // Past the day's end with any of them: one heads-up rather than six.
+  const late = results.every((r) => r.conflicts.some((c) => RUNS_LATE.test(c))) ? RUNS_LATE.exec(results[0].conflicts.find((c) => RUNS_LATE.test(c))!)![1] : null;
+  const lines = results.map((r, i) => {
+    const when = r.startMin !== null ? clock(r.startMin) : "";
+    const where = r.after && !after ? `after ${r.after}` : "";
+    const cost = r.travelDelta > 0 ? `+${duration(r.travelDelta)}` : "";
+    const why = r.reasons.slice(0, 2).map(shortReason).join(" ");
+    const conflict = r.conflicts.find((c) => !(late && RUNS_LATE.test(c)));
+    const warn = r.closed ? "⚠️ closed then" : conflict ? `⚠️ ${conflict}` : "";
+    return `${i + 1}. ${[r.name, [when, where].filter(Boolean).join(" "), cost, why, warn].filter(Boolean).join(" · ")}`;
+  });
+  return [
+    ...(after ? [`All right after ${after}:`] : []),
+    ...lines,
+    ...(late ? [`⚠️ Any of these runs your day past ${late}.`] : []),
+  ].join("\n");
+}
+
+/** The change waiting on YES: the new day in one line, and only the problems this change causes. */
+function proposalText(proposal: NonNullable<ChatReply["proposal"]>): string {
+  const p = proposal.plan;
+  const day = p.stops.filter((s) => !isMealBreak(s)).map((s) => `${clock(s.startMin)} ${s.name}`).join(" → ");
+  const fresh = proposal.problems?.length ? proposal.problems : proposal.warnings;
+  const older = proposal.warnings.length - fresh.length;
+  return [
+    `✏️ ${proposal.title}`,
+    day,
+    `Finishes ${clock(p.summary.finishMin)} · ${duration(p.summary.travelMin)} getting around`,
+    ...fresh.slice(0, 3).map((w) => `⚠️ ${w}`),
+    ...(fresh.length > 3 ? [`⚠️ ${fresh.length - 3} more timing issues`] : []),
+    ...(older > 0 ? [`(${older} ${older === 1 ? "issue" : "issues"} your day already had)`] : []),
+  ].join("\n");
+}
+
+/**
+ * A trip-chat answer as texts, like the website's bubble: the words (with the
+ * places listed right under them), the change to approve, and one line saying
+ * how to answer.
+ */
 export function chatReply(reply: ChatReply): string[] {
-  // Links to what a web answer drew on, so it can be checked.
-  const cited = reply.sources?.length ? `\n\nFrom the web: ${reply.sources.slice(0, 2).map((s) => s.url).join(" ")}` : "";
-  const out = [plain(reply.message) + cited];
+  // A link to what a web answer drew on, so it can be checked.
+  const cited = reply.sources?.length ? `\n\nSource: ${reply.sources[0].url}` : "";
   const results = reply.discovery?.results ?? [];
-  if (results.length) {
-    out.push(
-      results
-        .map((r, i) => {
-          const when = r.startMin !== null ? ` ${clock(r.startMin)}` : "";
-          const where = r.after ? ` after ${r.after}` : "";
-          const cost = r.travelDelta > 0 ? `, +${duration(r.travelDelta)} travel` : "";
-          const why = r.reasons.slice(0, 2).join(", ");
-          const warn = r.closed ? " ⚠️ closed then" : r.conflicts.length ? ` ⚠️ ${r.conflicts[0]}` : "";
-          return `${i + 1}. ${r.name} —${when}${where}${cost}${why ? ` · ${why}` : ""}${warn}`;
-        })
-        .join("\n") + `\n\nReply with a number to add one.`,
-    );
-  }
-  if (reply.proposal) {
-    const p = reply.proposal.plan;
-    const day = p.stops.filter((s) => !isMealBreak(s)).map((s) => `${clock(s.startMin)} ${s.name}`).join(" → ");
-    out.push(
-      [
-        `✏️ ${reply.proposal.title}`,
-        day,
-        `Finishes ${clock(p.summary.finishMin)} · ${duration(p.summary.travelMin)} getting around`,
-        ...reply.proposal.warnings.map((w) => `⚠️ ${w}`),
-        "",
-        "Reply YES to apply it or NO to keep your day.",
-      ].join("\n"),
-    );
-  }
-  if (reply.choices.length) out.push(`Reply with a letter: ${reply.choices.map((c, i) => `${LETTERS[i]}) ${c.label}`).join("  ")}`);
+  const words = forText(reply.message);
+  const out = [(results.length ? `${words}\n\n${placeList(results)}` : words) + cited];
+  if (reply.proposal) out.push(proposalText(reply.proposal));
+  const letters = reply.choices.map((c, i) => `${LETTERS[i]}) ${c.label}`).join("  ");
+  const or = letters ? `, or ${letters}` : "";
+  const how =
+    results.length && reply.proposal ? `Reply with a number to add one along with this change, YES to apply just the change, or NO to keep your day.${letters ? ` Or ${letters}` : ""}`
+    : results.length ? `Reply with a number to add one${or}.`
+    : reply.proposal ? `Reply YES to apply it, NO to keep your day${or || ", or tell me what to change"}.`
+    : letters ? `Reply ${letters}`
+    : "";
+  if (how) out[out.length - 1] += `\n\n${how}`;
   return out;
 }
 
