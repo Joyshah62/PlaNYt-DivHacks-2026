@@ -7,6 +7,24 @@ import { BRAND } from "@/lib/plan/display";
 export const metadata: Metadata = {
   title: `${BRAND.name} · ${BRAND.tagline}`,
   description: "Plan a day in New York around travel time, opening hours, and neighborhood crowds.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-icon.png",
+  },
+  openGraph: {
+    title: `${BRAND.name} · ${BRAND.tagline}`,
+    description: "Plan a day in New York around travel time, opening hours, and neighborhood crowds.",
+    images: [{ url: "/brand/og.png", width: 1600, height: 900, alt: `${BRAND.name} — ${BRAND.tagline}` }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${BRAND.name} · ${BRAND.tagline}`,
+    description: "Plan a day in New York around travel time, opening hours, and neighborhood crowds.",
+    images: ["/brand/og.png"],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
