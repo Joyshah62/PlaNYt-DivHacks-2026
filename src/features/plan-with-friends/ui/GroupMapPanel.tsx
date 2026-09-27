@@ -26,11 +26,6 @@ export function GroupMapPanel({ trip, plan, memberId, onSuggest }: { trip: Trip;
     <section className="overflow-hidden rounded-2xl border border-border bg-card">
       <div className="relative h-64 sm:h-72">
         <RoomMap people={people} stops={stops} origin={origin} />
-        {people.length === 0 && (
-          <div className="pointer-events-none absolute inset-x-3 top-3 rounded-xl bg-card/90 px-3 py-2 text-xs text-muted-foreground backdrop-blur">
-            Add where you&apos;re starting from to see everyone on the map and get a start that&apos;s fair for all.
-          </div>
-        )}
       </div>
       {f && (
         <div className="flex flex-col gap-2 border-t border-border p-3 text-sm">

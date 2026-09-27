@@ -3,7 +3,6 @@
 import { Link2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { clock } from "../bridge/index";
 import { Button, cn } from "../bridge/ui";
 import { AskRoam } from "./AskRoam";
 import { AvatarStack } from "./Avatar";
@@ -56,8 +55,6 @@ export function TripRoom({ id }: { id: string }) {
             <AvatarStack people={people} size="md" />
             <span>
               {people.length} {people.length === 1 ? "person" : "people"} · hosted by {host}
-              {trip.window && ` · free ${clock(trip.window.from)}–${clock(trip.window.to)}${trip.window.everyone ? " together" : ""}`}
-              {me && ` · you're ${me.avatar.emoji} ${me.name}`}
             </span>
           </div>
         </div>
@@ -97,8 +94,10 @@ export function TripRoom({ id }: { id: string }) {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start lg:[grid-auto-rows:min-content]">
         <div className={cn("flex flex-col gap-4", tab !== "places" && "hidden lg:flex")}>
-          {me && !room.locked && <StartPointCard start={me.start} onSet={actions.setStart} />}
-          {me && !room.locked && <FreeTimeCard free={me.free} group={trip.window} emoji={emoji} onSet={actions.setFree} />}
+          {me && !room.locked && (
+            <StartPointCard start={me.start} onSet={actions.setStart} added={people.filter((p) => p.start).length} total={people.length} />
+          )}
+          {me && !room.locked && <FreeTimeCard meId={me.id} people={people.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar, free: p.free ?? null }))} group={trip.window} onSet={actions.setFree} />}
           {me && !room.locked && <AskRoam onSuggest={actions.suggest} />}
           <PlacesPanel trip={trip} memberId={me?.id ?? null} locked={room.locked} onVote={actions.vote} onSuggest={actions.suggest} onRemove={actions.remove} />
         </div>
