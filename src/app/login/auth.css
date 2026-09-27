@@ -1,0 +1,65 @@
+/* Sign in: one screen, never a scrolling page. The plate (the city, with what an account is for)
+   on the left from 1024px; the paper column with the form on the right. */
+
+.au { display: grid; height: 100dvh; overflow: hidden; }
+@media (min-width: 1024px) {
+  .au { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+}
+
+/* --- The plate ------------------------------------------------------------------------ */
+.au-plate { display: none; }
+@media (min-width: 1024px) {
+  .au-plate { display: flex; flex-direction: column; min-height: 0; padding: var(--s-2) var(--gut); background: var(--paper); }
+}
+.au-caption { display: flex; justify-content: space-between; gap: var(--s-2); padding-bottom: var(--s-1); color: var(--ed-muted); }
+.au-caption span:first-child { color: var(--ink); }
+.au-frame { position: relative; flex: 1; min-height: 0; overflow: hidden; border: 1px solid var(--rule); background: var(--night); }
+.au-map { position: absolute; inset: 0; }
+.au-callout {
+  position: absolute; z-index: 3; left: var(--s-2); bottom: var(--s-2); width: min(26em, calc(100% - 2 * var(--s-2)));
+  padding: var(--s-2); background: var(--paper); border: 1.5px solid var(--ink); box-shadow: var(--offset) var(--offset) 0 var(--shadow);
+}
+.au-callout > strong { display: block; font: 400 clamp(28px, 2.2vw, 48px) / 1 var(--f-display); }
+.au-perks { display: grid; gap: var(--s-1); margin-top: var(--s-2); padding-top: var(--s-2); border-top: 1px solid var(--rule); }
+.au-perks li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-1); align-items: start; }
+.au-perks b { display: block; font: 400 var(--t-lead) / 1.15 var(--f-display); }
+.au-perks .ed-small { display: block; }
+
+/* --- The paper column ----------------------------------------------------------------- */
+.au-col { display: flex; flex-direction: column; min-height: 0; }
+@media (min-width: 1024px) {
+  .au-col { border-left: 1px solid var(--rule); }
+}
+.au-form { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; width: 100%; max-width: calc(30em + 2 * var(--gut)); padding: var(--s-2) var(--gut); }
+.au-form .ed-title { font-size: clamp(34px, 2.2vw + 14px, 64px); }
+.au-form .ed-dek { margin-top: 0.4em; }
+.au-mode-panel--switch[data-mode="signup"] { animation: au-switch-in-forward 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.au-mode-panel--switch[data-mode="signin"] { animation: au-switch-in-back 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes au-switch-in-forward { from { opacity: 0; transform: translateX(1.25rem); } to { opacity: 1; transform: translateX(0); } }
+@keyframes au-switch-in-back { from { opacity: 0; transform: translateX(-1.25rem); } to { opacity: 1; transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .au-mode-panel--switch { animation: none; } }
+.au-mode { margin-block: var(--s-2) var(--s-1); }
+.au-or { display: flex; align-items: center; gap: var(--s-1); margin-block: var(--s-1); color: var(--ed-muted); }
+.au-or::before, .au-or::after { content: ""; flex: 1; height: 1px; background: var(--hair); }
+.au-or span { font: 500 var(--t-mono) / 1 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; }
+.au-fields { display: grid; gap: var(--s-1); margin-top: var(--s-1); }
+.au-fields .ed-field input { font-size: var(--t-body); padding: 0.55em 0.75em; }
+.au-fields .ed-field label { margin-bottom: 0.35em; }
+.au-fields .ed-btn { margin-top: 0.3em; }
+.au .ed-btn svg { width: 1.2em; height: 1.2em; }
+.au-switch { margin-top: var(--s-1); }
+
+/* Short screens: tighter still, so sign-up's four fields fit without a scroll. */
+@media (max-height: 820px) {
+  .au .ed-appbar { padding-block: 0.5em; }
+  .au-form .ed-title { font-size: clamp(30px, 1.6vw + 14px, 44px); }
+  .au-form .ed-dek { display: none; }
+  .au-mode .ed-tab { padding-block: 0.6em; }
+  .au .ed-hint { margin-top: 0.25em; }
+  .au .ed-btn { padding-block: 0.8em; }
+}
+@media (max-height: 680px) {
+  .au-form .ed-kicker { display: none; }
+  .au-form .ed-title { margin-top: 0; }
+  .au-fields { gap: 0.5em; }
+}

@@ -42,24 +42,24 @@ export function StartPointCard({
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4">
+    <section className="ed-panel">
       {!open && start ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span>
+        <div className="tr-panel-head">
+          <span className="ed-small">
             📍 Near {start.area.replace(/^near /, "")} ·{" "}
-            <button type="button" onClick={() => setEditing(true)} className="text-brand hover:underline">
+            <button type="button" onClick={() => setEditing(true)} className="ed-link">
               change
             </button>
           </span>
-          <span className="text-xs text-muted-foreground">{count}</span>
+          <span className="ed-mono ed-muted">{count}</span>
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-sm font-semibold">Where are you coming from?</h2>
-            <span className="text-xs text-muted-foreground">{count}</span>
+          <div className="tr-panel-head">
+            <h2 className="ed-h3">Where are you coming from?</h2>
+            <span className="ed-mono ed-muted">{count}</span>
           </div>
-          <p className="mt-1 mb-2 text-xs text-muted-foreground">We&apos;ll use this to find a meetup spot that&apos;s fair for everyone. Friends only see your neighborhood.</p>
+          <p className="ed-small ed-muted tr-lede">We&apos;ll use this to find a meetup spot that&apos;s fair for everyone. Friends only see your neighborhood.</p>
           <PlaceSearch
             forStart
             chosen={new Set()}
@@ -68,23 +68,23 @@ export function StartPointCard({
               onSet({ lat: stop.lat, lon: stop.lon });
             }}
           />
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="tr-row tr-gap">
             <button
               type="button"
               onClick={locate}
               disabled={locating}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium transition hover:border-brand hover:text-brand disabled:opacity-60"
+              className="ed-btn ed-btn--ghost"
             >
-              {locating ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <LocateFixed className="size-3.5" aria-hidden />}
+              {locating ? <Loader2 className="animate-spin" aria-hidden /> : <LocateFixed aria-hidden />}
               Use my location
             </button>
             {start && (
-              <button type="button" onClick={() => setEditing(false)} className="text-xs text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={() => setEditing(false)} className="ed-link ed-small">
                 cancel
               </button>
             )}
           </div>
-          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+          {error && <p role="alert" className="ed-alert tr-gap">{error}</p>}
         </>
       )}
     </section>

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { clock, isMealBreak, type DayPlan } from "../bridge/index";
-import { cn } from "../bridge/ui";
 import type { HomeMode, HomePlan } from "../core/gettingHome";
 import type { Trip } from "../core/types";
 import { AvatarBubble } from "./Avatar";
@@ -39,23 +38,23 @@ export function GettingHomePanel({ trip, tripId, plan }: { trip: Trip; tripId: s
   const home = result?.key === key ? result.home : null;
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold">Getting home</h2>
-        <span className="text-xs text-muted-foreground">
+    <section className="ed-panel">
+      <div className="tr-home-header">
+        <h2 className="ed-h3">Getting home</h2>
+        <span className="tr-home-subtitle">
           from {last.name} at ~{clock(last.endMin)} · estimates
         </span>
       </div>
       {!home ? (
-        <p className="mt-3 text-xs text-muted-foreground">Working out everyone&apos;s way home…</p>
+        <p className="tr-home-loading">Working out everyone&apos;s way home…</p>
       ) : (
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full min-w-[22rem] border-separate border-spacing-1 text-center text-xs">
+        <div className="tr-home-scroll">
+          <table className="tr-home-table">
             <thead>
-              <tr className="text-muted-foreground">
-                <th className="w-8" />
+              <tr>
+                <th className="tr-home-who" />
                 {MODES.map((m) => (
-                  <th key={m.mode} className="font-normal">
+                  <th key={m.mode}>
                     {m.icon} {m.label}
                   </th>
                 ))}
@@ -73,17 +72,13 @@ export function GettingHomePanel({ trip, tripId, plan }: { trip: Trip; tripId: s
                         <td key={m.mode}>
                           {o ? (
                             <span
-                              className={cn(
-                                "block rounded-lg border px-1.5 py-1",
-                                h.best === m.mode ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "border-border text-muted-foreground",
-                                m.mode === "walk" && o.minutes > 45 && "opacity-50",
-                              )}
+                              className={`tr-home-mode ${h.best === m.mode ? "best" : ""} ${m.mode === "walk" && o.minutes > 45 ? "far-walk" : ""}`}
                             >
-                              <b className="block text-[13px] text-foreground">{mins(o.minutes)}</b>
+                              <b>{mins(o.minutes)}</b>
                               {money(o.cost)}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground">·</span>
+                            <span className="tr-home-empty">·</span>
                           )}
                         </td>
                       );
@@ -96,11 +91,11 @@ export function GettingHomePanel({ trip, tripId, plan }: { trip: Trip; tripId: s
           {home
             .filter((h) => h.warning)
             .map((h) => (
-              <p key={h.memberId} className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+              <p key={h.memberId} className="tr-home-warning">
                 ⚠ {trip.members[h.memberId]?.avatar.emoji} {h.warning}
               </p>
             ))}
-          <p className="mt-2 text-[11px] text-muted-foreground">
+          <p className="tr-home-note">
             Subway $3 · Citi Bike e-bike without membership $4.99 + $0.41/min · taxi meter before tip. Check live times before you go.
           </p>
         </div>

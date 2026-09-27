@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { BRAND } from "../bridge/index";
+import { AppBar } from "../bridge/ui";
 import { StartRoom } from "./StartRoom";
 import { TripRoom } from "./TripRoom";
 import { WhoIsComing } from "./WhoIsComing";
@@ -27,15 +28,14 @@ export async function TripRoomPage({ params, viewer = null }: { params: Promise<
 
 export function StartPage() {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-6 px-4 py-10">
-      <div className="text-center">
-        <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-          {BRAND.name} {BRAND.suffix}
-        </p>
-        <h1 className="mt-2 font-display text-5xl leading-tight">Who&apos;s coming?</h1>
-        <p className="mt-2 text-sm text-muted-foreground">We&apos;ll set up the right kind of plan. Groups get a trip room where everyone decides together.</p>
-      </div>
-      <WhoIsComing />
+    <main className="ed-app ed-paper tr-page">
+      <AppBar />
+      <section className="ed-gut tr-start">
+        <p className="ed-mono ed-kicker">{BRAND.name} {BRAND.suffix}</p>
+        <h1 className="tr-display">Who&apos;s <em>coming?</em></h1>
+        <p className="ed-dek">We&apos;ll set up the right kind of plan. Groups get a trip room where everyone decides together.</p>
+        <WhoIsComing />
+      </section>
     </main>
   );
 }

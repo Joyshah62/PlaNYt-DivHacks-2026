@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Check, Loader2, Smartphone } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { formatPhone } from "@/lib/phone";
 
 const STORAGE_KEY = "roam.phone";
@@ -45,30 +44,29 @@ export function PhoneSend({ planCode, defaultHandle = null }: { planCode: string
 
   return (
     <>
-      <Button
-        size="sm"
-        variant="outline"
+      <button
+        type="button"
         aria-expanded={open}
         onClick={() => {
           if (!open && !handle) setHandle(readHandle() || (defaultHandle ? formatPhone(defaultHandle) : ""));
           setOpen((v) => !v);
         }}
-        className="rounded-full"
+        className="pl-textbtn"
       >
         <Smartphone aria-hidden /> Text to my phone
-      </Button>
+      </button>
       {open && (
-        <div className="basis-full rounded-2xl border border-border bg-card p-3">
+        <div className="pl-phone-form">
           {sentTo ? (
-            <p className="flex items-start gap-2 text-sm">
-              <Check className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+            <p className="pl-phone-success">
+              <Check aria-hidden />
               <span>
                 Sent to {sentTo}. Check Messages: reply there to change your day, and on the day you&apos;ll get a text when it&apos;s time to head to each stop.
               </span>
             </p>
           ) : (
             <form
-              className="flex gap-2"
+              className="pl-phone-fields"
               onSubmit={(e) => {
                 e.preventDefault();
                 void send();
@@ -85,19 +83,19 @@ export function PhoneSend({ planCode, defaultHandle = null }: { planCode: string
                 autoComplete="tel"
                 placeholder="Phone number or Apple ID email"
                 aria-label="Phone number or Apple ID email"
-                className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
+                className="pl-phone-input"
               />
-              <Button type="submit" disabled={busy || handle.trim().length < 3} className="rounded-xl bg-brand text-on-color hover:bg-brand/90">
+              <button type="submit" disabled={busy || handle.trim().length < 3} className="ed-btn ed-btn--ghost">
                 {busy ? <Loader2 className="animate-spin" aria-hidden /> : "Send"}
-              </Button>
+              </button>
             </form>
           )}
           {error && (
-            <p role="alert" className="mt-2 text-sm text-sev-c">
+            <p role="alert" className="pl-flag mt-2">
               {error}
             </p>
           )}
-          {!sentTo && <p className="mt-2 text-[11px] text-muted-foreground">Sent by iMessage. Reply STOP any time to pause updates.</p>}
+          {!sentTo && <p className="pl-fine">Sent by iMessage. Reply STOP any time to pause updates.</p>}
         </div>
       )}
     </>

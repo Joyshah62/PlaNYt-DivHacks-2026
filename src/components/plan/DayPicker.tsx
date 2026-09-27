@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Loader2, Star } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2, Star } from "lucide-react";
 import { ATTRACTION_BY_ID } from "@/lib/plan/attractions";
 import type { DayOutcome } from "@/lib/plan/compare";
 import { crowdBand } from "@/lib/plan/crowd";
-import { CROWD_COLOR, CROWD_LABEL } from "@/lib/plan/display";
+import { CROWD_LABEL } from "@/lib/plan/display";
 import { encodePlan } from "@/lib/plan/share";
 import { addDays, nycToday, WEEKDAYS } from "@/lib/plan/time";
 import type { DayPlan } from "@/lib/plan/types";
 import { WEATHER_LABEL, weatherKind, type DayWeather, type Forecast } from "@/lib/plan/weatherCodes";
-import { cn } from "@/lib/utils";
+import { Fold } from "./Fold";
 import { WeatherIcon } from "./WeatherIcon";
 
 const DAYS = 14;
@@ -79,12 +78,21 @@ export function DayPicker({
   const best = scored.length ? scored.reduce((a, b) => (b.cost < a.cost ? b : a)) : null;
   const selected = scored.find((x) => x.d.date === date);
 
-  // Keep the chosen day in view when the strip loads or the day changes.
+  // Keep the chosen day in view when the strip loads, the day changes, or its fold opens
+  // (a folded strip has no width, so centring it then does nothing).
   const strip = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    // Scroll the strip only; scrollIntoView would also move the page.
-    const el = strip.current?.querySelector<HTMLElement>('[aria-pressed="true"]');
-    if (el && strip.current) strip.current.scrollTo({ left: el.offsetLeft - (strip.current.clientWidth - el.offsetWidth) / 2, behavior: "smooth" });
+    const center = (behavior: ScrollBehavior) => {
+      // Scroll the strip only; scrollIntoView would also move the page.
+      const el = strip.current?.querySelector<HTMLElement>('[aria-pressed="true"]');
+      if (el && strip.current) strip.current.scrollTo({ left: el.offsetLeft - (strip.current.clientWidth - el.offsetWidth) / 2, behavior });
+    };
+    center("smooth");
+    // A strip that just unfolded is already in place, not scrolling there.
+    const onToggle = () => center("instant");
+    const fold = strip.current?.closest("details");
+    fold?.addEventListener("toggle", onToggle);
+    return () => fold?.removeEventListener("toggle", onToggle);
   }, [date, days]);
 
   const summary = (() => {
@@ -107,17 +115,13 @@ export function DayPicker({
   })();
 
   return (
-    <section aria-labelledby="days-heading" className="mt-6">
-      <div className="mb-2 flex items-baseline justify-between">
-        <h2 id="days-heading" className="flex items-center gap-1.5 text-sm font-semibold">
-          <CalendarDays className="size-4 text-brand" aria-hidden /> Best day to go
-        </h2>
-        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground max-sm:hidden">
-          {busy && <Loader2 className="size-3 animate-spin" aria-hidden />}
-          Weather, crowds and closures for this plan
-        </span>
-      </div>
-      <div ref={strip} className="-mx-5 flex snap-x gap-2 overflow-x-auto px-5 pt-1 pb-2 [scrollbar-width:none]" role="group" aria-label="Choose a day">
+    <Fold kicker="When to go" title={<>The best <em>day</em></>} summary={loading ? "Comparing weather, crowds and closures over the next two weeks…" : summary}>
+      {busy && (
+        <p className="pl-mono pl-muted mb-3 flex items-center gap-2">
+          <Loader2 className="size-4 animate-spin" aria-hidden /> Re-planning…
+        </p>
+      )}
+      <div ref={strip} className="pl-days" role="group" aria-label="Choose a day">
         {Array.from({ length: DAYS }, (_, i) => addDays(from, i)).map((day) => {
           const outcome = days?.find((d) => d.date === day);
           const w = weatherOn.get(day);
@@ -132,49 +136,34 @@ export function DayPicker({
               disabled={busy}
               aria-pressed={isSelected}
               onClick={() => !isSelected && onPickDate(day)}
-              title={outcome?.closed.length ? `Closed: ${outcome.closed.join(", ")}` : undefined}
-              className={cn(
-                "relative flex w-[4.4rem] shrink-0 snap-start flex-col items-center rounded-2xl border px-1 pt-2 pb-2.5 transition",
-                isSelected ? "border-foreground bg-foreground text-background shadow-lg" : "border-border bg-card hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-md",
-                isBest && !isSelected && "border-sev-b ring-2 ring-sev-b/25",
-              )}
+              title={outcome?.closed.length ? `Closed: ${outcome.closed.join(", ")}` : band ? `${CROWD_LABEL[band]} on average` : undefined}
+              className="pl-day"
             >
               {isBest && (
-                <span className="absolute -top-2 right-1.5 grid size-5 place-items-center rounded-full bg-sev-b text-on-color shadow" aria-label="Best day">
-                  <Star className="size-3 fill-current" aria-hidden />
+                <span className="pl-day-best" aria-label="Best day">
+                  <Star aria-hidden />
                 </span>
               )}
-              <span className={cn("text-[10px] font-semibold tracking-wide uppercase", isSelected ? "text-background/70" : "text-muted-foreground")}>
-                {day === today ? "Today" : WEEKDAYS[d.getUTCDay()].slice(0, 3)}
-              </span>
-              <span className="font-display text-2xl leading-tight tabular-nums">{d.getUTCDate()}</span>
-              <span className="flex h-5 items-center gap-0.5 text-[11px] tabular-nums">
+              <span className="pl-mono">{day === today ? "Today" : WEEKDAYS[d.getUTCDay()].slice(0, 3)}</span>
+              <span className="pl-day-num">{d.getUTCDate()}</span>
+              <span className="pl-day-weather">
                 {w ? (
                   <>
-                    <WeatherIcon code={w.code} className={cn("size-3.5", isSelected && "text-background")} />
+                    <WeatherIcon code={w.code} />
                     {w.hi}°
                   </>
                 ) : (
-                  <span className={isSelected ? "text-background/60" : "text-muted-foreground"}>–</span>
+                  "–"
                 )}
               </span>
-              <span className={cn("mt-1 h-1.5 w-10 overflow-hidden rounded-full", isSelected ? "bg-background/20" : "bg-muted")}>
-                {loading ? (
-                  <Skeleton className="h-full w-full" />
-                ) : (
-                  band && <span className="block h-full rounded-full" style={{ width: `${Math.max(12, (outcome!.crowdLevel ?? 0) * 100)}%`, background: CROWD_COLOR[band] }} title={`${CROWD_LABEL[band]} on average`} />
-                )}
+              <span className="pl-day-crowd" aria-hidden>
+                {loading ? null : band && <i style={{ width: `${Math.max(12, (outcome!.crowdLevel ?? 0) * 100)}%` }} />}
               </span>
-              {outcome && outcome.closed.length > 0 && (
-                <span className={cn("mt-1 text-[9px] font-semibold uppercase", isSelected ? "text-background" : "text-sev-c")}>{outcome.closed.length} closed</span>
-              )}
+              {outcome && outcome.closed.length > 0 && <span className="pl-mono pl-red" style={{ fontSize: "0.8em" }}>{outcome.closed.length} closed</span>}
             </button>
           );
         })}
       </div>
-      <p className="min-h-5 text-xs leading-relaxed text-muted-foreground" aria-live="polite">
-        {loading ? "Comparing the next two weeks…" : summary}
-      </p>
-    </section>
+    </Fold>
   );
 }

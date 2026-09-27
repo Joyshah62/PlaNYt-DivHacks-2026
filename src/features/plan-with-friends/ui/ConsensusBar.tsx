@@ -3,7 +3,6 @@
 import { Check, Clock } from "lucide-react";
 import Link from "next/link";
 import { clock } from "../bridge/index";
-import { Button, cn } from "../bridge/ui";
 import type { Trip } from "../core/types";
 import { AvatarStack } from "./Avatar";
 
@@ -26,16 +25,16 @@ function deadlineOptions(now: Date): { label: string; at: number }[] {
 function Confetti() {
   const bits = Array.from({ length: 18 }, (_, i) => i);
   return (
-    <span aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <style>{`@keyframes roam-confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(-70px) rotate(260deg);opacity:0}}`}</style>
+    <span aria-hidden className="tr-confetti">
       {bits.map((i) => (
         <span
           key={i}
-          className="absolute bottom-2 block size-1.5 rounded-sm motion-reduce:hidden"
+          className="tr-confetti-bit"
           style={{
             left: `${5 + i * 5.2}%`,
-            background: ["#6d8dff", "#f0a44b", "#4fc28a", "#f27ab5", "#e8c547"][i % 5],
-            animation: `roam-confetti ${0.9 + (i % 4) * 0.2}s ease-out ${(i % 6) * 0.08}s both`,
+            background: i % 3 ? "var(--ink)" : "var(--red)",
+            animationDuration: `${0.9 + (i % 4) * 0.2}s`,
+            animationDelay: `${(i % 6) * 0.08}s`,
           }}
         />
       ))}
@@ -68,16 +67,16 @@ export function ConsensusBar({
 
   if (trip.lockedCode) {
     return (
-      <div className="relative flex flex-wrap items-center gap-3 overflow-hidden rounded-2xl border border-emerald-500/40 bg-card px-4 py-3 shadow-lg">
+      <div className="tr-consensus tr-consensus-locked">
         <Confetti />
         <AvatarStack people={people} />
-        <p className="min-w-0 flex-1 text-sm">
+        <p className="tr-consensus-content tr-consensus-status">
           <strong>{c.reason === "majority-after-deadline" ? "Decided by majority 🎉" : "Everyone's in 🎉"}</strong>
-          <span className="text-muted-foreground"> This is the day.</span>
+          <span className="ed-muted"> This is the day.</span>
         </p>
         <Link
           href={`/plan?plan=${trip.lockedCode}`}
-          className="inline-flex h-8 items-center rounded-full bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/85"
+          className="ed-btn ed-small"
         >
           Open in planner →
         </Link>
@@ -94,26 +93,26 @@ export function ConsensusBar({
         : `${c.confirmed.length} of ${c.total} are in${waitingOn ? ` · waiting on ${waitingOn}` : ""}`;
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur">
+    <div className="tr-consensus">
       <AvatarStack people={people} dimmed={c.pending} />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm">{status}</p>
-        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+      <div className="tr-consensus-content">
+        <p className="tr-consensus-status">{status}</p>
+        <p className="tr-consensus-deadline">
           <Clock className="size-3" aria-hidden />
           {c.deadline ? (
             <>
               {c.deadlinePassed ? "Deadline passed · a majority is enough now" : `Decide by ${clock(new Date(c.deadline).getHours() * 60 + new Date(c.deadline).getMinutes())} · then a majority is enough`}
               {memberId && (
-                <button type="button" className="ml-1 underline-offset-2 hover:underline" onClick={() => onDeadline(null)}>
+                <button type="button" className="tr-consensus-deadline-clear" onClick={() => onDeadline(null)}>
                   clear
                 </button>
               )}
             </>
           ) : memberId ? (
-            <label className="flex items-center gap-1">
+            <label className="tr-consensus-deadline-picker">
               Set a deadline:
               <select
-                className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
+                className="tr-consensus-deadline-select"
                 value=""
                 onChange={(e) => e.target.value && onDeadline(Number(e.target.value))}
                 aria-label="Set a deadline"
@@ -132,19 +131,20 @@ export function ConsensusBar({
         </p>
       </div>
       {memberId && (
-        <Button
+        <button
+          type="button"
           onClick={() => onConfirm(!mine)}
           disabled={busy || (!mine && !hasDraft)}
-          className={cn("h-9 rounded-full px-5 text-sm font-semibold", mine ? "bg-emerald-500 text-emerald-950 hover:bg-emerald-400" : "bg-foreground text-background hover:bg-foreground/85")}
+          className={`tr-in ${mine ? "on" : ""}`}
         >
           {mine ? (
             <>
-              <Check aria-hidden /> I&apos;m in
+              <Check className="size-4" aria-hidden /> I&apos;m in
             </>
           ) : (
             "I'm in"
           )}
-        </Button>
+        </button>
       )}
     </div>
   );

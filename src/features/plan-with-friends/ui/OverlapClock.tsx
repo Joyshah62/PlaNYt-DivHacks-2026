@@ -41,15 +41,18 @@ export function OverlapClock({ people, group }: { people: ClockPerson[]; group: 
     const hi = Math.max(...set.map((p) => p.free!.to), group?.to ?? -Infinity);
     const pct = (m: number) => ((m - lo) / (hi - lo)) * 100;
     return (
-      <div className="relative mt-3 flex flex-col gap-1.5" aria-label="Everyone's free time">
-        {group && <div className="absolute inset-y-0 rounded-md bg-emerald-500/15 ring-1 ring-emerald-500/50" style={{ left: `calc(1.75rem + (100% - 1.75rem) * ${pct(group.from) / 100})`, width: `calc((100% - 1.75rem) * ${(pct(group.to) - pct(group.from)) / 100})` }} />}
+      <div className="tr-bars" role="img" aria-label="Everyone's free time">
+        {group && (
+          <div
+            className="tr-bars-overlap"
+            style={{ left: `calc(2em + (100% - 2em) * ${pct(group.from) / 100})`, width: `calc((100% - 2em) * ${(pct(group.to) - pct(group.from)) / 100})` }}
+          />
+        )}
         {set.map((p) => (
-          <div key={p.id} className="relative flex items-center gap-1.5">
-            <span className="w-6 text-center text-sm" title={p.name}>
-              {p.avatar.emoji}
-            </span>
-            <div className="relative h-2 flex-1 rounded-full bg-muted">
-              <div className="absolute inset-y-0 rounded-full" style={{ left: `${pct(p.free!.from)}%`, width: `${pct(p.free!.to) - pct(p.free!.from)}%`, background: AVATAR_HEX[p.avatar.color] }} />
+          <div key={p.id} className="tr-bars-row">
+            <span title={p.name}>{p.avatar.emoji}</span>
+            <div className="tr-bars-track">
+              <div style={{ left: `${pct(p.free!.from)}%`, width: `${pct(p.free!.to) - pct(p.free!.from)}%`, background: AVATAR_HEX[p.avatar.color] }} />
             </div>
           </div>
         ))}
@@ -62,13 +65,13 @@ export function OverlapClock({ people, group }: { people: ClockPerson[]; group: 
   const outer = 86;
   const gap = 12;
   return (
-    <svg viewBox={`-18 -18 ${size + 36} ${size + 36}`} className="mx-auto mt-3 block w-full max-w-[190px]" role="img" aria-label="Everyone's free time on a clock">
-      <circle cx={c} cy={c} r={outer + 6} className="fill-none stroke-border" strokeWidth={1} />
-      {group && <path d={wedge(c, c, outer + 6, group.from, group.to)} className={group.everyone ? "fill-emerald-500/20" : "fill-amber-500/15"} />}
+    <svg viewBox={`-18 -18 ${size + 36} ${size + 36}`} className="tr-dial" role="img" aria-label="Everyone's free time on a clock">
+      <circle cx={c} cy={c} r={outer + 6} fill="none" stroke="var(--rule)" strokeWidth={1} />
+      {group && <path d={wedge(c, c, outer + 6, group.from, group.to)} fill={group.everyone ? "color-mix(in srgb, var(--ink) 14%, transparent)" : "color-mix(in srgb, var(--red) 14%, transparent)"} />}
       {[0, 6, 12, 18].map((h) => {
         const p = polar(c, c, outer + 14, h * 60);
         return (
-          <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[8px]">
+          <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" fill="var(--ed-muted)" fontSize="8px">
             {h === 0 ? "12a" : h === 12 ? "12p" : h < 12 ? `${h}a` : `${h - 12}p`}
           </text>
         );
@@ -78,9 +81,9 @@ export function OverlapClock({ people, group }: { people: ClockPerson[]; group: 
         const end = polar(c, c, r, p.free!.to);
         return (
           <g key={p.id}>
-            <circle cx={c} cy={c} r={r} className="fill-none stroke-muted" strokeWidth={6} />
+            <circle cx={c} cy={c} r={r} fill="none" stroke="var(--hair)" strokeWidth={6} />
             <path d={arc(c, c, r, p.free!.from, p.free!.to)} fill="none" stroke={AVATAR_HEX[p.avatar.color]} strokeWidth={6} strokeLinecap="round" />
-            <text x={end.x} y={end.y} textAnchor="middle" dominantBaseline="central" className="text-[10px]">
+            <text x={end.x} y={end.y} textAnchor="middle" dominantBaseline="central" fontSize="10px">
               <title>{p.name}</title>
               {p.avatar.emoji}
             </text>
@@ -88,7 +91,7 @@ export function OverlapClock({ people, group }: { people: ClockPerson[]; group: 
         );
       })}
       {group && (
-        <text x={c} y={c} textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-[10px] font-semibold">
+        <text x={c} y={c} textAnchor="middle" dominantBaseline="middle" fill="var(--ink)" fontSize="10px" fontWeight="600">
           {clock(group.from)}–{clock(group.to)}
         </text>
       )}

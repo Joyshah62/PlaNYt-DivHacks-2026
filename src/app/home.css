@@ -1,0 +1,195 @@
+/* Home-specific composition; shared primitives are in editorial.css. */
+.ed-prompt textarea {
+  flex: 1; min-width: 0; resize: none; border: 0; outline: none;
+  background: none; color: inherit; font: inherit; line-height: 1.35;
+  field-sizing: content; min-height: 2.7em; max-height: 8.1em;
+}
+
+/* Split-flap shortcuts (PresetFlip), paced like a flip clock: the old label tips back and falls
+   away (0.55s, accelerating), then the new one swings down from above and settles with a small
+   bounce (0.9s). A shade darkens each flap as it turns edge-on. Timings match PresetFlip.tsx. */
+.ed-flip-slot { perspective: 22em; }
+.ed-flip {
+  display: inline-block; transform-origin: 50% 50%; backface-visibility: hidden; will-change: transform;
+  animation: ed-flip-in 0.9s cubic-bezier(0.22, 0.61, 0.36, 1); /* no fill: .out must be free to transition */
+  transition: transform 0.55s cubic-bezier(0.55, 0, 0.75, 0.3), opacity 0.55s ease-in, filter 0.55s ease-in;
+}
+.ed-flip.out { transform: rotateX(-88deg); opacity: 0; filter: brightness(0.55); }
+@keyframes ed-flip-in {
+  0% { transform: rotateX(88deg); opacity: 0; filter: brightness(0.55); }
+  55% { transform: rotateX(-10deg); opacity: 1; filter: brightness(1); }
+  78% { transform: rotateX(4deg); }
+  100% { transform: rotateX(0deg); }
+}
+
+.ed-pin {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  background: #c8321f; color: #fff; font: 600 13px/1 var(--f-mono); border: 2.5px solid #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.ed-map-host { position: absolute; inset: 0; }
+
+/* Map credits: small and quiet. They must stay (Esri's licence, Google's terms); MapLibre's
+   starts collapsed to its (i) button (cityMapLibre.ts). */
+.ed .maplibregl-ctrl-attrib { font: 400 10px/1.5 var(--f-mono); }
+.ed .maplibregl-ctrl-attrib.maplibregl-compact { background: rgba(255, 255, 255, 0.55); margin: 8px; }
+.ed .maplibregl-ctrl-attrib.maplibregl-compact:not([open]) { opacity: 0.6; transition: opacity 0.2s; }
+.ed .maplibregl-ctrl-attrib.maplibregl-compact:not([open]):hover { opacity: 1; }
+
+@keyframes ed-rise { to { opacity: 1; transform: none; } }
+
+/* ── Hero ─────────────────────────────────────────────── */
+.ed-hero {
+  position: relative; height: 100dvh; min-height: 560px; overflow: hidden;
+  display: flex; flex-direction: column; background: var(--night);
+}
+.ed-hero-map { position: absolute; inset: 0; }
+
+.ed-knock {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+/* Exact knockout in both themes: map × (letters ? 1 : white) → then × paper outside the letters. */
+.ed-knock--cut { background: #fff; mix-blend-mode: lighten; }
+.ed-knock--cut .ed-knock-word { color: #000; }
+.ed-knock--paper { background: var(--paper); mix-blend-mode: multiply; }
+.ed-knock--paper .ed-knock-word { color: #fff; }
+.ed-knock-word {
+  font-family: var(--f-display); font-style: italic;
+  /* width-led, but never taller than the screen allows (landscape phones, ultra-wide monitors) */
+  font-size: min(25vw, 62dvh); line-height: 0.8; letter-spacing: -0.035em; white-space: nowrap;
+}
+/* Hidden until the city has painted behind them, then each letter rises with the city inside. */
+.ed-knock-word i { display: inline-block; font-style: inherit; opacity: 0; transform: translateY(40%); }
+.ed-hero.go .ed-knock-word i { animation: ed-rise 1.1s cubic-bezier(0.2, 0.7, 0.1, 1) forwards; }
+.ed-hero.dive .ed-knock { will-change: transform, opacity; }
+.ed-hero.landed .ed-knock, [data-intro="skip"] .ed-knock { display: none; }
+
+.ed-scrim {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0; transition: opacity 1.4s;
+  background: linear-gradient(180deg, rgba(12, 10, 8, 0.7) 0%, rgba(12, 10, 8, 0) 26%, rgba(12, 10, 8, 0) 48%, rgba(12, 10, 8, 0.8) 100%);
+}
+.ed-hero.revealed .ed-scrim, [data-intro="skip"] .ed-scrim { opacity: 1; }
+
+.ed-chrome { position: relative; z-index: 3; color: var(--ink); transition: color 1s, border-color 1s; }
+.ed-hero.revealed .ed-chrome, [data-intro="skip"] .ed-chrome,
+.ed-hero.revealed .ed-chrome .ed-kicker, [data-intro="skip"] .ed-chrome .ed-kicker { color: var(--on-map); }
+
+.ed-hero.revealed .ed-header .ed-btn, [data-intro="skip"] .ed-header .ed-btn { background: var(--on-map); color: #15120e; }
+/* The shared ThemeToggle ships planner colours (dark slate moon, amber sun) that vanish over the
+   map: here the icon takes the header's colour, like every other piece of chrome. */
+.ed-hero.revealed .ed-theme:hover svg, [data-intro="skip"] .ed-theme:hover svg { color: #15120e; }
+
+.ed-eyebrow { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px var(--s-2); margin-top: var(--s-1); }
+.ed-ticker {
+  position: absolute; z-index: 3; right: var(--gut); top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; opacity: 0.8;
+}
+
+.ed-deck {
+  position: relative; z-index: 3; margin-top: auto;
+  padding-bottom: max(44px, var(--s-4)); /* keeps Google's logo clear */
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(min(100%, 320px), clamp(400px, 34vw, 720px));
+  gap: var(--s-3); align-items: end;
+}
+.ed-hero-title { margin: 0; }
+.ed-solid {
+  display: block; margin: 0 0 0.05em; color: var(--on-map); white-space: nowrap;
+  font-size: clamp(56px, min(11vw, 22dvh), 240px); line-height: 0.82; letter-spacing: -0.035em;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.3);
+}
+.ed-solid i { display: inline-block; font-style: normal; opacity: 0; transform: translateY(45%); }
+.ed-hero.zoomed .ed-solid i { animation: ed-rise 1s cubic-bezier(0.2, 0.7, 0.1, 1) forwards; }
+[data-intro="skip"] .ed-solid i { opacity: 1; transform: none; }
+.ed-tagline { display: block; font-size: clamp(26px, 3.4vw, 68px); line-height: 1; color: var(--on-map); }
+.ed-hero .ed-chips { color: var(--on-map); }
+
+.ed-late { opacity: 0; transform: translateY(14px); transition: opacity 0.9s, transform 0.9s cubic-bezier(0.2, 0.7, 0.1, 1); }
+.ed-late--2 { transition-delay: 0.15s; }
+.ed-hero.landed .ed-late, [data-intro="skip"] .ed-late { opacity: 1; transform: none; }
+
+.ed-caption { position: absolute; z-index: 3; left: 50%; bottom: var(--s-1); transform: translateX(-50%); color: rgba(243, 237, 225, 0.7); }
+.ed-replay { position: absolute; z-index: 4; right: var(--gut); bottom: var(--s-1); background: none; border: 0; color: var(--on-map); opacity: 0.7; cursor: pointer; }
+
+/* ── Watch it plan ────────────────────────────────────── */
+.ed-demo { display: grid; grid-template-columns: minmax(min(100%, 340px), 0.8fr) 1.2fr; min-height: 100dvh; border-top: 3px double var(--rule); }
+.ed-demo-copy { padding-block: var(--s-4) var(--s-3); display: flex; flex-direction: column; }
+.ed-typed { flex: 1; min-height: 1.4em; }
+.ed-typed::after { content: "▍"; color: #c8321f; animation: ed-blink 1s steps(1) infinite; }
+@keyframes ed-blink { 50% { opacity: 0; } }
+.ed-itin { margin: var(--s-3) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.ed-demo-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); margin-top: var(--s-2); }
+.ed-demo-count { color: var(--muted); }
+.ed-footnote { margin: auto 0 0; padding-top: var(--s-3); max-width: 46ch; color: var(--muted); letter-spacing: 0.08em; line-height: 1.6; }
+.ed-demo-map { position: relative; overflow: hidden; background: var(--night); border-left: 1px solid var(--rule); }
+/* ── Neighborhoods ────────────────────────────────────── */
+.ed-story { display: grid; grid-template-columns: minmax(min(100%, 340px), 0.8fr) 1.2fr; border-top: 3px double var(--rule); }
+.ed-chapters { position: relative; min-width: 0; }
+.ed-chapter {
+  position: relative; overflow: hidden;
+  min-height: 75vh; display: flex; flex-direction: column; justify-content: center; padding-block: var(--s-3);
+  opacity: 0.25; transition: opacity 0.5s;
+}
+/* The chapter's numeral, set huge in outline behind it: a magazine device that fills the column. */
+.ed-chapter::before {
+  content: attr(data-numeral); position: absolute; z-index: 0; right: var(--gut); top: 50%; transform: translateY(-50%);
+  font: 400 clamp(160px, 20vw, 420px) / 0.8 var(--f-display); color: transparent;
+  -webkit-text-stroke: 1px var(--ink); opacity: 0.16; pointer-events: none;
+}
+.ed-chapter.active::before { opacity: 0.3; }
+.ed-chapter > * { position: relative; z-index: 1; }
+.ed-chapter.active { opacity: 1; }
+.ed-chapter h3 { font-family: var(--f-display); font-weight: 400; font-size: clamp(40px, 5vw, 110px); line-height: 0.9; margin: var(--s-1) 0 var(--s-2); }
+.ed-chapter p { font-size: var(--t-body); line-height: 1.45; max-width: 34ch; margin: 0 0 var(--s-2); }
+.ed-sticky { position: sticky; top: 0; height: 100dvh; overflow: hidden; background: var(--night); border-left: 1px solid var(--rule); }
+.ed-sticky-label { position: absolute; z-index: 3; top: var(--s-2); right: var(--s-2); padding: 0.7em 1em; background: #15120e; color: #f3ede1; }
+
+/* ── Colophon ─────────────────────────────────────────── */
+.ed-colophon {
+  display: flex; flex-direction: column; gap: var(--s-4);
+  padding-block: var(--s-4) var(--s-2); border-top: 3px double var(--rule); overflow: hidden;
+}
+.ed-colophon-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: var(--s-3); }
+.ed-colophon-lede { margin: 0; max-width: 24ch; font-size: clamp(30px, 3.6vw, 80px); line-height: 1; }
+.ed-colophon-grid {
+  display: grid; grid-template-columns: 1fr 1.4fr 1.2fr; gap: var(--s-3);
+  padding-top: var(--s-2); border-top: 1px solid var(--rule);
+}
+.ed-colophon-grid h2 { margin: 0 0 var(--s-2); }
+.ed-colophon-grid ul { display: grid; gap: var(--s-1); margin: 0; padding: 0; list-style: none; font-size: var(--t-lead); }
+.ed-colophon-grid ul a { text-decoration: none; background: linear-gradient(var(--red), var(--red)) 0 100% / 0 1px no-repeat; transition: background-size 0.3s; }
+.ed-colophon-grid ul a:hover { background-size: 100% 1px; }
+.ed-colophon-grid dl { display: grid; gap: var(--s-1); margin: 0; }
+.ed-colophon-grid dl div { display: grid; grid-template-columns: minmax(7em, 0.45fr) 1fr; gap: var(--s-1); align-items: baseline; }
+.ed-colophon-grid dt { color: var(--muted); }
+.ed-colophon-grid dd { margin: 0; font-size: var(--t-small); }
+.ed-colophon-grid p { margin: 0; font-size: var(--t-small); line-height: 1.6; color: var(--muted); max-width: 42ch; }
+.ed-colophon-base {
+  position: relative; display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s-1);
+  padding-top: var(--s-2); border-top: 1px solid var(--rule);
+}
+.ed-colophon-base a { text-decoration: none; }
+
+/* ── Tablets and phones: one column ───────────────────── */
+@media (max-width: 900px) {
+  .ed-deck, .ed-demo, .ed-story { grid-template-columns: minmax(0, 1fr); }
+  .ed-knock-word { font-size: min(30vw, 62dvh); }
+  .ed-navlink, .ed-ticker, .ed-caption { display: none; }
+  .ed-demo-map { min-height: 60vh; border-left: 0; border-top: 1px solid var(--rule); }
+  .ed-sticky { height: 50vh; order: -1; z-index: 5; border-left: 0; }
+  .ed-chapter { min-height: 70vh; }
+  .ed-colophon-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ed-colophon-grid > :last-child { grid-column: 1 / -1; }
+}
+
+/* ── Small phones ─────────────────────────────────────── */
+@media (max-width: 560px) {
+  .ed-eyebrow > :last-child { display: none; }
+  .ed-row { grid-template-columns: auto 3.6em minmax(0, 1fr); }
+  .ed-crowd { display: none; }
+  .ed-colophon-grid { grid-template-columns: minmax(0, 1fr); }
+  .ed-colophon-grid dl div { grid-template-columns: 1fr; gap: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ed *, .ed *::after { animation: none !important; transition: none !important; }
+}

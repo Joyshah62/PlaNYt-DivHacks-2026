@@ -3,7 +3,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import { AttributionControl, LngLatBounds, Map as MapLibre, Marker, type GeoJSONSource } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
-import { ensureWorker, resolveMissingStyleImages, STYLES, useDarkScheme } from "../bridge/ui";
+import { ensureWorker, keepAttributionCollapsed, resolveMissingStyleImages, STYLES, useDarkScheme } from "../bridge/ui";
 import { AVATAR_HEX, type Avatar } from "../core/avatars";
 
 export interface MapPerson {
@@ -45,6 +45,7 @@ export default function RoomMap({ people, stops, origin }: { people: MapPerson[]
     const map = new MapLibre({ container: container.current, style: dark ? STYLES.dark : STYLES.light, center: [-73.97, 40.74], zoom: 11, attributionControl: false, fadeDuration: 0 });
     resolveMissingStyleImages(map);
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
+    const stopWatchingAttribution = keepAttributionCollapsed(map);
     // Pins are plain DOM markers, so show them even if the map tiles never arrive.
     const failSafe = window.setTimeout(() => setReady(true), 4000);
     map.on("load", () => {
@@ -59,6 +60,7 @@ export default function RoomMap({ people, stops, origin }: { people: MapPerson[]
     return () => {
       window.clearTimeout(failSafe);
       markers.current.forEach((m) => m.remove());
+      stopWatchingAttribution();
       map.remove();
       mapRef.current = null;
       setReady(false);
@@ -88,17 +90,17 @@ export default function RoomMap({ people, stops, origin }: { people: MapPerson[]
 
     const bounds = new LngLatBounds();
     stp.forEach((s, i) => {
-      const el = pin(`${i + 1}`, "grid size-6 place-items-center rounded-full bg-foreground text-[11px] font-bold text-background shadow ring-2 ring-background", s.name);
+      const el = pin(`${i + 1}`, "tr-pin tr-pin--stop", s.name);
       markers.current.push(new Marker({ element: el }).setLngLat([s.lon, s.lat]).addTo(map));
       bounds.extend([s.lon, s.lat]);
     });
     if (org) {
-      const el = pin(`★ ${org.label}`, "rounded-full bg-brand px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-on-color shadow-lg ring-4 ring-brand/25", org.label);
+      const el = pin(`★ ${org.label}`, "tr-pin tr-pin--origin", org.label);
       markers.current.push(new Marker({ element: el }).setLngLat([org.lon, org.lat]).addTo(map));
       bounds.extend([org.lon, org.lat]);
     }
     ppl.forEach((p) => {
-      const el = pin(p.avatar.emoji, "grid size-8 place-items-center rounded-full border-2 border-background bg-muted text-base shadow-lg", p.name);
+      const el = pin(p.avatar.emoji, "tr-avatar-pin", p.name);
       el.style.boxShadow = `0 0 0 2px ${AVATAR_HEX[p.avatar.color]}`;
       markers.current.push(new Marker({ element: el }).setLngLat([p.lon, p.lat]).addTo(map));
       bounds.extend([p.lon, p.lat]);

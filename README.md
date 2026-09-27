@@ -54,6 +54,7 @@ Every other key is optional; see `.env.example` for each one:
 | `npm run poi-data` | Rebuild the local copy of NYC places from OpenStreetMap, used by "Find something that fits my trip" (a few minutes) |
 | `node scripts/build-photo-data.mjs` | Rebuild catalog photos and credits from Wikipedia |
 | `npm run imessage` | Start the iMessage bot next to the dev server (see below) |
+| `npm run start:imessage` | Same bot without loading `.env` (Render injects env) |
 
 ### iMessage
 
@@ -64,13 +65,28 @@ and changes wait for `YES` or `NO`. On the day, the bot sends a morning rundown,
 tells you when to leave for each stop. "Text to my phone" on an itinerary sends a plan
 from the website.
 
+**Local**
+
 1. Set `SPECTRUM_PROJECT_ID` and `SPECTRUM_PROJECT_SECRET` in `.env` (Photon dashboard, Settings),
-   plus `PHONE_BRIDGE_URL` and a random `PHONE_BRIDGE_TOKEN` for the website button (see `.env.example`).
+   plus `PHONE_BRIDGE_URL=http://127.0.0.1:4100` and a random `PHONE_BRIDGE_TOKEN` (see `.env.example`).
 2. Run `npm run dev`, then `npm run imessage` in a second terminal.
 
 The bot plans through this app's API, so both must be running. Texts understand
 `PLAN`, `NEW TRIP`, `STOP` / `START` and `HELP`. Map links in texts use `PUBLIC_APP_URL`
 (default `http://localhost:3000`, which won't open on a phone; set it to a deploy or tunnel).
+
+### Deploy on Render
+
+Full handoff: [`docs/HANDOFF-render.md`](docs/HANDOFF-render.md). Blueprint: [`render.yaml`](render.yaml).
+
+**Primary domain:** `https://planyt.tech` · **Bot:** `https://imessage.planyt.tech`
+
+| Service | Plan ID | CPU | RAM | Instances | Region | Domain |
+|---------|---------|-----|-----|-----------|--------|--------|
+| `roam-web` | `1c-2g` (Standard) | 1 | 2 GB | 1 | `ohio` | `planyt.tech` |
+| `roam-imessage` | `0.5c-512mb` (Starter) | 0.5 | 512 MB | 1 | `ohio` | `imessage.planyt.tech` |
+
+Do **not** use Free (sleeps). Do **not** use a Background Worker for the bot. Do **not** scale the bot above 1 instance. Copy `PHONE_BRIDGE_TOKEN` to both services. Google OAuth redirect: `https://planyt.tech/api/auth/callback/google`.
 
 ## Important limitations
 

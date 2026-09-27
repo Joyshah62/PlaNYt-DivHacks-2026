@@ -3,20 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Bookmark, Loader2, MessageSquareText, Sparkles } from "lucide-react";
-import { AmbientMapLazy } from "@/components/map/LazyMaps";
-import { Segmented } from "@/components/ui/segmented";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { AppBar } from "@/components/editorial/AppBar";
+import { arrowKeys } from "@/components/plan/arrowKeys";
 import { authClient } from "@/lib/auth-client";
+import { LoginMap } from "./LoginMap";
 import { normalizePhone } from "@/lib/phone";
-import { BRAND } from "@/lib/plan/display";
-import { cn } from "@/lib/utils";
 
 type Mode = "signin" | "signup";
 
 const PERKS = [
-  { icon: Bookmark, title: "Your days, kept", body: "Plans and preferences follow your account." },
-  { icon: MessageSquareText, title: "Your day by text", body: "Roam texts you the plan, and when it's time to head to each stop." },
-  { icon: Sparkles, title: "Plans that know you", body: "Vegetarian, a stroller, hate crowds: say it once." },
+  { title: "Your days, kept", body: "Plans and preferences follow your account." },
+  { title: "Your day by text", body: "Roam texts you the plan, and when it's time to head to each stop." },
+  { title: "Plans that know you", body: "Vegetarian, a stroller, hate crowds: say it once." },
 ];
 
 /** Better Auth's OAuth error codes, said plainly. */
@@ -41,67 +40,56 @@ export function AuthScreen({
   oauthError: string | null;
 }) {
   return (
-    <div className="relative isolate flex min-h-dvh flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)]">
-      {/* The landing page's map, washed toward the page so the text stays crisp. */}
-      <div className="absolute inset-0 -z-20 lg:relative lg:inset-auto lg:z-auto lg:order-none">
-        <div className="absolute inset-0">
-          <AmbientMapLazy className="size-full" />
-        </div>
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/90 to-background lg:bg-gradient-to-r lg:from-background lg:via-background/85 lg:to-background/10" />
-        <div className="relative hidden h-full flex-col justify-between p-10 lg:flex">
-          <Brand />
-          <div className="max-w-md">
-            <h2 className="font-display text-6xl leading-[0.95] tracking-tight text-balance">
-              See New York, <em className="text-brand">not</em> the crowds.
-            </h2>
-            <ul className="mt-8 space-y-4">
-              {PERKS.map(({ icon: Icon, title, body }) => (
-                <li key={title} className="flex gap-3">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand">
-                    <Icon className="size-4" aria-hidden />
-                  </span>
+    <div className="ed-app au">
+      {/* The plate: the city, captioned, with what an account is for. Desktop only. */}
+      <div className="au-plate">
+        <p className="au-caption ed-mono">
+          <span>Plate I · Lower Manhattan, live</span>
+          <span>Crowds from MTA subway ridership</span>
+        </p>
+        <div className="au-frame">
+          <LoginMap />
+          <div className="au-callout">
+            <strong>
+              See New York, <em>not</em> the crowds.
+            </strong>
+            <ol className="au-perks">
+              {PERKS.map((p, i) => (
+                <li key={p.title}>
+                  <span className="ed-bullet">{i + 1}</span>
                   <span>
-                    <span className="block text-sm font-semibold">{title}</span>
-                    <span className="block text-sm text-muted-foreground">{body}</span>
+                    <b>{p.title}</b>
+                    <span className="ed-small ed-muted">{p.body}</span>
                   </span>
                 </li>
               ))}
-            </ul>
+            </ol>
           </div>
-          <p className="text-xs text-muted-foreground">Crowd levels from MTA subway ridership · maps from OpenStreetMap</p>
         </div>
       </div>
 
-      <main className="flex flex-1 flex-col px-5 py-6 sm:px-8 lg:justify-center lg:border-l lg:border-border lg:bg-background lg:py-10">
-        <div className="lg:hidden">
-          <Brand />
-        </div>
-        <div className="animate-rise mx-auto my-auto w-full max-w-sm py-8">
+      <div className="au-col ed-paper">
+        <AppBar>
+          <Link href="/" className="ed-navlink ed-mono">
+            ← Home
+          </Link>
+        </AppBar>
+        <main className="au-form animate-rise">
           {needsPhone ? (
             <PhoneStep next={next} who={needsPhone} />
           ) : (
             <SignIn next={next} googleEnabled={googleEnabled} initialMode={initialMode} oauthError={oauthError} />
           )}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
-  );
-}
-
-function Brand() {
-  return (
-    <Link href="/" className="flex w-fit items-center gap-2 text-[15px] font-semibold tracking-tight">
-      <span aria-hidden className="grid size-8 place-items-center rounded-lg bg-foreground font-display text-xl text-background">
-        {BRAND.name[0]}
-      </span>
-      {BRAND.name} <span className="-ml-1 font-display text-lg font-normal text-muted-foreground italic">{BRAND.suffix}</span>
-    </Link>
   );
 }
 
 function SignIn({ next, googleEnabled, initialMode, oauthError }: { next: string; googleEnabled: boolean; initialMode: Mode; oauthError: string | null }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>(initialMode);
+  const [modeSwitched, setModeSwitched] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -112,10 +100,16 @@ function SignIn({ next, googleEnabled, initialMode, oauthError }: { next: string
   const phoneOk = normalizePhone(phone) !== null;
   const signup = mode === "signup";
 
+  function changeMode(nextMode: Mode) {
+    if (nextMode === mode) return;
+    setMode(nextMode);
+    setError(null);
+    setModeSwitched(true);
+  }
+
   async function google() {
     setError(null);
     setBusy("google");
-    // Back through /login, which asks for a phone number if Google didn't share one.
     const back = `/login?next=${encodeURIComponent(next)}`;
     const { error } = await authClient.signIn.social({ provider: "google", callbackURL: back, errorCallbackURL: back });
     if (error) {
@@ -144,25 +138,29 @@ function SignIn({ next, googleEnabled, initialMode, oauthError }: { next: string
   }
 
   return (
-    <>
-      <h1 className="font-display text-4xl leading-none tracking-tight">{signup ? "Plan your first day." : "Welcome back."}</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
+    <div className={modeSwitched ? "au-mode-panel au-mode-panel--switch" : "au-mode-panel"} data-mode={mode}>
+      <p className="ed-mono ed-kicker">{signup ? "Create an account" : "Sign in"}</p>
+      <h1 className="ed-title">
+        {signup ? <>Plan your <em>first day.</em></> : <>Welcome <em>back.</em></>}
+      </h1>
+      <p className="ed-dek">
         {signup ? "An account keeps your plans, and lets Roam text you your day." : "Sign in to pick up where you left off."}
       </p>
 
-      <Segmented
-        label="Sign in or create an account"
-        value={mode}
-        onChange={(m: Mode) => {
-          setMode(m);
-          setError(null);
-        }}
-        options={[
-          { value: "signin", label: "Sign in" },
-          { value: "signup", label: "Create account" },
-        ]}
-        className="mt-6 grid w-full grid-cols-2"
-      />
+      <div role="radiogroup" aria-label="Sign in or create an account" className="ed-tabs au-mode" onKeyDown={(e) => arrowKeys(e, "[role=\"radio\"]", false)}>
+        {(["signin", "signup"] as Mode[]).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={mode === m}
+            className="ed-tab"
+            onClick={() => changeMode(m)}
+          >
+            {m === "signin" ? "Sign in" : "Create account"}
+          </button>
+        ))}
+      </div>
 
       {googleEnabled && (
         <>
@@ -170,26 +168,43 @@ function SignIn({ next, googleEnabled, initialMode, oauthError }: { next: string
             type="button"
             onClick={() => void google()}
             disabled={busy !== null}
-            className="mt-5 flex h-11 w-full items-center justify-center gap-2.5 rounded-full border border-border bg-card text-sm font-medium shadow-sm transition hover:border-foreground/25 hover:bg-muted disabled:opacity-60"
+            className="ed-btn ed-btn--ghost ed-btn--block"
           >
-            {busy === "google" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <GoogleMark />}
+            {busy === "google" ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <GoogleMark />}
             Continue with Google
           </button>
-          <div className="my-5 flex items-center gap-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-            <span className="h-px flex-1 bg-border" /> or with email <span className="h-px flex-1 bg-border" />
+          <div className="au-or">
+            <span>or with email</span>
           </div>
         </>
       )}
 
       <form
-        className={cn("space-y-3.5", !googleEnabled && "mt-6")}
+        className="au-fields"
         onSubmit={(e) => {
           e.preventDefault();
           void submit();
         }}
       >
-        {signup && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Alex Rivera" required />}
-        <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" placeholder="you@example.com" required />
+        {signup && (
+          <Field
+            label="Name"
+            value={name}
+            onChange={setName}
+            autoComplete="name"
+            placeholder="Alex Rivera"
+            required
+          />
+        )}
+        <Field
+          label="Email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          autoComplete="email"
+          placeholder="you@example.com"
+          required
+        />
         {signup && (
           <Field
             label="Phone number"
@@ -204,7 +219,11 @@ function SignIn({ next, googleEnabled, initialMode, oauthError }: { next: string
             placeholder="(212) 555-0123"
             required
             invalid={phoneTouched && !phoneOk}
-            hint={phoneTouched && !phoneOk ? "Enter a valid number. Outside the US, start with + and the country code." : "Roam texts your day here. We never share it."}
+            hint={
+              phoneTouched && !phoneOk
+                ? "Enter a valid number. Outside the US, start with + and the country code."
+                : "Roam texts your day here. We never share it."
+            }
           />
         )}
         <Field
@@ -218,30 +237,26 @@ function SignIn({ next, googleEnabled, initialMode, oauthError }: { next: string
           required
         />
 
-        {error && (
-          <p role="alert" className="rounded-xl bg-sev-c-soft px-3 py-2 text-sm text-sev-c">
-            {error}
-          </p>
-        )}
+        {error && <p role="alert" className="ed-alert">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={busy !== null}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground text-sm font-medium text-background transition hover:bg-foreground/85 disabled:opacity-60"
-        >
-          {busy === "email" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+        <button type="submit" disabled={busy !== null} className="ed-btn ed-btn--block">
+          {busy === "email" ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
           {signup ? "Create account" : "Sign in"}
           {busy !== "email" && <ArrowRight className="size-4" aria-hidden />}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="au-switch ed-small ed-muted">
         {signup ? "Already have an account? " : "New to Roam? "}
-        <button type="button" onClick={() => setMode(signup ? "signin" : "signup")} className="font-medium text-foreground underline-offset-4 hover:underline">
+        <button
+          type="button"
+          onClick={() => changeMode(signup ? "signin" : "signup")}
+          className="ed-link"
+        >
           {signup ? "Sign in" : "Create an account"}
         </button>
       </p>
-    </>
+    </div>
   );
 }
 
@@ -272,13 +287,13 @@ function PhoneStep({ next, who }: { next: string; who: { name: string; email: st
 
   return (
     <>
-      <p className="text-xs font-semibold tracking-[0.15em] text-brand uppercase">One more thing</p>
-      <h1 className="mt-2 font-display text-4xl leading-none tracking-tight">{first ? `Hi ${first}, what's your number?` : "What's your number?"}</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
+      <p className="ed-mono ed-kicker">One more thing</p>
+      <h1 className="ed-title">{first ? <>Hi {first}, <em>what&apos;s your number?</em></> : <>What&apos;s your <em>number?</em></>}</h1>
+      <p className="ed-dek">
         Roam texts you your day and a heads-up when it&apos;s time to go. Google didn&apos;t share a number for {who.email}.
       </p>
       <form
-        className="mt-6 space-y-3.5"
+        className="au-fields"
         onSubmit={(e) => {
           e.preventDefault();
           void save();
@@ -300,22 +315,14 @@ function PhoneStep({ next, who }: { next: string; who: { name: string; email: st
           invalid={touched && !ok}
           hint={touched && !ok ? "Enter a valid number. Outside the US, start with + and the country code." : "We never share it."}
         />
-        {error && (
-          <p role="alert" className="rounded-xl bg-sev-c-soft px-3 py-2 text-sm text-sev-c">
-            {error}
-          </p>
-        )}
-        <button
-          type="submit"
-          disabled={busy}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground text-sm font-medium text-background transition hover:bg-foreground/85 disabled:opacity-60"
-        >
-          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+        {error && <p role="alert" className="ed-alert">{error}</p>}
+        <button type="submit" disabled={busy} className="ed-btn ed-btn--block">
+          {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
           Continue to the planner
           {!busy && <ArrowRight className="size-4" aria-hidden />}
         </button>
       </form>
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="au-switch ed-small ed-muted">
         Not you?{" "}
         <button
           type="button"
@@ -323,7 +330,7 @@ function PhoneStep({ next, who }: { next: string; who: { name: string; email: st
             await authClient.signOut();
             router.refresh();
           }}
-          className="font-medium text-foreground underline-offset-4 hover:underline"
+          className="ed-link"
         >
           Use another account
         </button>
@@ -341,20 +348,17 @@ function Field({
 }: Omit<React.ComponentProps<"input">, "onChange"> & { label: string; hint?: string; invalid?: boolean; onChange: (value: string) => void }) {
   const id = `field-${label.toLowerCase().replace(/\s+/g, "-")}`;
   return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-xs font-medium text-muted-foreground">
-        {label}
-      </label>
+    <div className="ed-field">
+      <label htmlFor={id}>{label}</label>
       <input
         id={id}
         {...input}
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={invalid || undefined}
         aria-describedby={hint ? `${id}-hint` : undefined}
-        className="h-11 w-full rounded-xl border border-border bg-card px-3.5 text-[15px] outline-none transition placeholder:text-muted-foreground/70 focus:border-brand focus:ring-4 focus:ring-brand/10 aria-invalid:border-sev-c aria-invalid:ring-sev-c/10"
       />
       {hint && (
-        <p id={`${id}-hint`} className={cn("mt-1.5 text-[11px]", invalid ? "text-sev-c" : "text-muted-foreground")}>
+        <p id={`${id}-hint`} className={invalid ? "ed-hint bad" : "ed-hint"}>
           {hint}
         </p>
       )}

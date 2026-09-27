@@ -1,10 +1,7 @@
-import { crowdBand } from "@/lib/plan/crowd";
-import { CROWD_COLOR } from "@/lib/plan/display";
 import { clock } from "@/lib/plan/time";
-import { cn } from "@/lib/utils";
 
 /**
- * Hour-by-hour area busyness for the day, with the planned visit lit up and the
+ * Hour-by-hour area busyness for the day, with the planned visit in red and the
  * rest faded, so "why this time?" is answered at a glance.
  */
 export function CrowdStrip({
@@ -24,22 +21,21 @@ export function CrowdStrip({
 }) {
   const hours = Array.from({ length: Math.max(1, toHour - fromHour) }, (_, i) => fromHour + i);
   const inVisit = (hr: number) => hr * 60 < visitEnd && (hr + 1) * 60 > visitStart;
+  // One description for screen readers in place of the bars.
+  const peak = hours.reduce((a, b) => ((levels[b % 24] ?? 0) > (levels[a % 24] ?? 0) ? b : a));
+  const low = hours.reduce((a, b) => ((levels[b % 24] ?? 0) < (levels[a % 24] ?? 0) ? b : a));
+  const label = `Area busyness by hour, ${clock(fromHour * 60)} to ${clock(toHour * 60)}: busiest around ${clock(peak * 60)}, quietest around ${clock(low * 60)}. ${
+    visitEnd > visitStart ? `The visit, ${clock(visitStart)} to ${clock(visitEnd)}, is shown in red.` : ""
+  }`;
   return (
-    <div className={cn("w-full", className)}>
-      <div className="flex h-9 items-end gap-[2px]" aria-hidden>
+    <div className={className} role="img" aria-label={label}>
+      <div className="pl-bars" aria-hidden>
         {hours.map((hr) => {
           const level = levels[hr % 24] ?? 0;
-          return (
-            <span
-              key={hr}
-              title={`${clock(hr * 60)}: ${Math.round(level * 100)}% of the day's busiest hour`}
-              className={cn("flex-1 rounded-[3px] transition-opacity", inVisit(hr) ? "opacity-100" : "opacity-25")}
-              style={{ height: `${Math.max(8, level * 100)}%`, background: CROWD_COLOR[crowdBand(level)] }}
-            />
-          );
+          return <span key={hr} title={`${clock(hr * 60)}: ${Math.round(level * 100)}% of the day's busiest hour`} className={inVisit(hr) ? "on" : undefined} style={{ height: `${Math.max(8, level * 100)}%` }} />;
         })}
       </div>
-      <div className="mt-1 flex justify-between text-[10px] text-muted-foreground tabular-nums" aria-hidden>
+      <div className="pl-bars-axis pl-mono" aria-hidden>
         <span>{clock(fromHour * 60)}</span>
         <span>{clock(Math.round((fromHour + toHour) / 2) * 60)}</span>
         <span>{clock(toHour * 60)}</span>

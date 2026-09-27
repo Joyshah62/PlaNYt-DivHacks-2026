@@ -3,13 +3,8 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark {
-  &:is(.dark *) {
+  &:is(.dark, .dark *) {
     @slot;
-  }
-  @media (prefers-color-scheme: dark) {
-    &:not(.light *) {
-      @slot;
-    }
   }
 }
 
@@ -68,46 +63,48 @@
 }
 
 :root {
-  --background: oklch(0.978 0.006 85);
-  --foreground: oklch(0.19 0.012 60);
-  --card: oklch(0.996 0.002 85);
-  --card-foreground: oklch(0.19 0.012 60);
-  --popover: oklch(0.996 0.002 85);
-  --popover-foreground: oklch(0.19 0.012 60);
-  --primary: oklch(0.19 0.012 60);
-  --primary-foreground: oklch(0.98 0.005 85);
-  --secondary: oklch(0.945 0.008 80);
-  --secondary-foreground: oklch(0.22 0.012 60);
-  --muted: oklch(0.945 0.008 80);
-  --muted-foreground: oklch(0.5 0.014 60);
-  --accent: oklch(0.94 0.01 80);
-  --accent-foreground: oklch(0.22 0.012 60);
+  /* Toned-down architectural stone & subtle off-white palette - soothing and glare-free */
+  --background: oklch(0.898 0.012 80);        /* Warm Manhattan limestone / light travertine canvas */
+  --foreground: oklch(0.235 0.020 55);        /* Deep espresso-slate - rich, soft, non-glaring */
+  --card: oklch(0.935 0.009 80);              /* Elevated subtle off-white / pale alabaster stone card */
+  --card-foreground: oklch(0.235 0.020 55);
+  --popover: oklch(0.938 0.009 80);
+  --popover-foreground: oklch(0.235 0.020 55);
+  --primary: oklch(0.235 0.020 55);
+  --primary-foreground: oklch(0.965 0.006 80);
+  --secondary: oklch(0.860 0.014 78);         /* Soft warm stone recessed tone */
+  --secondary-foreground: oklch(0.235 0.020 55);
+  --muted: oklch(0.858 0.014 78);
+  --muted-foreground: oklch(0.44 0.022 60);   /* Warm granite text tone with strong contrast */
+  --accent: oklch(0.855 0.016 76);
+  --accent-foreground: oklch(0.235 0.020 55);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.01 80);
-  --input: oklch(0.9 0.01 80);
-  --ring: oklch(0.52 0.17 262);
+  --border: oklch(0.805 0.015 78);            /* Chiseled stone border */
+  --input: oklch(0.825 0.014 78);
+  --ring: oklch(0.45 0.125 174);
+
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.875rem;
-  /* Severity reads through tint and weight, not saturation - the page should
-     inform rather than alarm, so no large red fills anywhere. */
-  --brand: oklch(0.52 0.17 262);
-  --brand-soft: oklch(0.95 0.028 262);
-  /* Text on brand and category fills: white in light mode, ink in dark mode where the fills are lighter. */
-  --on-color: oklch(0.99 0 0);
+
+  /* NYC Statue of Liberty Verdigris / Antique Copper Patina (Rich & Grounded) */
+  --brand: oklch(0.45 0.125 174);
+  --brand-soft: oklch(0.865 0.035 174);
+  --on-color: oklch(0.985 0.005 80);
+
+
   --sev-c: oklch(0.52 0.17 22);
   --sev-c-soft: oklch(0.96 0.025 22);
   --sev-b: oklch(0.58 0.13 62);
   --sev-b-soft: oklch(0.96 0.04 75);
   --sev-a: oklch(0.52 0.05 232);
   --sev-a-soft: oklch(0.96 0.015 232);
-  /* Neighborhood categories: one hue each, shared by tile, pin, legend and card.
-     Mid lightness so white icons and the tinted fills both hold contrast. */
+  /* Neighborhood categories */
   --cat-groceries: oklch(0.56 0.17 330);
-  --cat-restaurants: oklch(0.62 0.17 45);
+  --cat-restaurants: oklch(0.66 0.19 45);
   --cat-coffee: oklch(0.52 0.08 60);
   --cat-subway: oklch(0.53 0.17 262);
   --cat-parks: oklch(0.58 0.14 148);
@@ -130,40 +127,44 @@
 }
 
 .dark {
-  --background: oklch(0.165 0.006 60);
-  --foreground: oklch(0.965 0.006 85);
-  --card: oklch(0.205 0.006 60);
-  --card-foreground: oklch(0.965 0.006 85);
-  --popover: oklch(0.225 0.006 60);
-  --popover-foreground: oklch(0.965 0.006 85);
-  --primary: oklch(0.965 0.006 85);
-  --primary-foreground: oklch(0.19 0.012 60);
-  --secondary: oklch(0.26 0.006 60);
-  --secondary-foreground: oklch(0.965 0.006 85);
-  --muted: oklch(0.25 0.006 60);
-  --muted-foreground: oklch(0.72 0.01 75);
-  --accent: oklch(0.27 0.006 60);
-  --accent-foreground: oklch(0.965 0.006 85);
+  /* Rich Gotham Midnight Slate - NOT pitch black */
+  --background: oklch(0.215 0.032 258);
+  --foreground: oklch(0.965 0.008 85);
+  --card: oklch(0.265 0.038 256);
+  --card-foreground: oklch(0.965 0.008 85);
+  --popover: oklch(0.285 0.040 256);
+  --popover-foreground: oklch(0.965 0.008 85);
+  --primary: oklch(0.965 0.008 85);
+  --primary-foreground: oklch(0.18 0.025 258);
+  --secondary: oklch(0.31 0.035 255);
+  --secondary-foreground: oklch(0.965 0.008 85);
+  --muted: oklch(0.285 0.030 255);
+  --muted-foreground: oklch(0.74 0.025 250);
+  --accent: oklch(0.32 0.038 255);
+  --accent-foreground: oklch(0.965 0.008 85);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.72 0.14 262);
+  --border: oklch(0.40 0.040 255 / 0.45);
+  --input: oklch(0.32 0.035 255 / 0.55);
+  --ring: oklch(0.79 0.16 176);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
+  --sidebar: oklch(0.24 0.035 258);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent: oklch(0.29 0.035 258);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-border: oklch(1 1 1 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-  --brand: oklch(0.72 0.14 262);
-  --brand-soft: oklch(0.29 0.05 262);
-  --on-color: oklch(0.17 0.006 60);
+
+  /* NYC Statue of Liberty Verdigris / Electric Mint Patina in Dark Mode */
+  --brand: oklch(0.79 0.16 176);
+  --brand-soft: oklch(0.28 0.05 176);
+  --on-color: oklch(0.12 0.03 176);
+
   --sev-c: oklch(0.72 0.15 22);
   --sev-c-soft: oklch(0.29 0.05 22);
   --sev-b: oklch(0.78 0.12 75);
@@ -185,64 +186,6 @@
   --cat-bus: oklch(0.7 0.03 255);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) {
-    --background: oklch(0.165 0.006 60);
-    --foreground: oklch(0.965 0.006 85);
-    --card: oklch(0.205 0.006 60);
-    --card-foreground: oklch(0.965 0.006 85);
-    --popover: oklch(0.225 0.006 60);
-    --popover-foreground: oklch(0.965 0.006 85);
-    --primary: oklch(0.965 0.006 85);
-    --primary-foreground: oklch(0.19 0.012 60);
-    --secondary: oklch(0.26 0.006 60);
-    --secondary-foreground: oklch(0.965 0.006 85);
-    --muted: oklch(0.25 0.006 60);
-    --muted-foreground: oklch(0.72 0.01 75);
-    --accent: oklch(0.27 0.006 60);
-    --accent-foreground: oklch(0.965 0.006 85);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 9%);
-    --input: oklch(1 0 0 / 14%);
-    --ring: oklch(0.72 0.14 262);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-    --brand: oklch(0.72 0.14 262);
-    --brand-soft: oklch(0.29 0.05 262);
-    --on-color: oklch(0.17 0.006 60);
-  --on-color: oklch(0.17 0.006 60);
-    --sev-c: oklch(0.72 0.15 22);
-    --sev-c-soft: oklch(0.29 0.05 22);
-    --sev-b: oklch(0.78 0.12 75);
-    --sev-b-soft: oklch(0.30 0.04 75);
-    --sev-a: oklch(0.72 0.04 232);
-    --sev-a-soft: oklch(0.27 0.02 232);
-    --cat-groceries: oklch(0.72 0.15 330);
-    --cat-restaurants: oklch(0.75 0.15 50);
-    --cat-coffee: oklch(0.7 0.08 65);
-    --cat-subway: oklch(0.7 0.14 262);
-    --cat-parks: oklch(0.74 0.14 148);
-    --cat-fitness: oklch(0.72 0.16 15);
-    --cat-pharmacy: oklch(0.74 0.1 195);
-    --cat-nightlife: oklch(0.7 0.15 295);
-    --cat-convenience: oklch(0.74 0.08 110);
-    --cat-laundry: oklch(0.73 0.1 235);
-    --cat-entertainment: oklch(0.78 0.12 85);
-    --cat-health: oklch(0.72 0.15 25);
-    --cat-bus: oklch(0.7 0.03 255);
-  }
-}
 
 
 @layer base {
@@ -266,23 +209,10 @@
   }
 }
 
+
 @utility animate-rise {
   animation: rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   animation-delay: var(--delay, 0ms);
-}
-
-/* The itinerary header's photos drift slowly, like a travel documentary. */
-@keyframes kenburns {
-  from {
-    transform: scale(1.04) translate3d(0, 0, 0);
-  }
-  to {
-    transform: scale(1.14) translate3d(-2%, -1.5%, 0);
-  }
-}
-.hero-kenburns {
-  animation: kenburns 18s ease-in-out infinite alternate;
-  will-change: transform;
 }
 
 /* The starting-point marker on the map. */
@@ -425,71 +355,6 @@
   animation: ping-ring 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-/* The play button before first use: a slow halo that says "press me". */
-@keyframes halo {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in oklch, var(--brand) 55%, transparent);
-  }
-  100% {
-    box-shadow: 0 0 0 16px color-mix(in oklch, var(--brand) 0%, transparent);
-  }
-}
-.play-halo {
-  animation: halo 1.8s ease-out infinite;
-}
-
-/* The day's timeline: a filled track up to the current time. */
-.day-scrubber {
-  appearance: none;
-  height: 22px;
-  background: transparent;
-  cursor: pointer;
-}
-.day-scrubber::-webkit-slider-runnable-track {
-  height: 6px;
-  border-radius: 9999px;
-  background: linear-gradient(to right, var(--brand) var(--progress), var(--muted) var(--progress));
-}
-.day-scrubber::-moz-range-track {
-  height: 6px;
-  border-radius: 9999px;
-  background: linear-gradient(to right, var(--brand) var(--progress), var(--muted) var(--progress));
-}
-.day-scrubber::-webkit-slider-thumb {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  margin-top: -7px;
-  border-radius: 9999px;
-  background: var(--card);
-  border: 3px solid var(--brand);
-  box-shadow: 0 2px 8px oklch(0 0 0 / 0.25);
-}
-.day-scrubber::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 9999px;
-  background: var(--card);
-  border: 3px solid var(--brand);
-}
-.day-scrubber:focus-visible {
-  outline: none;
-}
-.day-scrubber:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 4px color-mix(in oklch, var(--brand) 30%, transparent);
-}
-.heat-legend {
-  background: linear-gradient(to right, rgba(56, 189, 248, 0.5), rgba(129, 140, 248, 0.7), rgba(250, 204, 21, 0.8), rgba(249, 115, 22, 0.9), rgba(239, 68, 68, 1));
-}
-
-/* Phones: the panel is a sheet over the map; keep the map's attribution above it. */
-@media (max-width: 1023px) {
-  .maplibregl-ctrl-bottom-right {
-    bottom: var(--sheet-h, 0px);
-    transition: bottom 0.3s ease-out;
-  }
-}
-
 /* Hovering a stop on the map: a small photo card. */
 .pin-card {
   pointer-events: none;
@@ -572,12 +437,6 @@
 .dark .maplibregl-ctrl-attrib-button {
   filter: invert(1);
 }
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) .maplibregl-ctrl-group button .maplibregl-ctrl-icon,
-  :root:not(.light) .maplibregl-ctrl-attrib-button {
-    filter: invert(1);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -620,4 +479,18 @@
   input[type="checkbox"] {
     appearance: auto;
   }
+}
+
+/* Theme switch (ThemeToggle): the new theme spreads out as a circle, so no default cross-fade,
+   and colour transitions pause so the "after" snapshot has the final colours. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+.theme-switching,
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
 }

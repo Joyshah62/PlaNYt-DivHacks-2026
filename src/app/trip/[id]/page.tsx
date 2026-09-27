@@ -1,6 +1,8 @@
 import { TripRoomPage, tripRoomMetadata } from "@/features/plan-with-friends";
+import { edFonts } from "@/components/editorial/fonts";
 import { memberIdFor } from "@/features/plan-with-friends/server/member";
 import { requireTraveler } from "@/lib/session";
+import "../trip.css";
 
 export const metadata = tripRoomMetadata;
 
@@ -8,5 +10,9 @@ export const metadata = tripRoomMetadata;
 export default async function TripPage(props: PageProps<"/trip/[id]">) {
   const { id } = await props.params;
   const session = await requireTraveler(`/trip/${encodeURIComponent(id)}`);
-  return <TripRoomPage params={props.params} viewer={{ memberId: memberIdFor(session.user.id), name: session.user.name }} />;
+  return (
+    <div className={`ed ${edFonts}`}>
+      <TripRoomPage params={props.params} viewer={{ memberId: memberIdFor(session.user.id), name: session.user.name }} />
+    </div>
+  );
 }

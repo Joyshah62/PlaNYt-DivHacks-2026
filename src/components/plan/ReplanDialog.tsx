@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2, LocateFixed, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { inNycArea } from "@/lib/osm/geo";
 import { clock, nycNowMin, nycToday, toHHMM, toMinutes } from "@/lib/plan/time";
 import type { DayPlan, PointLabel } from "@/lib/plan/types";
+import { useFocusTrap } from "./useFocusTrap";
 
 export interface ReplanChoice {
   /** Stops still to do, by key. */
@@ -33,6 +33,8 @@ export function ReplanDialog({ plan, busy, onReplan, onClose }: { plan: DayPlan;
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  useFocusTrap(dialogRef);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -69,32 +71,26 @@ export function ReplanDialog({ plan, busy, onReplan, onClose }: { plan: DayPlan;
 
   return (
     <>
-      <button type="button" aria-label="Close" onClick={onClose} className="fixed inset-0 z-40 bg-black/30" />
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="replan-title"
-        className="animate-rise fixed inset-x-0 bottom-0 z-50 max-h-[88dvh] overflow-y-auto rounded-t-3xl bg-card p-5 shadow-2xl ring-1 ring-foreground/8 sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[440px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 id="replan-title" className="font-display text-3xl leading-tight">
-              Re-plan from here
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">Running late or changed your mind? We&apos;ll redo the rest of the day.</p>
+      <div aria-hidden onClick={onClose} className="pl-scrim" />
+      <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="replan-title" className="pl-sheet dialog">
+        <div className="pl-sheet-pad">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="pl-mono pl-kicker">Running late?</p>
+              <h2 id="replan-title" className="pl-h2">
+                Re-plan <em>from here</em>
+              </h2>
+              <p className="pl-dek">We&apos;ll redo the rest of the day from where you are.</p>
+            </div>
+            <button ref={closeRef} type="button" onClick={onClose} aria-label="Close" className="pl-icon" style={{ borderColor: "var(--rule)" }}>
+              <X aria-hidden />
+            </button>
           </div>
-          <button ref={closeRef} type="button" onClick={onClose} aria-label="Close" className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-muted">
-            <X className="size-4" aria-hidden />
-          </button>
-        </div>
 
-        {plan.request.date !== today && (
-          <p className="mt-4 rounded-xl bg-sev-b-soft px-3 py-2 text-xs">This plan is for another day; re-planning uses today, {today}.</p>
-        )}
+          {plan.request.date !== today && <p className="pl-note">This plan is for another day; re-planning uses today, {today}.</p>}
 
-        <div className="mt-5 space-y-5">
-          <label className="flex items-center justify-between gap-3 text-sm">
-            <span className="font-medium">Time now</span>
+          <label className="pl-field">
+            <span className="pl-mono">Time now</span>
             <input
               type="time"
               value={toHHMM(now)}
@@ -102,24 +98,19 @@ export function ReplanDialog({ plan, busy, onReplan, onClose }: { plan: DayPlan;
                 const m = toMinutes(e.target.value);
                 if (m !== null) setNow(m);
               }}
-              className="rounded-xl border border-border bg-background px-2.5 py-1.5 text-sm"
+              className="pl-input w-fit"
             />
           </label>
 
           <fieldset>
-            <legend className="text-sm font-medium">Already done</legend>
-            <ul className="mt-2 space-y-1">
+            <legend className="pl-mono pl-muted mb-2">Already done</legend>
+            <ul style={{ borderTop: "1px solid var(--rule)" }}>
               {plan.stops.map((s) => (
-                <li key={s.key}>
-                  <label className="flex items-center gap-3 rounded-xl px-2 py-1.5 text-sm hover:bg-muted">
-                    <input
-                      type="checkbox"
-                      checked={done.has(s.key)}
-                      onChange={(e) => setManual((m) => new Map(m).set(s.key, e.target.checked))}
-                      className="size-4 accent-(--brand)"
-                    />
-                    <span className={done.has(s.key) ? "text-muted-foreground line-through" : ""}>{s.name}</span>
-                    <span className="ml-auto text-xs text-muted-foreground tabular-nums">{clock(s.startMin)}</span>
+                <li key={s.key} style={{ borderBottom: "1px solid var(--hair)" }}>
+                  <label className="flex cursor-pointer items-center gap-3 py-2 pl-small">
+                    <input type="checkbox" checked={done.has(s.key)} onChange={(e) => setManual((m) => new Map(m).set(s.key, e.target.checked))} className="pl-check" />
+                    <span className={done.has(s.key) ? "pl-muted line-through" : ""}>{s.name}</span>
+                    <span className="pl-mono pl-muted ml-auto">{clock(s.startMin)}</span>
                   </label>
                 </li>
               ))}
@@ -127,51 +118,32 @@ export function ReplanDialog({ plan, busy, onReplan, onClose }: { plan: DayPlan;
           </fieldset>
 
           <fieldset>
-            <legend className="text-sm font-medium">Starting from</legend>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={locate}
-                aria-pressed={where === "here"}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${where === "here" ? "border-brand bg-brand-soft text-brand" : "border-border hover:bg-muted"}`}
-              >
-                {locating ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <LocateFixed className="size-3.5" aria-hidden />}
+            <legend className="pl-mono pl-muted mb-2">Starting from</legend>
+            <div className="pl-chips">
+              <button type="button" onClick={locate} aria-pressed={where === "here"} className="pl-chip">
+                {locating ? <Loader2 className="animate-spin" aria-hidden /> : <LocateFixed aria-hidden />}
                 {here ? "Your location" : "Use my location"}
               </button>
               {lastDone && (
-                <button
-                  type="button"
-                  onClick={() => setWhere("last")}
-                  aria-pressed={where === "last"}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${where === "last" ? "border-brand bg-brand-soft text-brand" : "border-border hover:bg-muted"}`}
-                >
+                <button type="button" onClick={() => setWhere("last")} aria-pressed={where === "last"} className="pl-chip">
                   {lastDone.name}
                 </button>
               )}
               {plan.request.origin && (
-                <button
-                  type="button"
-                  onClick={() => setWhere("start")}
-                  aria-pressed={where === "start"}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${where === "start" ? "border-brand bg-brand-soft text-brand" : "border-border hover:bg-muted"}`}
-                >
+                <button type="button" onClick={() => setWhere("start")} aria-pressed={where === "start"} className="pl-chip">
                   {plan.request.origin.label}
                 </button>
               )}
             </div>
-            {locError && <p className="mt-2 text-xs text-sev-c">{locError}</p>}
+            {locError && <p className="pl-flag mt-2">{locError}</p>}
           </fieldset>
-        </div>
 
-        <Button
-          onClick={() => from && onReplan({ keep, from, startMin: now })}
-          disabled={!canGo}
-          className="mt-6 h-11 w-full rounded-full bg-foreground text-[15px] font-semibold text-background hover:bg-foreground/90"
-        >
-          {busy && <Loader2 className="animate-spin" aria-hidden />}
-          {left === 0 ? "Nothing left to plan" : now >= plan.request.endMin ? "Your day has ended" : `Re-plan ${left} stop${left > 1 ? "s" : ""} from ${clock(now)}`}
-        </Button>
-        {!from && where === "here" && !locating && <p className="mt-2 text-center text-xs text-muted-foreground">Share your location, or pick where to start.</p>}
+          <button type="button" onClick={() => from && onReplan({ keep, from, startMin: now })} disabled={!canGo} className="ed-btn w-full">
+            {busy && <Loader2 className="animate-spin" aria-hidden />}
+            {left === 0 ? "Nothing left to plan" : now >= plan.request.endMin ? "Your day has ended" : `Re-plan ${left} stop${left > 1 ? "s" : ""} from ${clock(now)}`}
+          </button>
+          {!from && where === "here" && !locating && <p className="pl-small pl-muted text-center">Share your location, or pick where to start.</p>}
+        </div>
       </section>
     </>
   );

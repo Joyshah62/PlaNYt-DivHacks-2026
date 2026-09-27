@@ -12,10 +12,167 @@ export function ensureWorker() {
   setWorkerUrl(new URL("/maplibre/maplibre-gl-worker.mjs", window.location.origin).href);
 }
 
-export const STYLES = {
-  light: "https://tiles.openfreemap.org/styles/positron",
-  dark: "https://tiles.openfreemap.org/styles/dark",
+/** MapLibre expands its compact credit when tile attributions arrive; fold that initial expansion. */
+export function keepAttributionCollapsed(map: MapLibre) {
+  const credit = map.getContainer().querySelector(".maplibregl-ctrl-attrib");
+  if (!credit) return () => {};
+  const fold = () => {
+    if (!credit.classList.contains("maplibregl-compact-show")) return false;
+    credit.classList.remove("maplibregl-compact-show");
+    credit.removeAttribute("open");
+    return true;
+  };
+  const observer = new MutationObserver(() => {
+    if (fold()) observer.disconnect();
+  });
+  observer.observe(credit, { attributes: true, attributeFilter: ["class"] });
+  fold();
+  return () => observer.disconnect();
+}
+
+export type MapTheme = "day" | "night" | "satellite" | "transit";
+
+export const SATELLITE_STYLE = {
+  version: 8 as const,
+  sources: {
+    "esri-satellite": {
+      type: "raster" as const,
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Tiles © Esri, Maxar, Earthstar Geographics",
+      maxzoom: 19,
+    },
+  },
+  layers: [
+    {
+      id: "satellite-layer",
+      type: "raster" as const,
+      source: "esri-satellite",
+      minzoom: 0,
+      maxzoom: 22,
+    },
+  ],
 };
+
+export const SATELLITE_3D_STYLE = {
+  version: 8 as const,
+  sources: {
+    "esri-satellite": {
+      type: "raster" as const,
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Tiles © Esri, Maxar, Earthstar Geographics",
+      maxzoom: 19,
+    },
+    terrain: {
+      type: "raster-dem" as const,
+      tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+      encoding: "terrarium" as const,
+      tileSize: 256,
+      maxzoom: 15,
+    },
+  },
+  terrain: {
+    source: "terrain",
+    exaggeration: 1.4,
+  },
+  layers: [
+    {
+      id: "satellite-layer",
+      type: "raster" as const,
+      source: "esri-satellite",
+      minzoom: 0,
+      maxzoom: 22,
+    },
+  ],
+};
+
+export const TRANSIT_STYLE = {
+  version: 8 as const,
+  sources: {
+    "transit-tiles": {
+      type: "raster" as const,
+      tiles: [
+        "https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",
+        "https://b.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",
+        "https://c.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "Tiles © CyclOSM, © OpenStreetMap contributors",
+      maxzoom: 20,
+    },
+  },
+  layers: [
+    {
+      id: "transit-layer",
+      type: "raster" as const,
+      source: "transit-tiles",
+      minzoom: 0,
+      maxzoom: 22,
+    },
+  ],
+};
+
+export const STYLES: Record<string, string | typeof SATELLITE_STYLE | typeof SATELLITE_3D_STYLE | typeof TRANSIT_STYLE> = {
+  // Positron: quiet greys that sit on the planner's paper, so the route and pins carry the colour.
+  day: "https://tiles.openfreemap.org/styles/positron",
+  night: "https://tiles.openfreemap.org/styles/dark",
+  satellite: SATELLITE_3D_STYLE,
+  transit: TRANSIT_STYLE,
+  // Backward-compatible aliases
+  streets: "https://tiles.openfreemap.org/styles/liberty",
+  dark: "https://tiles.openfreemap.org/styles/dark",
+  light: "https://tiles.openfreemap.org/styles/liberty",
+};
+
+const mapThemeListeners = new Set<() => void>();
+
+export function setMapTheme(theme: MapTheme) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("roam_map_theme", theme);
+    window.dispatchEvent(new CustomEvent("roam_map_theme_changed", { detail: theme }));
+  }
+  for (const listener of mapThemeListeners) {
+    listener();
+  }
+}
+
+export function getMapTheme(): MapTheme {
+  if (typeof window === "undefined") return "day";
+  const stored = localStorage.getItem("roam_map_theme");
+  if (stored === "day" || stored === "night" || stored === "satellite" || stored === "transit") {
+    return stored;
+  }
+  if (stored === "streets" || stored === "light") return "day";
+  if (stored === "dark") return "night";
+  return "day";
+}
+
+export function useMapTheme(): [MapTheme, (theme: MapTheme) => void] {
+  const theme = useSyncExternalStore(
+    (callback) => {
+      mapThemeListeners.add(callback);
+      const onStorage = (e: StorageEvent) => {
+        if (e.key === "roam_map_theme") callback();
+      };
+      const onCustom = () => callback();
+      window.addEventListener("storage", onStorage);
+      window.addEventListener("roam_map_theme_changed", onCustom);
+      return () => {
+        mapThemeListeners.delete(callback);
+        window.removeEventListener("storage", onStorage);
+        window.removeEventListener("roam_map_theme_changed", onCustom);
+      };
+    },
+    getMapTheme,
+    () => "streets" as MapTheme,
+  );
+  return [theme, setMapTheme];
+}
 
 /** OpenFreeMap's current style references this optional tile texture without shipping it in its sprite. */
 export function resolveMissingStyleImages(map: MapLibre) {
@@ -54,12 +211,15 @@ export const CATEGORY_IDS = [
 
 const COLOR_VARS = ["--brand", "--background", "--foreground", "--muted", "--muted-foreground", "--card", ...CATEGORY_IDS.map((c) => `--cat-${c}`)];
 
-/** MapLibre cannot read CSS variables or oklch(); resolve them to rgb via a canvas pixel. */
-export function resolveColors(): Record<string, string> {
+/**
+ * MapLibre cannot read CSS variables or oklch(); resolve them to rgb via a canvas pixel.
+ * Read from `from` to pick up a page's own palette (the planner's paper and ink).
+ */
+export function resolveColors(from: Element = document.documentElement): Record<string, string> {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 1;
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-  const style = getComputedStyle(document.documentElement);
+  const style = getComputedStyle(from);
   return Object.fromEntries(
     COLOR_VARS.map((name) => {
       ctx.clearRect(0, 0, 1, 1);

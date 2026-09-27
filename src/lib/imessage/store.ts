@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ChatReply } from "@/lib/discover/chat";
 import type { DiscoverResponse } from "@/lib/discover/types";
+import { getDb, hasMongo } from "@/lib/mongo";
 import type { DayPlan, Profile, StopInput } from "@/lib/plan/types";
 
 /** One conversation: a person (or a group chat) and the day they're planning. */
@@ -34,28 +35,82 @@ export interface Thread {
 
 export const newThread = (id: string): Thread => ({ id, plan: null, profile: null, proposal: null, offers: null, choices: [], history: [], muted: false, sent: [] });
 
+export type Store = {
+  get: (id: string) => Thread;
+  all: () => Thread[];
+  save: () => Promise<void>;
+};
+
+const COLLECTION = "imessage_threads";
+
+type ThreadDoc = Thread & { _id: string };
+
+function memoryStore(initial: Record<string, Thread>, persist: (threads: Record<string, Thread>) => Promise<void>): Store {
+  const threads = initial;
+  let writing = Promise.resolve();
+  return {
+    get: (id: string): Thread => (threads[id] ??= newThread(id)),
+    all: (): Thread[] => Object.values(threads),
+    save(): Promise<void> {
+      const snapshot = { ...threads };
+      writing = writing.then(() => persist(snapshot));
+      return writing;
+    },
+  };
+}
+
 /** Threads in a JSON file, written whole after each change. Plenty for a handful of people. */
-export async function openStore(path: string) {
+async function openFileStore(path: string): Promise<Store> {
   let threads: Record<string, Thread> = {};
   try {
     threads = JSON.parse(await readFile(path, "utf8"));
   } catch {
     // First run, or an unreadable file: start empty rather than refuse to start.
   }
-  let writing = Promise.resolve();
-  return {
-    get: (id: string): Thread => (threads[id] ??= newThread(id)),
-    all: (): Thread[] => Object.values(threads),
-    /** Saves in order; a crash mid-write leaves the previous file, not half of one. */
-    save(): Promise<void> {
-      const snapshot = JSON.stringify(threads);
-      writing = writing.then(async () => {
-        await mkdir(dirname(path), { recursive: true });
-        await writeFile(`${path}.tmp`, snapshot);
-        await rename(`${path}.tmp`, path);
-      });
-      return writing;
-    },
-  };
+  return memoryStore(threads, async (snapshot) => {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(`${path}.tmp`, JSON.stringify(snapshot));
+    await rename(`${path}.tmp`, path);
+  });
 }
-export type Store = Awaited<ReturnType<typeof openStore>>;
+
+/**
+ * Threads in MongoDB (same cluster as accounts). Used on Render so the web
+ * service and iMessage worker share state across restarts with no local disk.
+ */
+async function openMongoStore(): Promise<Store> {
+  const db = await getDb();
+  const col = db.collection<ThreadDoc>(COLLECTION);
+  const threads: Record<string, Thread> = {};
+  for (const doc of await col.find().toArray()) {
+    const { _id, ...rest } = doc;
+    threads[_id] = { ...newThread(_id), ...rest, id: _id };
+  }
+  return memoryStore(threads, async (snapshot) => {
+    const values = Object.values(snapshot);
+    if (!values.length) return;
+    await col.bulkWrite(
+      values.map((t) => ({
+        replaceOne: {
+          filter: { _id: t.id },
+          replacement: { ...t, _id: t.id },
+          upsert: true,
+        },
+      })),
+      { ordered: false },
+    );
+  });
+}
+
+/**
+ * Opens the thread store. With `MONGODB_URI`, uses Mongo (required on Render).
+ * Otherwise uses the JSON file at `filePath` (local laptop).
+ */
+export async function openStore(filePath: string): Promise<Store> {
+  if (hasMongo()) {
+    console.log("[store] imessage threads → MongoDB");
+    return openMongoStore();
+  }
+  console.log(`[store] imessage threads → ${filePath}`);
+  return openFileStore(filePath);
+}

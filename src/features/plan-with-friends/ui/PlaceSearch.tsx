@@ -3,7 +3,7 @@
 import { Check, Loader2, MapPin, Search, Sparkles } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { APP_API, ATTRACTIONS, type StopInput } from "../bridge/index";
-import { cn, stopFromAttraction } from "../bridge/ui";
+import { stopFromAttraction } from "../bridge/ui";
 import { PlaceThumb } from "./PlaceThumb";
 
 interface Result {
@@ -104,8 +104,8 @@ export function PlaceSearch({
 
   return (
     <div>
-      <div className="relative">
-        <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="tr-search-wrapper">
+        <Search aria-hidden className="tr-search-icon" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -118,13 +118,13 @@ export function PlaceSearch({
           aria-expanded={q.length >= 2}
           aria-controls={listId}
           aria-activedescendant={q.length >= 2 ? `${listId}-${active}` : undefined}
-          className="w-full rounded-full border border-border bg-card py-2.5 pr-10 pl-10 text-sm outline-none transition placeholder:text-muted-foreground focus:border-brand focus:ring-4 focus:ring-brand/10"
+          className="tr-search-input"
         />
-        {searching && <Loader2 aria-hidden className="absolute top-1/2 right-3.5 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
+        {searching && <Loader2 aria-hidden className="tr-search-spinner" />}
       </div>
 
       {q.length >= 2 ? (
-        <ul id={listId} role="listbox" className="mt-2 overflow-hidden rounded-2xl border border-border bg-popover text-sm shadow-sm">
+        <ul id={listId} role="listbox" className="tr-search-results">
           {results.map((r, i) => {
             const added = chosen.has(r.stop.key);
             return (
@@ -133,23 +133,22 @@ export function PlaceSearch({
                   type="button"
                   onMouseEnter={() => setActive(i)}
                   onClick={() => pick(r.stop)}
-                  className={cn("flex w-full items-center gap-3 px-4 py-2.5 text-left transition", active === i ? "bg-accent" : "hover:bg-accent")}
                 >
-                  {!forStart && <PlaceThumb stop={r.stop} className="size-9 rounded-lg" />}
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <span className="truncate">{r.name}</span>
-                      {r.source === "catalog" && <Sparkles aria-label="Roam pick" className="size-3.5 shrink-0 text-brand" />}
+                  {!forStart && <PlaceThumb stop={r.stop} className="tr-search-thumb" />}
+                  <span className="tr-search-content">
+                    <span className="tr-search-title">
+                      <span>{r.name}</span>
+                      {r.source === "catalog" && <Sparkles aria-label="Roam pick" className="tr-search-icon-roam" />}
                     </span>
-                    <span className="block truncate text-xs text-muted-foreground">{r.detail}</span>
+                    <span className="tr-search-detail">{r.detail}</span>
                   </span>
-                  {added ? <span className="flex shrink-0 items-center gap-1 text-xs text-brand"><Check className="size-3.5" aria-hidden /> added · +1 vote</span> : null}
+                  {added ? <span className="tr-search-added"><Check className="size-3.5" aria-hidden /> added · +1 vote</span> : null}
                 </button>
               </li>
             );
           })}
-          {searching && results.length === 0 && <li className="px-4 py-2.5 text-xs text-muted-foreground">Searching…</li>}
-          {!searching && results.length === 0 && <li className="px-4 py-2.5 text-xs text-muted-foreground">No named places match. Try the map search below.</li>}
+          {searching && results.length === 0 && <li className="tr-search-empty">Searching…</li>}
+          {!searching && results.length === 0 && <li className="tr-search-empty">No named places match. Try the map search below.</li>}
           {!searching && (
           <li id={`${listId}-${results.length}`} role="option" aria-selected={active === results.length}>
             <button
@@ -157,7 +156,6 @@ export function PlaceSearch({
               onMouseEnter={() => setActive(results.length)}
               onClick={locate}
               disabled={locating}
-              className={cn("flex w-full items-center gap-3 border-t border-border px-4 py-2.5 text-left text-muted-foreground transition disabled:opacity-50", active === results.length ? "bg-accent" : "hover:bg-accent")}
             >
               {locating ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <MapPin className="size-4" aria-hidden />}
               Search the map for &ldquo;{q}&rdquo; (addresses too)
@@ -166,15 +164,15 @@ export function PlaceSearch({
           )}
         </ul>
       ) : forStart ? null : (
-        <div className="mt-3">
-          <p className="mb-2 text-[0.7rem] font-semibold tracking-wide text-muted-foreground uppercase">Popular</p>
-          <div className="flex flex-wrap gap-1.5">
+        <div className="tr-search-popular">
+          <p className="tr-search-popular-label">Popular</p>
+          <div className="tr-search-popular-buttons">
             {POPULAR.map((a) => (
               <button
                 key={a.id}
                 type="button"
                 onClick={() => pick(stopFromAttraction(a))}
-                className={cn("rounded-full border px-3 py-1 text-xs transition", chosen.has(a.id) ? "border-brand bg-brand-soft text-brand" : "border-border hover:bg-muted")}
+                className={`tr-chip ${chosen.has(a.id) ? "tr-chip-voted" : ""}`}
               >
                 {a.name}
               </button>
@@ -183,7 +181,7 @@ export function PlaceSearch({
         </div>
       )}
       {error && (
-        <p role="alert" className="mt-2 text-sm text-destructive">
+        <p role="alert" className="tr-search-error">
           {error}
         </p>
       )}

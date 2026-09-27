@@ -1,0 +1,123 @@
+# Render Blueprint — Roam NYC (web + iMessage bot)
+# https://render.com/docs/blueprint-spec
+#
+# Primary domain: https://planyt.tech
+# Bot bridge:     https://imessage.planyt.tech
+#
+# Instance specs (do not use free — it sleeps and kills Spectrum):
+#   roam-web:      plan 1c-2g     = 1 CPU, 2 GB RAM  (~$25/mo)
+#   roam-imessage: plan 0.5c-512mb = 0.5 CPU, 512 MB (~$7/mo) — keep 1 instance
+#
+# Region ohio = US East. Point DNS:
+#   planyt.tech / www.planyt.tech → roam-web
+#   imessage.planyt.tech          → roam-imessage
+#
+# NEXT_PUBLIC_* are baked at build time — set before first build or clear cache & redeploy.
+
+services:
+  - type: web
+    name: roam-web
+    runtime: node
+    plan: 1c-2g
+    region: ohio
+    numInstances: 1
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    domains:
+      - planyt.tech
+      - www.planyt.tech
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: HOSTNAME
+        value: "0.0.0.0"
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB
+        value: roam-nyc
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: BETTER_AUTH_URL
+        value: https://planyt.tech
+      - key: BETTER_AUTH_ALLOWED_HOSTS
+        value: planyt.tech,www.planyt.tech
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://planyt.tech
+      - key: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: NEXT_PUBLIC_MAP_ENGINE
+        value: google
+      - key: PHONE_BRIDGE_URL
+        value: https://imessage.planyt.tech
+      - key: PHONE_BRIDGE_TOKEN
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REQUEST_PHONE
+        value: "true"
+      - key: BACKBOARD_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
+      - key: ELEVENLABS_TTS_MODEL
+        value: eleven_flash_v2_5
+      - key: ELEVENLABS_STT_MODEL
+        value: scribe_v2
+
+  # Second WEB service (not Background Worker): must accept HTTP for POST /send.
+  # Never scale past 1 instance — multiple Spectrum consumers duplicate / race messages.
+  - type: web
+    name: roam-imessage
+    runtime: node
+    plan: 0.5c-512mb
+    region: ohio
+    numInstances: 1
+    buildCommand: npm ci
+    startCommand: npm run start:imessage
+    healthCheckPath: /health
+    domains:
+      - imessage.planyt.tech
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB
+        value: roam-nyc
+      - key: SPECTRUM_PROJECT_ID
+        sync: false
+      - key: SPECTRUM_PROJECT_SECRET
+        sync: false
+      - key: PHONE_BRIDGE_TOKEN
+        sync: false
+      - key: ROAM_URL
+        value: https://planyt.tech
+      - key: PUBLIC_APP_URL
+        value: https://planyt.tech
+      - key: PHONE_BRIDGE_HOST
+        value: "0.0.0.0"
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
+      - key: ELEVENLABS_IMESSAGE_VOICE
+        value: "false"
+      - key: ELEVENLABS_TTS_MODEL
+        value: eleven_flash_v2_5
+      - key: ELEVENLABS_STT_MODEL
+        value: scribe_v2

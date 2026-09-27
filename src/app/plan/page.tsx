@@ -1,3 +1,5 @@
+import "./planner.css";
+import { edFonts } from "@/components/editorial/fonts";
 import type { Metadata } from "next";
 import { PlannerView } from "@/components/plan/PlannerView";
 import { BRAND } from "@/lib/plan/display";
@@ -17,12 +19,5 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
 
   // Keyed by the prompt so arriving with a new one starts a fresh planner. A plan
   // link is not in the key: the planner rewrites it in place after every plan.
-  return (
-    <PlannerView
-      key={prompt ?? ""}
-      initialPrompt={prompt}
-      initialPlan={code}
-      account={{ name: session.user.name, email: session.user.email, phoneNumber: session.user.phoneNumber ?? null }}
-    />
-  );
+  return <div className={`ed ${edFonts}`}><PlannerView key={prompt ?? ""} initialPrompt={prompt} initialPlan={code} account={{ name: session.user.name, email: session.user.email, phoneNumber: session.user.phoneNumber ?? null }} /></div>;
 }

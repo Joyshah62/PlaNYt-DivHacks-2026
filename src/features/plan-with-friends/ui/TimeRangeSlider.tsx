@@ -69,7 +69,7 @@ export function TimeRangeSlider({
         e.preventDefault();
         commitSoon(move(which, value[which] + delta));
       }}
-      className="absolute top-1/2 grid size-5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none place-items-center rounded-full border-2 border-brand bg-background shadow transition active:cursor-grabbing active:scale-110"
+      className="tr-slider-handle"
       style={{ left: `${pct(value[which])}%` }}
     />
   );
@@ -78,16 +78,16 @@ export function TimeRangeSlider({
   for (let m = Math.ceil(min / 180) * 180; m <= max; m += 180) ticks.push(m);
 
   return (
-    <div className="px-2.5 pt-1">
-      <div ref={track} className="relative h-6">
-        <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-muted" />
-        <div className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-brand" style={{ left: `${pct(value.from)}%`, width: `${pct(value.to) - pct(value.from)}%` }} />
+    <div className="tr-slider">
+      <div ref={track} className="tr-slider-track">
+        <div className="tr-slider-line" />
+        <div className="tr-slider-line on" style={{ left: `${pct(value.from)}%`, width: `${pct(value.to) - pct(value.from)}%` }} />
         {handle("from")}
         {handle("to")}
       </div>
-      <div className="relative mt-1 h-4 text-[10px] text-muted-foreground">
+      <div className="tr-slider-ticks ed-mono" aria-hidden>
         {ticks.map((m) => (
-          <span key={m} className="absolute -translate-x-1/2" style={{ left: `${pct(m)}%` }}>
+          <span key={m} style={{ left: `${pct(m)}%` }}>
             {clock(m)}
           </span>
         ))}

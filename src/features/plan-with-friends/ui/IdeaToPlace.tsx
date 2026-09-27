@@ -48,25 +48,25 @@ export function IdeaToPlace({
 
   const pick = found?.mode === "confirm" && !browse ? found.items[0] : null;
   return (
-    <div className="mt-2 rounded-xl border border-border bg-background p-2.5">
-      <div className="mb-2 flex items-center justify-between gap-2 text-xs">
-        <span className="font-semibold text-muted-foreground">{found ? (pick ? "This note names a place" : `Places for “${found.label}”`) : "Reading the note…"}</span>
-        <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+    <div className="tr-idea-panel">
+      <div className="tr-idea-header">
+        <span>{found ? (pick ? "This note names a place" : `Places for "${found.label}"`) : "Reading the note…"}</span>
+        <button type="button" onClick={onClose} className="tr-idea-close">
           Close
         </button>
       </div>
       {pick ? (
-        <div className="flex items-center gap-3">
-          <PlaceThumb stop={pick.stop} className="size-14" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">{pick.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{[pick.category, pick.area].filter(Boolean).join(" · ")}</p>
+        <div className="tr-idea-confirm">
+          <PlaceThumb stop={pick.stop} className="tr-idea-thumb" />
+          <div className="tr-idea-content">
+            <p className="tr-idea-name">{pick.name}</p>
+            <p className="tr-idea-meta">{[pick.category, pick.area].filter(Boolean).join(" · ")}</p>
           </div>
-          <div className="flex flex-col gap-1">
-            <button type="button" onClick={() => onChoose(pick.stop, found!.authorId)} className="rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background">
+          <div className="tr-idea-actions">
+            <button type="button" onClick={() => onChoose(pick.stop, found!.authorId)} className="ed-btn ed-small">
               Add it
             </button>
-            <button type="button" onClick={() => setBrowse(true)} className="text-[11px] text-muted-foreground hover:text-foreground">
+            <button type="button" onClick={() => setBrowse(true)} className="tr-idea-alt">
               Not this one
             </button>
           </div>
@@ -81,7 +81,7 @@ export function IdeaToPlace({
           emptyText="Nothing nearby matched that note."
         />
       )}
-      {found && !found.usedAi && <p className="mt-1 text-[11px] text-muted-foreground">Roam&apos;s AI isn&apos;t available right now, so these match the note&apos;s words.</p>}
+      {found && !found.usedAi && <p className="tr-idea-note">Roam&apos;s AI isn&apos;t available right now, so these match the note&apos;s words.</p>}
     </div>
   );
 }

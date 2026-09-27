@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SubmitEvent } from "react";
 import { nycNowMin, nycToday } from "../bridge/index";
-import { Button, Input } from "../bridge/ui";
+import { AppBar } from "../bridge/ui";
 import { defaultAvatar, type Avatar } from "../core/avatars";
 import type { Trip } from "../core/types";
 import { AvatarPicker } from "./AvatarPicker";
@@ -47,36 +47,65 @@ export function StartRoom({ code, group }: { code: string | null; group: string 
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 px-4 py-10">
-      <div>
-        <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">{group === "family" ? "Family trip room" : "Trip room"}</p>
-        <h1 className="font-display text-4xl leading-tight">Plan it together</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {code ? "Your plan's places go in as the first ideas. " : ""}Friends join from your link, suggest places and vote. The day is set when everyone taps I&apos;m in.
-        </p>
-      </div>
-      <form onSubmit={start} className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4">
-        <AvatarPicker value={avatar} onChange={setAvatar} />
-        <label className="flex flex-col gap-1 text-sm font-medium">
-          Your name
-          <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={30} autoFocus required />
-        </label>
-        {!code && (
-          <label className="flex flex-col gap-1 text-sm font-medium">
-            Which day?
-            <Input type="date" value={date} min={nycToday()} onChange={(e) => setDate(e.target.value)} required />
-          </label>
-        )}
-        <Button type="submit" disabled={busy || !name.trim()} className="h-10 rounded-full">
-          {busy ? "Starting…" : "Start the trip room"}
-        </Button>
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
+    <main className="ed-app ed-paper tr-page">
+      <AppBar />
+      <section className="ed-gut tr-spread">
+        <div>
+          <p className="ed-mono ed-kicker">{group === "family" ? "Family trip room" : "Trip room"}</p>
+          <h1 className="tr-display">Plan it <em>together.</em></h1>
+          <p className="ed-dek">
+            {code ? "Your plan's places go in as the first ideas. " : ""}Friends join from your link, suggest places and vote. The day is set when everyone taps I&apos;m in.
           </p>
-        )}
-      </form>
-      <Link href="/start" className="text-center text-xs text-muted-foreground hover:text-foreground">
+          <ol className="tr-steps">
+            <li>
+              <div className="ed-bullet">1</div>
+              <strong>Share your link</strong>
+            </li>
+            <li>
+              <div className="ed-bullet">2</div>
+              <strong>Everyone suggests places and votes</strong>
+            </li>
+            <li>
+              <div className="ed-bullet">3</div>
+              <strong>The day is set when everyone taps I&apos;m in</strong>
+            </li>
+          </ol>
+        </div>
+
+        <form onSubmit={start} className="tr-form">
+          <AvatarPicker value={avatar} onChange={setAvatar} />
+          <div className="ed-field">
+            <label htmlFor="name">Your name</label>
+            <input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={30}
+              autoFocus
+              required
+            />
+          </div>
+          {!code && (
+            <div className="ed-field">
+              <label htmlFor="date">Which day?</label>
+              <input
+                id="date"
+                type="date"
+                value={date}
+                min={nycToday()}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
+            </div>
+          )}
+          <button type="submit" disabled={busy || !name.trim()} className="ed-btn ed-btn--block">
+            {busy ? "Starting…" : "Start the trip room"}
+          </button>
+          {error && <p role="alert" className="ed-alert">{error}</p>}
+        </form>
+      </section>
+
+      <Link href="/start" className="ed-textbtn ed-mono tr-back">
         ← Back to who&apos;s coming
       </Link>
     </main>
