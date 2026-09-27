@@ -136,6 +136,13 @@ export function decodePlan(code: string): PlanRequest | null {
   }
 }
 
+/** A name for a saved plan: "Sat, Sep 26 · The Met, MoMA +2". */
+export function planTitle(r: PlanRequest): string {
+  const day = new Date(`${r.date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  const names = r.stops.map((s) => s.name);
+  return `${day} · ${names.slice(0, 2).join(", ")}${names.length > 2 ? ` +${names.length - 2}` : ""}`;
+}
+
 // --- saved plans (this browser only) -------------------------------------------
 
 export interface SavedPlan {

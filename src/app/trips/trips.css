@@ -1,0 +1,39 @@
+/* Your trips: saved days and trip rooms beside the conversations, in the editorial system. */
+.tp { min-height: 100dvh; display: flex; flex-direction: column; }
+.tp-head { margin-inline: var(--gut); padding-block: var(--s-3) var(--s-2); border-bottom: 1px solid var(--rule); }
+.tp-title { font: 400 clamp(44px, 5.4vw, 120px) / 0.92 var(--f-display); margin-block: var(--s-1); text-wrap: balance; }
+.tp-grid { display: grid; gap: var(--s-3); padding-block: var(--s-3) var(--s-4); }
+.tp-col { display: grid; gap: var(--s-3); align-content: start; min-width: 0; }
+.tp-section { min-width: 0; }
+.tp-h2 { font: 400 clamp(32px, 2.6vw + 8px, 64px) / 1 var(--f-display); display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 0.3em; padding-bottom: 0.3em; border-bottom: 1px solid var(--rule); }
+.tp-h2 .ed-mono { font-size: var(--t-mono); margin-left: auto; }
+.tp-list > li { border-bottom: 1px solid color-mix(in srgb, var(--rule) 30%, transparent); }
+.tp-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.2em var(--s-1); align-items: center;
+  padding-block: var(--s-1); text-decoration: none; cursor: pointer; list-style: none;
+}
+.tp-item::-webkit-details-marker { display: none; }
+.tp-item:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+.tp-name { font-size: var(--t-lead); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-item .ed-mono { grid-column: 1; font-size: var(--t-mono); }
+.tp-arrow { grid-column: 2; grid-row: 1 / span 2; width: 1.1em; height: 1.1em; transition: transform 0.2s var(--ease-out); }
+.tp-item:hover .tp-name { color: var(--red); }
+.tp-item:hover .tp-arrow { transform: translateX(0.2em); }
+.tp-inline { display: inline; width: 1em; height: 1em; vertical-align: -0.15em; }
+.tp-empty { color: var(--ed-muted); font-style: italic; padding-block: var(--s-1); }
+.tp-link { color: var(--ink); text-decoration: underline; text-underline-offset: 0.2em; font-style: normal; }
+.tp-link:hover { color: var(--red); }
+
+/* A conversation opens into its transcript: the traveler's words set off with a red rule. */
+.tp-chat summary::after { content: "+"; grid-column: 2; grid-row: 1 / span 2; font: 400 1.4em / 1 var(--f-mono); transition: transform 0.2s var(--ease-out); }
+.tp-chat[open] summary::after { transform: rotate(45deg); }
+.tp-chat[open] .tp-name { white-space: normal; }
+.tp-transcript { display: grid; gap: var(--s-1); padding: 0 0 var(--s-2); max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; }
+.tp-transcript li { display: grid; gap: 0.2em; font-size: var(--t-small); line-height: 1.5; white-space: pre-line; }
+.tp-transcript li.user { border-left: 2px solid var(--red); padding-left: 0.8em; }
+.tp-transcript .ed-mono { font-size: var(--t-mono); }
+.tp-actions { display: flex; flex-wrap: wrap; gap: var(--s-1); padding-bottom: var(--s-2); }
+
+@media (min-width: 1024px) {
+  .tp-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); }
+}

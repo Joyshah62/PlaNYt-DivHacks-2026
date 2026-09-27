@@ -36,6 +36,16 @@ describe("Gemini", () => {
     expect(models[1].reasoning_effort).toBeUndefined();
   });
 
+  it("retries a rate limit on the fallback model", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gemini-test");
+    const fetch = vi.fn().mockResolvedValueOnce(new Response("busy", { status: 429 })).mockResolvedValueOnce(answer('{"ok":true}'));
+    vi.stubGlobal("fetch", fetch);
+    expect(await geminiJson("system", "the Met", { name: "t", schema: {} })).toEqual({ ok: true });
+    const models = fetch.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string).model);
+    expect(models).toEqual([GEMINI_MODEL, GEMINI_FALLBACK_MODEL]);
+    expect(GEMINI_FALLBACK_MODEL).not.toBe(GEMINI_MODEL);
+  });
+
   it("doesn't retry a bad key", async () => {
     vi.stubEnv("GEMINI_API_KEY", "gemini-test");
     const fetch = vi.fn(async () => new Response("bad key", { status: 401 }));
