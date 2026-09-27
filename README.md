@@ -27,7 +27,12 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) enables natural-language planning. `GOOGLE_PLACES_API_KEY` enables live Google place photos. Both are optional; manual planning and catalog photos work without them.
+Open http://localhost:3000. Every key is optional; see `.env.example` for each one:
+
+- `GROK_API_KEY` (xAI) enables "Plan it for me" and the trip chat. Without it, pick spots by hand.
+- `GOOGLE_PLACES_API_KEY` enables live Google ratings and photos. Without it, photos come from Wikipedia.
+- `BACKBOARD_API_KEY` lets Roam remember each traveler from one trip to the next ("vegetarian", "staying at the Ace"): per device on the web, per thread over iMessage.
+- `TAVILY_API_KEY` lets the trip chat look up current facts on the web.
 
 ## Common commands
 
@@ -37,9 +42,27 @@ Open http://localhost:3000. `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) enables natur
 | `npm run build` / `npm start` | Build / serve production app |
 | `npm run lint` | Run ESLint |
 | `npm test` | Run Vitest |
-| `npm run crowd-data` | Rebuild bundled MTA crowd profiles |
-| `npm run poi-data` | Rebuild the local Discover places dataset |
-| `node scripts/build-photo-data.mjs` | Rebuild catalog photo metadata |
+| `npm run crowd-data` | Rebuild crowd profiles from the latest MTA ridership (~30 s) |
+| `npm run poi-data` | Rebuild the local copy of NYC places from OpenStreetMap, used by "Find something that fits my trip" (a few minutes) |
+| `node scripts/build-photo-data.mjs` | Rebuild catalog photos and credits from Wikipedia |
+| `npm run imessage` | Start the iMessage bot next to the dev server (see below) |
+
+### iMessage
+
+Roam also works over iMessage, through [Photon Spectrum](https://photon.codes/docs/spectrum-ts).
+Text the project's line what you'd like to do and the day comes back; text again to
+change it ("add Times Square and a café there"). Places come back numbered (reply `2`),
+and changes wait for `YES` or `NO`. On the day, the bot sends a morning rundown, and
+tells you when to leave for each stop. "Text to my phone" on an itinerary sends a plan
+from the website.
+
+1. Set `SPECTRUM_PROJECT_ID` and `SPECTRUM_PROJECT_SECRET` in `.env` (Photon dashboard, Settings),
+   plus `PHONE_BRIDGE_URL` and a random `PHONE_BRIDGE_TOKEN` for the website button (see `.env.example`).
+2. Run `npm run dev`, then `npm run imessage` in a second terminal.
+
+The bot plans through this app's API, so both must be running. Texts understand
+`PLAN`, `NEW TRIP`, `STOP` / `START` and `HELP`. Map links in texts use `PUBLIC_APP_URL`
+(default `http://localhost:3000`, which won't open on a phone; set it to a deploy or tunnel).
 
 ## Important limitations
 

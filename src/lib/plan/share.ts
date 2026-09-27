@@ -206,6 +206,7 @@ export function parseProfile(raw: string): Profile | null {
       group: (["solo", "couple", "family", "seniors"] as Group[]).includes(p.group as Group) ? (p.group as Group) : DEFAULT_PROFILE.group,
       walkMax: typeof p.walkMax === "number" && p.walkMax > 0 ? p.walkMax : null,
       interests: Array.isArray(p.interests) ? p.interests.filter((i): i is Interest => typeof i === "string").slice(0, 6) : [],
+      ...(Number.isInteger(p.people) && p.people! >= 1 && p.people! <= 20 && { people: p.people }),
     };
   } catch {
     return null;

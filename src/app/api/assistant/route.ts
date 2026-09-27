@@ -1,7 +1,11 @@
-import { ApiError, GoogleGenAI } from "@google/genai";
+import { after } from "next/server";
+import { GrokError, grokJson, grokKey } from "@/lib/llm/grok";
+import { memoryFor, recall, remember, rememberedFacts } from "@/lib/memory/backboard";
+import { followUps } from "@/lib/plan/followUps";
 import { z } from "zod";
 import { inNycArea } from "@/lib/osm/geo";
 import { resolveDestination } from "@/lib/osm/nominatim";
+import { nearbyWhy, placesNear } from "@/lib/discover/nearby";
 import { ATTRACTIONS, ATTRACTION_BY_ID } from "@/lib/plan/attractions";
 import { nycToday, toMinutes, WEEKDAYS, weekdayOf } from "@/lib/plan/time";
 import type { AssistantResult, Choice, ChoiceOption, PointLabel, StopInput } from "@/lib/plan/types";
@@ -9,7 +13,7 @@ import type { AssistantResult, Choice, ChoiceOption, PointLabel, StopInput } fro
 /**
  * POST /api/assistant { text } - turns "a chill Saturday, museums in the
  * morning, a view at sunset, I'll take the subway" into the planner's form.
- * Gemini only reads the request; the ordering and timing are computed by the
+ * Grok only reads the request; the ordering and timing are computed by the
  * optimizer, so the plan is the same whether it was typed or clicked.
  */
 
@@ -28,6 +32,9 @@ const Understood = z.object({
         .enum(["lunch", "dinner"])
         .nullable()
         .describe("If this stop is where they'll eat a meal (a restaurant, pizza, a deli): \"dinner\" if they said dinner or evening, else \"lunch\". null for anything else, including a snack or dessert stop."),
+      nearMe: z
+        .boolean()
+        .describe("true for a kind of place they want near where they are right now (\"cafés near me\", \"pizza nearby\"). Then query is just the kind of place, e.g. \"café\", with no name or neighborhood, and there are no alternatives: a live search around them picks real places."),
       wish: z.string().nullable().describe("For a vague wish you filled, their wish in a few words, e.g. \"A skyline view\"; null for a place they named."),
       why: z.string().nullable().describe("For a vague wish: under 8 words on why this pick fits, e.g. \"The classic view, with Central Park\"."),
       alternatives: z
@@ -43,7 +50,8 @@ const Understood = z.object({
   origin: z.string().nullable().describe("Where the day starts (hotel, address, neighborhood), or null."),
   pace: z.enum(["relaxed", "balanced", "packed"]).nullable(),
   group: z.enum(["solo", "couple", "family", "seniors"]).nullable(),
-  walkMax: z.number().nullable().describe("Longest comfortable walk in minutes, only if stated or clearly implied."),
+  people: z.number().nullable().describe("How many are going in all, counting them, only if stated or clearly implied: \"me and my wife\" is 2, \"a family of four\" is 4, \"with my two kids\" is 3. null if unclear, e.g. just \"with my kids\"."),
+  walkMax: z.number().nullable().describe("Longest comfortable walk in minutes, only if stated or clearly implied: \"keep walking manageable\" or \"not too much walking\" is 15, \"as little walking as possible\" is 10."),
   interests: z.array(z.enum(["art", "views", "history", "outdoors", "food", "neighborhoods"])).nullable(),
   lunch: z.boolean().nullable().describe("true if they want a lunch break planned, false if they said no lunch, else null."),
   dinner: z.boolean().nullable().describe("true if they want a dinner break planned, false if they said no dinner, else null."),
@@ -61,6 +69,7 @@ Stops:
 - For specific places that are not in the catalog (a restaurant, a shop, a bar), set attractionId to null and give a precise, searchable query that includes the NYC neighborhood or street.
 - For vague food wishes ("good pizza", "bagels"), pick one well-known, long-running spot and name it precisely, with 2 or 3 alternatives in different neighborhoods.
 - A place they named has no wish and no alternatives.
+- "Near me", "nearby" or "around here" means where they are right now, not a neighborhood you know: set nearMe, never name a place for it, and don't mention a specific place for it in your reply.
 - At most 8 stops. Do not add stops they did not ask for, except to satisfy a vague wish.
 
 Other fields:
@@ -74,14 +83,12 @@ Other fields:
 Catalog (id: name (area; kind; typical visit)):
 ${CATALOG}`;
 
-const MODEL = "gemini-3.5-flash-lite";
 
-/** The reply's shape, handed to Gemini as a JSON Schema so it answers in exactly this form. */
+/** The reply's shape, handed to Grok as a JSON Schema so it answers in exactly this form. */
 const UNDERSTOOD_SCHEMA: Record<string, unknown> = z.toJSONSchema(Understood);
 // The dialect marker is for validators, not for the model.
 delete UNDERSTOOD_SCHEMA.$schema;
 
-let client: GoogleGenAI | null = null;
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 
@@ -97,12 +104,41 @@ async function resolvePlace(p: { attractionId: string | null; query: string }, v
   return { key: `place-${slug(p.query)}`, name: p.query.split(",")[0].trim(), lat: point.lat, lon: point.lon, visitMin: visit ?? 60, attractionId: null };
 }
 
+/**
+ * For "near me", say what the live search found rather than the model's guess
+ * at it: the model never sees the results.
+ */
+function nearReply(understood: Understood, here: { lat: number; lon: number } | null, near: Choice[], stops: StopInput[]): string | null {
+  if (!understood.stops.some((s) => s.nearMe)) return null;
+  if (!here) return "I need your location to find places near you. Allow location access when your browser asks, or name a neighborhood, like \"cafés in Morningside Heights\".";
+  const found = near.flatMap((c) => {
+    const pick = c.options.find((o) => o.key === c.currentKey);
+    return pick ? [`${pick.name} (${pick.why})`] : [];
+  });
+  const alone = stops.filter((s) => !near.some((c) => c.currentKey === s.key)).length === 0;
+  if (!found.length) return "I couldn't find a good match close to you. Try a wider search, or name a neighborhood.";
+  return `Closest good pick: ${found.join(" and ")}. Tap it to see ${found.length > 1 ? "other nearby options" : "a few other spots nearby"}.${alone ? " Your day starts from where you are." : ""}`;
+}
+
 export async function POST(request: Request) {
   let text = "";
   let context = "";
+  // Where they are, when the device shared it and it's in the city.
+  let here: { lat: number; lon: number } | null = null;
+  let memoryId: unknown = null;
+  // Asked once: the second time round, they've answered or chosen to skip.
+  let askFirst = true;
+  // Who's coming is already known from a profile they set.
+  let knowsGroup = false;
   try {
-    const body = (await request.json()) as { text?: unknown; profile?: unknown };
+    const body = (await request.json()) as { text?: unknown; profile?: unknown; here?: { lat?: unknown; lon?: unknown } | null; memoryId?: unknown; skipQuestions?: unknown; knowsGroup?: unknown };
+    memoryId = body.memoryId;
+    askFirst = body.skipQuestions !== true;
+    knowsGroup = body.knowsGroup === true;
     text = String(body.text ?? "").trim();
+    const lat = Number(body.here?.lat);
+    const lon = Number(body.here?.lon);
+    if (Number.isFinite(lat) && Number.isFinite(lon) && inNycArea({ lat, lon })) here = { lat, lon };
     // What the traveler already told us about themselves, so vague picks suit them.
     if (body.profile && typeof body.profile === "object") context = `\nTraveler profile already set: ${JSON.stringify(body.profile).slice(0, 300)}`;
   } catch {
@@ -113,32 +149,31 @@ export async function POST(request: Request) {
 
   const today = nycToday();
   let understood: Understood;
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (!apiKey) {
+  if (!grokKey()) {
     return Response.json({ error: "The assistant isn't set up on this server. Pick your spots below instead." }, { status: 503 });
   }
+  const memory = await memoryFor(memoryId);
+  // What they told Roam on earlier trips, so a vague "somewhere for lunch" suits them too.
+  const remembered = rememberedFacts(await recall(memory, text));
+  after(() => remember(memory, text));
   try {
-    client ??= new GoogleGenAI({ apiKey });
-    const response = await client.models.generateContent({
-      model: MODEL,
-      contents: `Today is ${WEEKDAYS[weekdayOf(today)]}, ${today}.${context}\n\n${text}`,
-      config: {
-        systemInstruction: SYSTEM,
-        responseMimeType: "application/json",
-        responseJsonSchema: UNDERSTOOD_SCHEMA,
-        abortSignal: AbortSignal.timeout(20_000),
-      },
-    });
+    const answer = await grokJson(
+      `${SYSTEM}${remembered}`,
+      `Today is ${WEEKDAYS[weekdayOf(today)]}, ${today}.${context}\n${here ? "The traveler shared where they are right now." : "The traveler's current location is unknown."}\n\n${text}`,
+      { name: "day_request", schema: UNDERSTOOD_SCHEMA },
+      // Reading a request into fields needs little deliberation; the planner does the thinking.
+      { timeoutMs: 45_000, effort: "low" },
+    );
     // The schema constrains the reply, but validate anyway: a truncated or
-    // blocked response must not reach the planner as half a form.
-    const parsed = Understood.safeParse(JSON.parse(response.text ?? "null"));
+    // refused response must not reach the planner as half a form.
+    const parsed = Understood.safeParse(answer);
     if (!parsed.success) {
-      console.error("[assistant] unusable reply", response.candidates?.[0]?.finishReason, parsed.error.issues[0]?.message);
+      console.error("[assistant] unusable reply", parsed.error.issues[0]?.message);
       return Response.json({ error: "I couldn't turn that into a plan. Try naming a few places you'd like to see." }, { status: 422 });
     }
     understood = parsed.data;
   } catch (error) {
-    if (error instanceof ApiError) {
+    if (error instanceof GrokError && error.status !== null) {
       console.error("[assistant]", error.status, error.message.slice(0, 300));
       if (error.status === 429) return Response.json({ error: "The assistant is busy. Try again in a moment." }, { status: 429 });
       if (error.status === 400 || error.status === 401 || error.status === 403) {
@@ -151,12 +186,41 @@ export async function POST(request: Request) {
     return Response.json({ error: "The assistant couldn't be reached. Pick your spots below instead." }, { status: 502 });
   }
 
+  // When and who change the whole day; a request that leaves them out gets asked before it's planned.
+  const questions = askFirst ? followUps({ date: understood.date, group: understood.group, nearMe: understood.stops.some((s) => s.nearMe) }, { today, knowsGroup }) : [];
+  if (questions.length) {
+    const asking: AssistantResult = {
+      stops: [], unresolved: [], date: null, startMin: null, endMin: null, mode: null, crowd: null, origin: null, profile: {}, meals: {}, choices: [],
+      reply: questions.length > 1 ? "Two quick questions so the day fits you." : "One quick question so the day fits you.",
+      questions,
+      ...(memory && { memoryId: memory }),
+    };
+    return Response.json(asking);
+  }
+
   // Catalog stops are known; anything else is looked up (one a second, per Nominatim's policy).
   const stops: StopInput[] = [];
   const unresolved: string[] = [];
   const wishes: { stop: StopInput; wish: string; why: string | null; alternatives: Understood["stops"][number]["alternatives"] }[] = [];
+  const nearChoices: Choice[] = [];
   for (const s of understood.stops.slice(0, 10)) {
     const visit = s.visitMin ? Math.min(480, Math.max(10, Math.round(s.visitMin))) : null;
+    if (s.nearMe) {
+      // Real places around them, from the places API, never a famous one from memory.
+      const near = here ? await placesNear(here, s.query) : [];
+      if (!near.length) {
+        unresolved.push(here ? `${s.query} near you` : `${s.query} near you (allow location access, or name a neighborhood)`);
+        continue;
+      }
+      const [pick, ...others] = near.map((c): ChoiceOption => ({ key: `place-${slug(c.name)}`, name: c.name, lat: c.lat, lon: c.lon, visitMin: visit ?? 45, attractionId: null, why: nearbyWhy(c) }));
+      if (stops.some((x) => x.key === pick.key)) continue;
+      const stop: StopInput = { key: pick.key, name: pick.name, lat: pick.lat, lon: pick.lon, visitMin: pick.visitMin, attractionId: null };
+      if (s.meal && !stops.some((x) => x.mealFor === s.meal)) stop.mealFor = s.meal;
+      stops.push(stop);
+      const wish = `${s.query.charAt(0).toUpperCase()}${s.query.slice(1)} near you`;
+      if (others.length) nearChoices.push({ id: `wish-${stop.key}`, kind: "wish", title: wish, currentKey: stop.key, options: [pick, ...others.filter((o) => o.key !== pick.key)] });
+      continue;
+    }
     const stop = await resolvePlace(s, visit);
     if (!stop) {
       unresolved.push(s.query);
@@ -172,7 +236,7 @@ export async function POST(request: Request) {
 
   // Alternatives for vague wishes. Searched ones cost a geocoder call a second
   // each, so only the first few are looked up; catalog ones are free.
-  const choices: Choice[] = [];
+  const choices: Choice[] = [...nearChoices];
   let lookups = MAX_ALTERNATIVE_LOOKUPS;
   for (const { stop, wish, why, alternatives } of wishes) {
     const options: ChoiceOption[] = [{ ...stop, why: why ?? "Our pick" }];
@@ -188,7 +252,8 @@ export async function POST(request: Request) {
     }
   }
 
-  let origin: PointLabel | null = null;
+  // Looking around where they are means the day starts there.
+  let origin: PointLabel | null = here && !understood.origin && understood.stops.some((s) => s.nearMe) ? { label: "Your location", ...here } : null;
   if (understood.origin) {
     const point = await resolveDestination(understood.origin);
     if (point && inNycArea(point)) origin = { label: understood.origin, lat: point.lat, lon: point.lon };
@@ -208,6 +273,7 @@ export async function POST(request: Request) {
     profile: {
       ...(understood.pace && { pace: understood.pace }),
       ...(understood.group && { group: understood.group }),
+      ...(understood.people && understood.people >= 1 && { people: Math.min(20, Math.round(understood.people)) }),
       ...(understood.walkMax && understood.walkMax > 0 && { walkMax: Math.min(120, Math.max(5, Math.round(understood.walkMax))) }),
       ...(understood.interests?.length && { interests: understood.interests }),
     },
@@ -218,7 +284,8 @@ export async function POST(request: Request) {
       ...Object.fromEntries(stops.flatMap((s) => (s.mealFor ? [[s.mealFor, true]] : []))),
     },
     choices,
-    reply: understood.reply,
+    reply: nearReply(understood, here, nearChoices, stops) ?? understood.reply,
+    ...(memory && { memoryId: memory }),
   };
   return Response.json(result);
 }
