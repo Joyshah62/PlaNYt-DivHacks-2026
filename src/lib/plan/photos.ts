@@ -26,6 +26,8 @@ export interface Photo {
 const KEY = process.env.GOOGLE_PLACES_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 /** Photo URLs are short-lived; hold them only long enough to spare repeat views a charge. */
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+// A quota pause or network failure must not hide a photo for six hours.
+const MISS_TTL_MS = 60 * 1000;
 
 /** The server-side key, shared with discovery; never sent to the browser. */
 export const googlePlacesKey = () => KEY;
@@ -140,7 +142,7 @@ const pending = new Map<string, Promise<Photo | null>>();
 export async function photoFor(place: { attractionId: string | null; name: string } & LatLon): Promise<Photo | null> {
   const key = place.attractionId ?? `${place.name.toLowerCase()}|${place.lat.toFixed(4)},${place.lon.toFixed(4)}`;
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.photo;
+  if (hit && Date.now() - hit.at < (hit.photo ? CACHE_TTL_MS : MISS_TTL_MS)) return hit.photo;
   // Two viewers opening the same place at once share one lookup (and one charge).
   const inFlight = pending.get(key);
   if (inFlight) return inFlight;

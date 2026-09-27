@@ -123,7 +123,7 @@ export function decodePlan(code: string): PlanRequest | null {
       profile: c.p
         ? {
             pace: (["relaxed", "balanced", "packed"] as Pace[]).includes(c.p[0]) ? c.p[0] : "balanced",
-            group: (["solo", "couple", "family", "seniors"] as Group[]).includes(c.p[1]) ? c.p[1] : "solo",
+            group: (["unspecified", "solo", "couple", "family", "seniors"] as Group[]).includes(c.p[1]) ? c.p[1] : "unspecified",
             walkMax: typeof c.p[2] === "number" && c.p[2] > 0 ? c.p[2] : null,
             interests: Array.isArray(c.p[3]) ? c.p[3].filter((i): i is Interest => typeof i === "string").slice(0, 6) : [],
           }
@@ -203,9 +203,10 @@ export function parseProfile(raw: string): Profile | null {
     const p = JSON.parse(raw) as Partial<Profile>;
     return {
       pace: (["relaxed", "balanced", "packed"] as Pace[]).includes(p.pace as Pace) ? (p.pace as Pace) : DEFAULT_PROFILE.pace,
-      group: (["solo", "couple", "family", "seniors"] as Group[]).includes(p.group as Group) ? (p.group as Group) : DEFAULT_PROFILE.group,
+      group: (["unspecified", "solo", "couple", "family", "seniors"] as Group[]).includes(p.group as Group) ? (p.group as Group) : DEFAULT_PROFILE.group,
       walkMax: typeof p.walkMax === "number" && p.walkMax > 0 ? p.walkMax : null,
       interests: Array.isArray(p.interests) ? p.interests.filter((i): i is Interest => typeof i === "string").slice(0, 6) : [],
+      ...(Number.isInteger(p.people) && p.people! >= 1 && p.people! <= 20 && { people: p.people }),
     };
   } catch {
     return null;

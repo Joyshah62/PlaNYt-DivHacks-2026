@@ -342,27 +342,38 @@ export function DiscoverBar({ d, plan }: { d: Discover; plan: DayPlan }) {
 // --- results ------------------------------------------------------------------------------
 
 function Photo({ r }: { r: Result }) {
-  const [url, setUrl] = useState<string | null>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  const [photo, setPhoto] = useState<{ url: string; credit: string; creditUrl: string | null } | null>(null);
   useEffect(() => {
     let cancelled = false;
     const params = new URLSearchParams({ name: r.name, lat: String(r.lat), lon: String(r.lon) });
-    fetch(`/api/photo?${params}`)
-      .then((res) => (res.ok ? (res.json() as Promise<{ url?: string }>) : null))
-      .then((p) => {
-        if (!cancelled) setUrl(p?.url ?? null);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
+    const load = () => {
+      fetch(`/api/photo?${params}`)
+        .then((res) => res.ok ? res.json() : null)
+        .then((p) => { if (!cancelled) setPhoto(p); })
+        .catch(() => {});
     };
+    // Lazy-loading the image alone still spends API quota on every hidden card.
+    // Wait until the card enters the viewport before requesting its photo.
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        observer.disconnect();
+        load();
+      }
+    });
+    if (frame.current) observer.observe(frame.current);
+    return () => { cancelled = true; observer.disconnect(); };
   }, [r.name, r.lat, r.lon]);
   const Icon = ICON[r.category];
   return (
-    <div className="relative h-32 overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,oklch(0.93_0.05_60)_0%,oklch(0.9_0.05_20)_55%,oklch(0.86_0.06_330)_100%)] dark:bg-[radial-gradient(120%_120%_at_0%_0%,oklch(0.35_0.06_60)_0%,oklch(0.3_0.06_20)_55%,oklch(0.28_0.06_330)_100%)]">
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-full object-cover" />
-      ) : (
+    <div ref={frame} className="relative h-32 overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,oklch(0.93_0.05_60)_0%,oklch(0.9_0.05_20)_55%,oklch(0.86_0.06_330)_100%)] dark:bg-[radial-gradient(120%_120%_at_0%_0%,oklch(0.35_0.06_60)_0%,oklch(0.3_0.06_20)_55%,oklch(0.28_0.06_330)_100%)]">
+      {photo ? <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photo.url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setPhoto(null)} className="size-full object-cover" />
+        <span className="absolute right-1 bottom-1 max-w-[70%] truncate rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
+          {photo.creditUrl ? <a href={photo.creditUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{photo.credit}</a> : photo.credit}
+        </span>
+      </> : (
         <Icon className="absolute top-1/2 left-1/2 size-10 -translate-x-1/2 -translate-y-1/2 text-foreground/25" aria-hidden />
       )}
     </div>

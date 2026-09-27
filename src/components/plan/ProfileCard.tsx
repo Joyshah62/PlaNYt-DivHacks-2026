@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { Check, UserRound } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";
-import { DEFAULT_PROFILE, GROUP, INTERESTS, PACE, WALK_LIMITS } from "@/lib/plan/profile";
+import { DEFAULT_PROFILE, GROUP, groupPeople, INTERESTS, PACE, partySize, WALK_LIMITS } from "@/lib/plan/profile";
 import type { Group, Interest, Pace, Profile } from "@/lib/plan/types";
 import { cn } from "@/lib/utils";
 
 /** One line that says what the profile is doing, so it can stay collapsed. */
 export function profileSummary(p: Profile): string {
-  const parts = [PACE[p.pace].label, GROUP[p.group].label, p.walkMax ? `walks up to ${p.walkMax} min` : null, ...p.interests.map((i) => INTERESTS[i].label)];
+  const people = partySize(p);
+  const parts = [PACE[p.pace].label, p.group !== "unspecified" ? GROUP[p.group].label : null, people && (people > 2 || p.group === "unspecified") ? `${people} ${people === 1 ? "person" : "people"}` : null, p.walkMax ? `walks up to ${p.walkMax} min` : null, ...p.interests.map((i) => INTERESTS[i].label)];
   return parts.filter(Boolean).join(" · ");
 }
 
@@ -55,7 +56,12 @@ export function ProfileCard({ profile, onChange }: { profile: Profile; onChange:
             label="Who's coming"
             value={profile.group}
             // A group comes with a sensible walking limit; the reader can change it just below.
-            onChange={(v: Group) => onChange({ ...profile, group: v, walkMax: GROUP[v].walkMax })}
+            onChange={(v: Group) => {
+              // The old count goes with the old group; solo and couple bring their own.
+              const next: Profile = { ...profile, group: v, walkMax: GROUP[v].walkMax, people: groupPeople(v) };
+              if (next.people === undefined) delete next.people;
+              onChange(next);
+            }}
             options={(Object.keys(GROUP) as Group[]).map((g) => ({ value: g, label: GROUP[g].label }))}
             className="w-fit max-w-full overflow-x-auto"
           />
