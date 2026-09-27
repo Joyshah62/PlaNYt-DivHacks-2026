@@ -4,7 +4,8 @@ import type { PlanRequest } from "@/lib/plan/types";
 import { normalizeHandle } from "./format";
 
 /**
- * POST /send { handle, request } — the website's "Text it to me". Only the
+ * POST /send { handle, request, intro? } — the website's "Text it to me", and a
+ * trip room's approved plan (intro: who approved it). Only the
  * PlaNYt server calls this, with the shared token.
  *
  * Locally binds 127.0.0.1. On Render (PORT set), bind 0.0.0.0 so the web
@@ -16,7 +17,7 @@ export function startBridge(opts: {
   /** Defaults to 127.0.0.1 locally; 0.0.0.0 when PORT is set (Render). */
   host?: string;
   token: string;
-  send: (handle: string, request: PlanRequest) => Promise<void>;
+  send: (handle: string, request: PlanRequest, intro?: string) => Promise<void>;
 }) {
   const host = opts.host ?? (process.env.PHONE_BRIDGE_HOST || (process.env.PORT ? "0.0.0.0" : "127.0.0.1"));
   const expected = Buffer.from(`Bearer ${opts.token}`);
@@ -37,7 +38,7 @@ export function startBridge(opts: {
       raw += chunk;
       if (raw.length > 64_000) return reply(413, { error: "Too large." });
     }
-    let body: { handle?: unknown; request?: PlanRequest };
+    let body: { handle?: unknown; request?: PlanRequest; intro?: unknown };
     try {
       body = JSON.parse(raw);
     } catch {
@@ -47,7 +48,7 @@ export function startBridge(opts: {
     if (!handle) return reply(400, { error: "That doesn't look like a phone number or Apple ID email." });
     if (!body.request?.stops?.length) return reply(400, { error: "There's no plan to send." });
     try {
-      await opts.send(handle, body.request);
+      await opts.send(handle, body.request, typeof body.intro === "string" ? body.intro.slice(0, 300) : undefined);
       reply(200, { ok: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";

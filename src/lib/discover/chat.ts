@@ -89,7 +89,7 @@ const descriptions: Record<keyof typeof schemas, string> = {
   edit_stop: "Change one stop's visit: visitMin sets how long to spend there (\"3 hours at the Met\" is 180); clearStartTime true removes its set start time (a booking they cancelled). Use reschedule_stop to give it a time.",
   reorder_stops: "Put stops in a chosen order by their keys. List them in the order wanted; unlisted stops keep their order after them, so [\"moma\"] means MoMA first. For the best order chosen by the planner, use update_preferences with optimizeOrder true instead.",
   compare_days: "See how this same day works on each of the next few days: finish time, lateness, crowd level and closures per date. The results come back to you; use it for \"which day is best?\" or before moving the date, then set the date with update_preferences if they want.",
-  app_action: "Do something in the app for them: save (save the plan on this device), calendar (download it to their calendar), share_link (copy a link to share), new_plan (start over with a completely different day; text is their description of the new day, in their words). Only when they ask for it.",
+  app_action: "Do something in the app for them: save (save the plan to their trips), calendar (download it to their calendar), share_link (a link to share), new_plan (start over with a completely different day; text is their description of the new day, in their words). Only when they ask for it.",
   resolve_proposal: "Accept or discard the pending preview only when the traveler explicitly asks to apply it or keep the current trip. A yes answering a clarifying question is NOT approval of the preview. Never combine this with other tools; refinements make a new preview. Only available when a pending preview exists.",
   web_search: "Look up current facts on the web that the trip facts don't cover: whether a place is open today or closed, ticket prices, free days, reservations, what's showing or on now, events, or what a named place is like. The results come back to you; answer briefly from them. query is a precise web search naming the place and NYC, e.g. \"MoMA free admission Friday hours\". recent is true for events, exhibits or news. Not for finding places to add: use search_places or lookup_place for that.",
   reply_with_choices: "Ask one short clarifying question, grounded in the trip facts, when a request is too vague to act on without guessing. Plain text, no markdown. Always provide 2–5 short clickable answers; tapping one sends its message as the user, so write each message in the user's own words (\"Add dinner after the 9/11 Memorial\"), never as your reply. Do not claim a change was applied or invent place facts.",
@@ -809,9 +809,9 @@ const DONE = "done";
 /** What the app is about to do, said plainly: "Saving your plan and adding it to your calendar." */
 function actionsDone(actions: AppAction[]): string {
   const said = actions.map((a) =>
-    a.action === "save" ? "saving your plan on this device"
-    : a.action === "calendar" ? "adding it to your calendar"
-    : a.action === "share_link" ? "copying a link you can share"
+    a.action === "save" ? "saving it to your trips"
+    : a.action === "calendar" ? "getting it ready for your calendar"
+    : a.action === "share_link" ? "getting your link ready to share"
     : `starting a new plan for "${a.text}"`);
   const line = said.join(" and ");
   return `${line[0].toUpperCase()}${line.slice(1)}.`;

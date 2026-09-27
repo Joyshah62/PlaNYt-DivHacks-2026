@@ -71,7 +71,7 @@ export function OverlapClock({ people, group }: { people: ClockPerson[]; group: 
       {[0, 6, 12, 18].map((h) => {
         const p = polar(c, c, outer + 14, h * 60);
         return (
-          <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" fill="var(--ed-muted)" fontSize="8px">
+          <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" fill="var(--ed-muted)" fontSize="13px" fontFamily="var(--f-mono)">
             {h === 0 ? "12a" : h === 12 ? "12p" : h < 12 ? `${h}a` : `${h - 12}p`}
           </text>
         );
@@ -83,7 +83,7 @@ export function OverlapClock({ people, group }: { people: ClockPerson[]; group: 
           <g key={p.id}>
             <circle cx={c} cy={c} r={r} fill="none" stroke="var(--hair)" strokeWidth={6} />
             <path d={arc(c, c, r, p.free!.from, p.free!.to)} fill="none" stroke={AVATAR_HEX[p.avatar.color]} strokeWidth={6} strokeLinecap="round" />
-            <text x={end.x} y={end.y} textAnchor="middle" dominantBaseline="central" fontSize="10px">
+            <text x={end.x} y={end.y} textAnchor="middle" dominantBaseline="central" fontSize="14px">
               <title>{p.name}</title>
               {p.avatar.emoji}
             </text>
@@ -91,7 +91,7 @@ export function OverlapClock({ people, group }: { people: ClockPerson[]; group: 
         );
       })}
       {group && (
-        <text x={c} y={c} textAnchor="middle" dominantBaseline="middle" fill="var(--ink)" fontSize="10px" fontWeight="600">
+        <text x={c} y={c} textAnchor="middle" dominantBaseline="middle" fill="var(--ink)" fontSize="16px" fontWeight="600">
           {clock(group.from)}–{clock(group.to)}
         </text>
       )}

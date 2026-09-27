@@ -28,6 +28,7 @@ import {
   subscribeSaved,
   type SavedPlan,
 } from "@/lib/plan/share";
+import { copyText, shareNatively } from "@/lib/plan/shareLink";
 import { clock, duration, nycToday, toHHMM, toMinutes, weekdayOf, WEEKDAYS } from "@/lib/plan/time";
 import type {
   AssistantResult,
@@ -141,6 +142,11 @@ async function routedLegs(plan: DayPlan): Promise<KeyedLeg[]> {
       }
     }),
   );
+}
+
+/** Tells the account about a saved-trip change; this device's list already has it. */
+function syncSaved(body: { action: "save"; plan: SavedPlan } | { action: "remove"; id: string } | { action: "import"; plans: SavedPlan[] }) {
+  void fetch("/api/saved-trips", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
 }
 
 /** A name for a saved plan: "Sat, Sep 26 · The Met, MoMA +2". */
@@ -274,6 +280,7 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
   const [shareNote, setShareNote] = useState<string | null>(null);
   const savedRaw = useSyncExternalStore(subscribeSaved, readSavedRaw, () => "[]");
   const savedPlans = useMemo(() => parseSaved(savedRaw), [savedRaw]);
+  const [allSaved, setAllSaved] = useState(false);
   // The traveler profile lives on this device; a shared link can bring its own for this visit.
   const storedProfileRaw = useSyncExternalStore(subscribeProfile, readProfileRaw, () => "");
   const [profileOverride, setProfileOverride] = useState<Profile | null>(() =>
@@ -723,26 +730,69 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
     window.setTimeout(() => setShareNote((n) => (n === text ? null : n)), 2500);
   }
 
+  function removeSaved(p: SavedPlan) {
+    storeSaved(savedPlans.filter((x) => x.id !== p.id));
+    syncSaved({ action: "remove", id: p.id });
+  }
+
   function savePlan() {
     if (!plan || !planCode) return;
     if (isSaved) {
-      storeSaved(savedPlans.filter((p) => p.code !== planCode));
-      return note("Removed from saved plans");
+      const gone = savedPlans.find((p) => p.code === planCode)!;
+      removeSaved(gone);
+      return note("Removed from saved trips");
     }
-    const entry: SavedPlan = { id: `${Date.now().toString(36)}`, title: planTitle(plan.request), savedAt: new Date().toISOString(), code: planCode };
-    note(storeSaved([entry, ...savedPlans]) ? "Saved on this device" : "Couldn't save here. Copy the link instead.");
+    ensureSaved();
   }
+
+  /** Saves the day unless it already is (the chat's "save it" never un-saves). */
+  function ensureSaved() {
+    if (!plan || !planCode) return;
+    if (isSaved) return note("Already in your saved trips");
+    const entry: SavedPlan = { id: `${Date.now().toString(36)}`, title: planTitle(plan.request), savedAt: new Date().toISOString(), code: planCode };
+    if (!storeSaved([entry, ...savedPlans])) return note("Couldn't save here. Copy the link instead.");
+    syncSaved({ action: "save", plan: entry });
+    note("Saved to your trips");
+  }
+
+  const planUrl = () => `${window.location.origin}/plan?plan=${planCode}`;
 
   async function sharePlan() {
     if (!planCode) return;
-    const url = `${window.location.origin}/plan?plan=${planCode}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      note("Link copied");
-    } catch {
-      window.prompt("Copy this link", url);
-    }
+    const url = planUrl();
+    if (await copyText(url)) return note("Link copied");
+    // Last resort: the link, selected, for a long-press copy.
+    window.prompt("Copy this link", url);
   }
+
+  async function sharePlanNatively() {
+    if (!plan || !planCode) return;
+    const result = await shareNatively(planTitle(plan.request), planUrl());
+    if (result === "failed") await sharePlan();
+  }
+
+  // Saved trips follow the account: this device's list and the account's (including days agreed
+  // with friends) merge both ways. One synced before but gone from the account was deleted elsewhere.
+  useEffect(() => {
+    let gone = false;
+    void (async () => {
+      const res = await fetch("/api/saved-trips").catch(() => null);
+      if (!res?.ok || gone) return;
+      const { plans } = (await res.json()) as { plans: SavedPlan[] };
+      const local = parseSaved(readSavedRaw());
+      const same = (a: SavedPlan, b: SavedPlan) => a.id === b.id || a.code === b.code;
+      const kept = local.filter((p) => !p.synced || plans.some((q) => same(p, q)));
+      const upload = kept.filter((p) => !plans.some((q) => same(p, q)));
+      if (upload.length) syncSaved({ action: "import", plans: upload });
+      const merged = [...kept, ...plans.filter((q) => !kept.some((p) => same(p, q)))]
+        .map((p) => ({ ...p, synced: true }))
+        .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+      if (!gone) storeSaved(merged);
+    })();
+    return () => {
+      gone = true;
+    };
+  }, []);
 
   function openSaved(p: SavedPlan) {
     const r = decodePlan(p.code);
@@ -897,6 +947,7 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
                   onDismissNote={() => setAssistant(null)}
                   onSave={savePlan}
                   onShare={sharePlan}
+                  onNativeShare={sharePlanNatively}
                   onCalendar={downloadCalendar}
                   forecast={forecast}
                   photos={photos}
@@ -1059,19 +1110,24 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
 
                 {savedPlans.length > 0 && (
                   <div className="pl-folds">
-                    <Fold kicker="Saved on this device" title={<>Pick up <em>where you left off</em></>} summary={`${savedPlans.length} saved ${savedPlans.length === 1 ? "plan" : "plans"}: ${savedPlans[0].title}${savedPlans.length > 1 ? "…" : ""}`}>
+                    <Fold kicker="Your saved trips" title={<>Pick up <em>where you left off</em></>} summary={`${savedPlans.length} saved ${savedPlans.length === 1 ? "trip" : "trips"}: ${savedPlans[0].title}${savedPlans.length > 1 ? "…" : ""}`}>
                       <ul className="pl-saved">
-                        {savedPlans.slice(0, 5).map((p) => (
+                        {(allSaved ? savedPlans : savedPlans.slice(0, 5)).map((p) => (
                           <li key={p.id}>
                             <button type="button" onClick={() => openSaved(p)} disabled={planning} className="name">
                               {p.title}
                             </button>
-                            <button type="button" onClick={() => storeSaved(savedPlans.filter((x) => x.id !== p.id))} className="pl-icon" aria-label={`Delete saved plan ${p.title}`}>
+                            <button type="button" onClick={() => removeSaved(p)} className="pl-icon" aria-label={`Delete saved trip ${p.title}`}>
                               <Trash2 aria-hidden />
                             </button>
                           </li>
                         ))}
                       </ul>
+                      {savedPlans.length > 5 && (
+                        <button type="button" onClick={() => setAllSaved((v) => !v)} className="pl-textbtn pl-mono mt-2">
+                          {allSaved ? "Show fewer" : `Show all ${savedPlans.length}`}
+                        </button>
+                      )}
                     </Fold>
                   </div>
                 )}
@@ -1251,7 +1307,7 @@ export function PlannerView({ initialPrompt, initialPlan, account }: { initialPr
         {plan && (
           <div hidden={!showingPlan}>
             <Assistant unread={unread} onOpenChange={onAssistantOpen} handle={assistantHandle}>
-              <TripChat plan={plan} discover={discover} planning={planning || stale} onApply={applyChatPlan} onReply={() => !assistantOpen.current && setUnread(true)} onView={(place) => {
+              <TripChat plan={plan} discover={discover} planning={planning || stale} onApply={applyChatPlan} onAction={(a) => (a === "save" ? ensureSaved() : a === "calendar" ? downloadCalendar() : void sharePlan())} onReply={() => !assistantOpen.current && setUnread(true)} onView={(place) => {
                 assistantHandle.current?.close();
                 setPeek(place);
               }} />

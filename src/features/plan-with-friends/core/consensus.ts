@@ -1,18 +1,20 @@
 import type { PlanRequest } from "../bridge/index";
 
-export type ConsensusReason = "no-draft" | "waiting" | "unanimous" | "majority-after-deadline";
+/** "everyone-in": every member but the host is in, so the host can approve with the whole group behind it. */
+export type ConsensusReason = "no-draft" | "waiting" | "everyone-in";
 
+/**
+ * Where the group stands on the current day. Members say "I'm in"; only the
+ * host's approval locks the plan (see the service), so nothing here decides.
+ */
 export interface Consensus {
   signature: string | null;
   confirmed: string[];
   /** Confirmed an earlier version of the day; they need to look again. */
   stale: string[];
   pending: string[];
+  /** Members asked for an I'm in: everyone but the host. */
   total: number;
-  needed: number;
-  deadline: number | null;
-  deadlinePassed: boolean;
-  shouldLock: boolean;
   reason: ConsensusReason;
 }
 
@@ -38,25 +40,14 @@ export function draftSignature(request: PlanRequest): string {
   return hash(JSON.stringify(request));
 }
 
-export function consensus(input: {
-  members: string[];
-  confirmations: Record<string, string>;
-  draft: PlanRequest | null;
-  deadline: number | null;
-  now: number;
-}): Consensus {
-  const { members, confirmations, draft, deadline, now } = input;
+/** `members` excludes the host, who approves rather than saying I'm in. */
+export function consensus(input: { members: string[]; confirmations: Record<string, string>; draft: PlanRequest | null }): Consensus {
+  const { members, confirmations, draft } = input;
   const total = members.length;
-  const deadlinePassed = deadline !== null && now >= deadline;
-  const needed = deadlinePassed ? Math.floor(total / 2) + 1 : total;
-  if (!draft) {
-    return { signature: null, confirmed: [], stale: [], pending: [...members], total, needed, deadline, deadlinePassed, shouldLock: false, reason: "no-draft" };
-  }
+  if (!draft) return { signature: null, confirmed: [], stale: [], pending: [...members], total, reason: "no-draft" };
   const signature = draftSignature(draft);
   const confirmed = members.filter((m) => confirmations[m] === signature);
   const stale = members.filter((m) => confirmations[m] !== undefined && confirmations[m] !== signature);
   const pending = members.filter((m) => confirmations[m] !== signature);
-  const shouldLock = total > 0 && confirmed.length >= needed;
-  const reason = !shouldLock ? "waiting" : confirmed.length === total ? "unanimous" : "majority-after-deadline";
-  return { signature, confirmed, stale, pending, total, needed, deadline, deadlinePassed, shouldLock, reason };
+  return { signature, confirmed, stale, pending, total, reason: pending.length ? "waiting" : "everyone-in" };
 }

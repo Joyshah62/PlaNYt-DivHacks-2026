@@ -39,12 +39,11 @@ describe.skipIf(!uri)("mongo backend (live Atlas)", () => {
     const idea = await svc.addIdea(trip.id, memberId, "dessert later?");
     const voted2 = await svc.voteIdea(trip.id, host, idea.ideas[0].id, true);
     expect(voted2.ideas.map((i) => [i.text, i.votes])).toEqual([["dessert later?", [host]]]);
-    await svc.setDeadline(trip.id, host, Date.now() + 3600_000);
-    expect((await svc.confirm(trip.id, host, true)).lockedCode).toBeNull();
-    const locked = await svc.confirm(trip.id, memberId, true);
-    expect(locked.consensus.reason).toBe("unanimous");
+    const inNow = await svc.confirm(trip.id, memberId, true);
+    expect(inNow.consensus.reason).toBe("everyone-in");
+    expect(inNow.lockedCode).toBeNull();
+    const locked = await svc.approve(trip.id, host);
     expect(locked.lockedCode).toEqual(expect.any(String));
-    expect(locked.deadline).toEqual(expect.any(Number));
     expect((await svc.get(trip.id)).lockedCode).toBe(locked.lockedCode);
 
     const indexes = await db.collection("trips").indexes();

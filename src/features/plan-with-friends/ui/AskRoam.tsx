@@ -4,15 +4,21 @@ import { ArrowRight, Loader2, X } from "lucide-react";
 import { useState, type SubmitEvent } from "react";
 import type { StopInput } from "../bridge/index";
 import type { SuggestionItem } from "../core/suggestions";
+import type { Trip } from "../core/types";
 import { tripApi } from "./client";
 import { SuggestionCarousel } from "./SuggestionCarousel";
 
-/** The landing page's "describe it" box, for the group: Gemini reads the room and suggests places to add. */
-export function AskRoam({ tripId, memberId, addedKeys, onAdd }: { tripId: string; memberId: string; addedKeys: Set<string>; onAdd: (stop: StopInput) => unknown }) {
+type Answer = { reply: string; items: SuggestionItem[]; usedAi: boolean; planned?: boolean; trip?: Trip };
+
+/**
+ * The landing page's "describe it" box, for the group: Gemini reads the room and suggests places to add.
+ * The host's request plans the day itself (`plans`), and the room shows it straight away (`onPlanned`).
+ */
+export function AskRoam({ tripId, memberId, addedKeys, onAdd, plans = false, onPlanned }: { tripId: string; memberId: string; addedKeys: Set<string>; onAdd: (stop: StopInput) => unknown; plans?: boolean; onPlanned?: (trip: Trip) => void }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ reply: string; items: SuggestionItem[]; usedAi: boolean } | null>(null);
+  const [result, setResult] = useState<Answer | null>(null);
 
   async function ask(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -22,7 +28,9 @@ export function AskRoam({ tripId, memberId, addedKeys, onAdd }: { tripId: string
     setError(null);
     setResult(null);
     try {
-      setResult(await tripApi<{ reply: string; items: SuggestionItem[]; usedAi: boolean }>(`/${tripId}/ask`, { memberId, text: q }));
+      const answer = await tripApi<Answer>(`/${tripId}/ask`, { memberId, text: q });
+      setResult(answer);
+      if (answer.trip) onPlanned?.(answer.trip);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Roam AI couldn't answer that right now.");
     } finally {
@@ -44,14 +52,14 @@ export function AskRoam({ tripId, memberId, addedKeys, onAdd }: { tripId: string
           }}
           rows={2}
           maxLength={600}
-          placeholder="Something artsy in the afternoon, then dessert near where we meet…"
+          placeholder={plans ? "Breakfast at 9, then the Met, then dinner in the West Village…" : "Something artsy in the afternoon, then dessert near where we meet…"}
           aria-label="Ask Roam AI for places"
         />
         <div className="tr-ask-foot">
-          <span className="ed-small ed-muted">Ask Roam AI: it knows your times, meeting spot and votes</span>
+          <span className="ed-small ed-muted">{plans ? "Describe the day and Roam AI plans it. Everyone can still vote and change it." : "Ask Roam AI: it knows your times, meeting spot and votes"}</span>
           <button type="submit" disabled={busy || text.trim().length < 3} className="ed-btn">
             {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
-            {busy ? "Thinking" : "Ask"}
+            {busy ? "Thinking" : plans ? "Plan it" : "Ask"}
             {!busy && <ArrowRight aria-hidden />}
           </button>
         </div>
@@ -69,7 +77,7 @@ export function AskRoam({ tripId, memberId, addedKeys, onAdd }: { tripId: string
               {!result.usedAi && <span className="ed-muted">Roam AI isn&apos;t available right now, so these match your words.</span>}
             </p>
           )}
-          <SuggestionCarousel items={result?.items ?? []} addedKeys={addedKeys} onAdd={(item) => onAdd(item.stop)} loading={busy} error={error} emptyText="Nothing matched. Try other words." />
+          <SuggestionCarousel items={result?.items ?? []} addedKeys={addedKeys} onAdd={(item) => onAdd(item.stop)} loading={busy} error={error} emptyText={result?.planned ? "" : "Nothing matched. Try other words."} />
         </div>
       )}
     </section>

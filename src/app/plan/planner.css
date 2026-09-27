@@ -308,11 +308,6 @@
 .pl-meal-mark svg { width: 1em; height: 1em; }
 .pl-end { padding: var(--s-1) 0; font-size: var(--t-small); display: flex; align-items: baseline; gap: var(--s-1); }
 
-/* Crowd bars: ink, with the planned visit in red. */
-.pl-bars { display: flex; align-items: end; gap: 2px; height: clamp(22px, 1.6vw, 34px); }
-.pl-bars span { flex: 1; background: var(--ink); opacity: 0.16; }
-.pl-bars span.on { background: var(--red); opacity: 1; }
-.pl-bars-axis { display: flex; justify-content: space-between; margin-top: 0.4em; color: var(--ed-muted); }
 
 /* Best day to go: the next two weeks as a ruled strip. */
 .pl-days { display: flex; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; border-block: 1px solid var(--rule); }

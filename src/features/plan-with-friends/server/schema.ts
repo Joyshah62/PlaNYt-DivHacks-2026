@@ -38,4 +38,4 @@ export const FreeBody = z.object({ memberId: Claim, free: Free.nullable() });
 export const ItineraryBody = z.object({ memberId: Claim, order: z.array(z.string().min(1).max(80)).max(30) });
 export const RegenerateBody = z.object({ memberId: Claim });
 export const ConfirmBody = z.object({ memberId: Claim, on: z.boolean() });
-export const DeadlineBody = z.object({ memberId: Claim, at: z.number().int().nullable() });
+export const ApproveBody = z.object({ memberId: Claim });

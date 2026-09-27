@@ -1,26 +1,9 @@
 "use client";
 
-import { Check, Clock } from "lucide-react";
+import { Check } from "lucide-react";
 import Link from "next/link";
-import { clock } from "../bridge/index";
 import type { Trip } from "../core/types";
 import { AvatarStack } from "./Avatar";
-
-function deadlineOptions(now: Date): { label: string; at: number }[] {
-  const at = (h: number, m = 0, dayOffset = 0) => {
-    const d = new Date(now);
-    d.setDate(d.getDate() + dayOffset);
-    d.setHours(h, m, 0, 0);
-    return d.getTime();
-  };
-  const opts = [
-    { label: "In 1 hour", at: now.getTime() + 3600_000 },
-    { label: "In 3 hours", at: now.getTime() + 3 * 3600_000 },
-    { label: "Tonight 8pm", at: at(20) },
-    { label: "Tomorrow noon", at: at(12, 0, 1) },
-  ];
-  return opts.filter((o) => o.at > now.getTime());
-}
 
 function Confetti() {
   const bits = Array.from({ length: 18 }, (_, i) => i);
@@ -42,28 +25,35 @@ function Confetti() {
   );
 }
 
+/**
+ * The bar along the bottom. Members say "I'm in" to the day as it is; the host
+ * sees who's in and approves, which makes the day final and texts it to everyone.
+ */
 export function ConsensusBar({
   trip,
   memberId,
   hasDraft,
   busy,
   onConfirm,
-  onDeadline,
+  onApprove,
 }: {
   trip: Trip;
   memberId: string | null;
   hasDraft: boolean;
   busy: boolean;
   onConfirm: (on: boolean) => void;
-  onDeadline: (at: number | null) => void;
+  onApprove: () => void;
 }) {
   const c = trip.consensus;
   const people = Object.entries(trip.members)
     .sort((a, b) => a[1].joinedAt - b[1].joinedAt)
     .map(([id, m]) => ({ id, ...m }));
+  const host = trip.members[trip.hostId]?.name ?? "The host";
+  const isHost = !!memberId && memberId === trip.hostId;
   const mine = !!memberId && c.confirmed.includes(memberId);
   const staleMine = !!memberId && c.stale.includes(memberId);
   const waitingOn = c.pending.map((id) => trip.members[id]?.avatar.emoji).filter(Boolean).join(" ");
+  const inCount = `${c.confirmed.length} of ${c.total} ${c.total === 1 ? "is" : "are"} in`;
 
   if (trip.lockedCode) {
     return (
@@ -71,13 +61,10 @@ export function ConsensusBar({
         <Confetti />
         <AvatarStack people={people} />
         <p className="tr-consensus-content tr-consensus-status">
-          <strong>{c.reason === "majority-after-deadline" ? "Decided by majority 🎉" : "Everyone's in 🎉"}</strong>
-          <span className="ed-muted"> This is the day.</span>
+          <strong>{isHost ? "You approved the plan 🎉" : `${host} approved the plan 🎉`}</strong>
+          <span className="ed-muted"> This is the day. Everyone with a phone number on their account gets it by text.</span>
         </p>
-        <Link
-          href={`/plan?plan=${trip.lockedCode}`}
-          className="ed-btn ed-small"
-        >
+        <Link href={`/plan?plan=${trip.lockedCode}`} className="ed-btn ed-small">
           Open in planner →
         </Link>
       </div>
@@ -86,65 +73,41 @@ export function ConsensusBar({
 
   const status = !hasDraft
     ? "Vote for a place first."
-    : c.total === 1
-      ? "You're the only one here. Invite friends, or tap I'm in to lock it yourself."
+    : isHost
+      ? c.total === 0
+        ? "Invite friends, or approve the plan when it looks right."
+        : c.pending.length
+          ? `${inCount} · waiting on ${waitingOn}. Approve when you're ready.`
+          : "Everyone's in. Approve the plan to make it final."
       : staleMine
-        ? "The day changed. Tap I'm in again."
-        : `${c.confirmed.length} of ${c.total} are in${waitingOn ? ` · waiting on ${waitingOn}` : ""}`;
+        ? "The day changed. Tap I'm in again if it still works for you."
+        : mine
+          ? `You're in. ${host} approves the final plan.`
+          : `Tap I'm in if this day works for you. ${host} approves the final plan.`;
+
+  function approve() {
+    // Approving is final for everyone, so a day not everyone has seen gets a second look.
+    if (c.pending.length && !window.confirm(`${c.pending.length === 1 ? "One person hasn't" : `${c.pending.length} people haven't`} said I'm in yet. Approve the plan anyway? It will be final, and everyone gets it by text.`)) return;
+    onApprove();
+  }
 
   return (
     <div className="tr-consensus">
       <AvatarStack people={people} dimmed={c.pending} />
       <div className="tr-consensus-content">
         <p className="tr-consensus-status">{status}</p>
-        <p className="tr-consensus-deadline">
-          <Clock className="size-3" aria-hidden />
-          {c.deadline ? (
-            <>
-              {c.deadlinePassed ? "Deadline passed · a majority is enough now" : `Decide by ${clock(new Date(c.deadline).getHours() * 60 + new Date(c.deadline).getMinutes())} · then a majority is enough`}
-              {memberId && (
-                <button type="button" className="tr-consensus-deadline-clear" onClick={() => onDeadline(null)}>
-                  clear
-                </button>
-              )}
-            </>
-          ) : memberId ? (
-            <label className="tr-consensus-deadline-picker">
-              Set a deadline:
-              <select
-                className="tr-consensus-deadline-select"
-                value=""
-                onChange={(e) => e.target.value && onDeadline(Number(e.target.value))}
-                aria-label="Set a deadline"
-              >
-                <option value="">none</option>
-                {deadlineOptions(new Date()).map((o) => (
-                  <option key={o.label} value={o.at}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            "No deadline"
-          )}
-        </p>
+        {!isHost && hasDraft && c.total > 0 && <p className="tr-consensus-note">{inCount}</p>}
       </div>
-      {memberId && (
-        <button
-          type="button"
-          onClick={() => onConfirm(!mine)}
-          disabled={busy || (!mine && !hasDraft)}
-          className={`tr-in ${mine ? "on" : ""}`}
-        >
-          {mine ? (
-            <>
-              <Check className="size-4" aria-hidden /> I&apos;m in
-            </>
-          ) : (
-            "I'm in"
-          )}
+      {isHost ? (
+        <button type="button" onClick={approve} disabled={busy || !hasDraft} className="tr-in">
+          <Check className="size-4" aria-hidden /> Approve plan
         </button>
+      ) : (
+        memberId && (
+          <button type="button" onClick={() => onConfirm(!mine)} disabled={busy || (!mine && !hasDraft)} aria-pressed={mine} className={`tr-in ${mine ? "on" : ""}`}>
+            {mine && <Check className="size-4" aria-hidden />} I&apos;m in
+          </button>
+        )
       )}
     </div>
   );

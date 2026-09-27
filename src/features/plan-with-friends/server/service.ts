@@ -20,7 +20,6 @@ export class TripError extends Error {
 }
 
 const LOCKED = "This plan is locked.";
-const MAX_DEADLINE_MS = 14 * 24 * 60 * 60 * 1000;
 const newId = (bytes: number) => randomBytes(bytes).toString("base64url");
 
 export interface CreateTripInput {
@@ -40,7 +39,6 @@ function upgradeMeta(stored: StoredMeta): TripMeta {
     createdAt: stored.createdAt,
     hostId: stored.hostId ?? stored.organizerId ?? "",
     settings: stored.settings,
-    deadline: stored.deadline ?? null,
     lockedCode: stored.lockedCode,
     itinerary: stored.itinerary ?? null,
   };
@@ -52,8 +50,8 @@ function upgradeMember(memberId: string, stored: StoredMember): Member {
 
 /** What a trip room tells the rest of the app. */
 export interface TripHooks {
-  /** The group agreed and the day is final: called once per trip, with every member's id. */
-  onLock?(trip: { id: string; title: string; code: string; memberIds: string[] }): Promise<void> | void;
+  /** The host approved the day, which is now final: called once per trip, with every member's id. */
+  onLock?(trip: { id: string; title: string; date: string; code: string; memberIds: string[]; hostName: string }): Promise<void> | void;
 }
 
 /** A trip as listed on someone's account. */
@@ -107,21 +105,10 @@ export function createTripService(db: TripBackend, now: () => number = Date.now,
     const draft = dayStops.length
       ? withGroupStart({ ...settings, stops: meetupPick ? [...dayStops, meetupPick.stop] : dayStops, ...(itinerary.manual ? { keepOrder: true } : {}) }, itinerary.manual ? null : (fairness?.firstStop ?? null))
       : null;
-    const memberIds = Object.keys(members).sort((a, b) => members[a].joinedAt - members[b].joinedAt);
-    const c = consensus({ members: memberIds, confirmations, draft, deadline: meta.deadline, now: now() });
-    let lockedCode = meta.lockedCode;
-    // Group agreement locks the plan the first time anyone looks after it's reached.
-    if (!lockedCode && c.shouldLock && draft) {
-      const code = encodePlan(draft);
-      if (await db.lock(id, code)) {
-        lockedCode = code;
-        // Only the request that locked it tells anyone, so this runs once; a failure never blocks the room.
-        Promise.resolve(hooks.onLock?.({ id, title: meta.title, code, memberIds: Object.keys(members) })).catch((error: unknown) => {
-          console.error("[trips] after locking:", error instanceof Error ? error.message : error);
-        });
-      } else lockedCode = (await db.getMeta(id))?.lockedCode ?? code;
-    }
-    const trip: Trip = { ...partial, ideas: ideaList.ideas, deadline: meta.deadline, confirmations, consensus: c, draft, fairness, window, itinerary, lockedCode };
+    // Everyone but the host says I'm in; the host approves.
+    const memberIds = Object.keys(members).sort((a, b) => members[a].joinedAt - members[b].joinedAt).filter((m) => m !== meta.hostId);
+    const c = consensus({ members: memberIds, confirmations, draft });
+    const trip: Trip = { ...partial, ideas: ideaList.ideas, confirmations, consensus: c, draft, fairness, window, itinerary, lockedCode: meta.lockedCode };
     return { meta, trip, basis };
   }
 
@@ -150,7 +137,7 @@ export function createTripService(db: TripBackend, now: () => number = Date.now,
       const id = newId(8).slice(0, 10);
       const memberId = input.memberId ?? newId(9);
       const at = now();
-      await db.setMeta({ id, title: input.title, createdAt: at, hostId: memberId, settings: input.settings, deadline: null, lockedCode: null });
+      await db.setMeta({ id, title: input.title, createdAt: at, hostId: memberId, settings: input.settings, lockedCode: null });
       await db.setMember(id, memberId, { name: input.name, avatar: input.avatar, joinedAt: at });
       for (const [i, stop] of input.stops.entries()) {
         if (await db.addCandidate(id, { stop, addedBy: memberId, addedAt: at + i })) await db.setVote(id, stop.key, memberId, true);
@@ -251,17 +238,28 @@ export function createTripService(db: TripBackend, now: () => number = Date.now,
       return saved(id);
     },
 
+    /** A member's "I'm in" for the day as it is now: what the host sees before approving. */
     async confirm(id: string, memberId: string, on: boolean) {
       const { trip } = await editable(id, memberId);
+      if (memberId === trip.hostId) throw new TripError(400, "As the host, approve the plan when it's ready.");
       if (on && !trip.consensus.signature) throw new TripError(400, "Vote for a place first.");
       await db.setConfirmation(id, memberId, on ? trip.consensus.signature : null);
       return saved(id);
     },
 
-    async setDeadline(id: string, memberId: string, at: number | null) {
-      await editable(id, memberId);
-      if (at !== null && (at <= now() || at > now() + MAX_DEADLINE_MS)) throw new TripError(400, "Pick a deadline in the next two weeks.");
-      await db.setDeadline(id, at);
+    /** The host's call: the day as it is now becomes final, whoever has said I'm in. Tells everyone once. */
+    async approve(id: string, memberId: string) {
+      const { trip } = await editable(id, memberId);
+      if (memberId !== trip.hostId) throw new TripError(403, "Only the host can approve the plan.");
+      if (!trip.draft) throw new TripError(400, "Vote for a place first.");
+      const code = encodePlan(trip.draft);
+      // Only the request that locks it tells anyone, so this runs once; a failure never blocks the room.
+      if (await db.lock(id, code)) {
+        const members = Object.keys(trip.members);
+        Promise.resolve(hooks.onLock?.({ id, title: trip.title, date: trip.settings.date, code, memberIds: members, hostName: trip.members[memberId].name })).catch((error: unknown) => {
+          console.error("[trips] after approving:", error instanceof Error ? error.message : error);
+        });
+      }
       return saved(id);
     },
   };

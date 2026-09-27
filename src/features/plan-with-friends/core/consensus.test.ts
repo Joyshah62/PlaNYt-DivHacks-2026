@@ -18,8 +18,7 @@ const draft: PlanRequest = {
   meals: { lunch: false, dinner: false },
 };
 const sig = draftSignature(draft);
-const NOW = 1_000_000;
-const base = { members: ["a", "b", "c"], draft, deadline: null, now: NOW };
+const base = { members: ["a", "b", "c"], draft };
 
 describe("draftSignature", () => {
   it("is stable for identical requests", () => {
@@ -33,40 +32,28 @@ describe("draftSignature", () => {
 });
 
 describe("consensus", () => {
-  it("locks when everyone confirmed the current draft", () => {
+  it("says when everyone asked is in, without locking anything", () => {
     const c = consensus({ ...base, confirmations: { a: sig, b: sig, c: sig } });
-    expect(c).toMatchObject({ shouldLock: true, reason: "unanimous", confirmed: ["a", "b", "c"], pending: [], needed: 3 });
+    expect(c).toMatchObject({ reason: "everyone-in", confirmed: ["a", "b", "c"], pending: [], total: 3 });
+    expect(c).not.toHaveProperty("shouldLock");
   });
 
-  it("waits while someone hasn't confirmed, and lists them", () => {
+  it("waits on whoever hasn't said I'm in", () => {
     const c = consensus({ ...base, confirmations: { a: sig, b: sig } });
-    expect(c).toMatchObject({ shouldLock: false, reason: "waiting", pending: ["c"] });
+    expect(c).toMatchObject({ reason: "waiting", pending: ["c"] });
   });
 
-  it("ignores confirmations of an older draft", () => {
-    const c = consensus({ ...base, confirmations: { a: sig, b: sig, c: "old-signature" } });
-    expect(c.shouldLock).toBe(false);
-    expect(c.confirmed).toEqual(["a", "b"]);
-    expect(c.stale).toEqual(["c"]);
+  it("marks confirmations of an earlier day as stale", () => {
+    const c = consensus({ ...base, confirmations: { a: sig, b: "old" } });
+    expect(c).toMatchObject({ confirmed: ["a"], stale: ["b"], pending: ["b", "c"] });
   });
 
-  it("lets a majority lock once the deadline has passed", () => {
-    const c = consensus({ ...base, deadline: NOW - 1, confirmations: { a: sig, b: sig } });
-    expect(c).toMatchObject({ shouldLock: true, reason: "majority-after-deadline", needed: 2, deadlinePassed: true });
+  it("has nothing to confirm without a day", () => {
+    const c = consensus({ ...base, draft: null, confirmations: {} });
+    expect(c).toMatchObject({ reason: "no-draft", signature: null, confirmed: [] });
   });
 
-  it("needs more than half after the deadline, not exactly half", () => {
-    const c = consensus({ ...base, members: ["a", "b", "c", "d"], deadline: NOW - 1, confirmations: { a: sig, b: sig } });
-    expect(c).toMatchObject({ shouldLock: false, needed: 3 });
-  });
-
-  it("still needs everyone before the deadline", () => {
-    const c = consensus({ ...base, deadline: NOW + 60_000, confirmations: { a: sig, b: sig } });
-    expect(c).toMatchObject({ shouldLock: false, needed: 3, deadlinePassed: false });
-  });
-
-  it("never locks without a draft", () => {
-    const c = consensus({ ...base, draft: null, confirmations: { a: sig, b: sig, c: sig } });
-    expect(c).toMatchObject({ shouldLock: false, reason: "no-draft", signature: null, confirmed: [] });
+  it("is everyone-in for a host alone, who has no one to wait on", () => {
+    expect(consensus({ members: [], draft, confirmations: {} })).toMatchObject({ reason: "everyone-in", total: 0 });
   });
 });
