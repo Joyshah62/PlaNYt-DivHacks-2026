@@ -22,8 +22,16 @@ export interface EngineEnv {
   webgl: boolean;
   saveData: boolean;
   deviceMemory: number | undefined;
-  /** NEXT_PUBLIC_MAP_ENGINE=maplibre: use the free map everywhere (local development). */
-  forced?: "maplibre";
+  /** NEXT_PUBLIC_MAP_ENGINE: "maplibre" (free, local development) or "google" (demos, hosting). */
+  forced?: Engine;
+}
+
+export type Engine = "google" | "maplibre";
+
+/** Reads NEXT_PUBLIC_MAP_ENGINE; anything other than maplibre/google means "automatic". */
+export function parseEngine(value: string | undefined): Engine | undefined {
+  const v = value?.trim().toLowerCase();
+  return v === "maplibre" || v === "google" ? v : undefined;
 }
 
 export const isLite = (env: EngineEnv) => env.saveData || (env.deviceMemory !== undefined && env.deviceMemory <= 2);
@@ -31,6 +39,7 @@ export const isLite = (env: EngineEnv) => env.saveData || (env.deviceMemory !== 
 export function chooseEngine(env: EngineEnv, role: MapRole): "google" | "maplibre" | "none" {
   if (!env.webgl) return "none";
   if (env.forced === "maplibre" || !env.hasKey) return "maplibre";
+  if (env.forced === "google") return "google";
   if (role === "secondary" && isLite(env)) return "maplibre";
   return "google";
 }
@@ -73,7 +82,7 @@ export function readEnv(): EngineEnv {
     webgl,
     saveData: !!nav.connection?.saveData,
     deviceMemory: nav.deviceMemory,
-    forced: process.env.NEXT_PUBLIC_MAP_ENGINE === "maplibre" ? "maplibre" : undefined,
+    forced: parseEngine(process.env.NEXT_PUBLIC_MAP_ENGINE),
   };
 }
 

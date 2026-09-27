@@ -5,9 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { formatTicker } from "./camera";
 import { isLite, readEnv } from "./cityMap";
-import { HERO, HERO_LINKS, ORBIT_SECONDS } from "./data";
+import { HERO, ORBIT_SECONDS } from "./data";
 import { DIVE_TIMING, diveFrame, measureDiveOrigin, type DiveOrigin } from "./diveOrigin";
 import { HomePrompt } from "./HomePrompt";
+import { PresetFlip } from "./PresetFlip";
 import { InlineScript } from "./InlineScript";
 import { useCityMap } from "./useCityMap";
 import { useInView, usePageVisible, usePrefersReducedMotion } from "./visibility";
@@ -177,11 +178,7 @@ export function HeroStage() {
         </h1>
         <div className="ed-late ed-late--2">
           <HomePrompt />
-          <ul className="ed-chips">
-            {HERO_LINKS.map((l) => (
-              <li key={l.label}><Link href={{ pathname: "/plan", query: { q: l.query } }}>{l.label}</Link></li>
-            ))}
-          </ul>
+          <PresetFlip active={onScreen && pageVisible} />
         </div>
       </div>
       <span className="ed-caption ed-mono" aria-hidden>Plate I · Midtown Manhattan, live</span>

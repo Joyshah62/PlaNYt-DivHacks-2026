@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chooseEngine, isLite, visibleTimeout, type EngineEnv } from "./cityMap";
+import { chooseEngine, isLite, parseEngine, visibleTimeout, type EngineEnv } from "./cityMap";
 
 /** A stand-in for `document` whose visibility the test controls. */
 function fakeDoc(hidden: boolean) {
@@ -55,6 +55,14 @@ describe("chooseEngine", () => {
     expect(chooseEngine(dev, "hero")).toBe("maplibre");
     expect(chooseEngine(dev, "secondary")).toBe("maplibre");
   });
+  it("uses Google everywhere when NEXT_PUBLIC_MAP_ENGINE=google, even for lite devices", () => {
+    const demo = { ...good, saveData: true, forced: "google" as const };
+    expect(chooseEngine(demo, "hero")).toBe("google");
+    expect(chooseEngine(demo, "secondary")).toBe("google");
+  });
+  it("can't use Google without a key, even when asked to", () => {
+    expect(chooseEngine({ ...good, hasKey: false, forced: "google" }, "hero")).toBe("maplibre");
+  });
   it("still renders nothing without WebGL, even when forced", () => {
     expect(chooseEngine({ ...good, webgl: false, forced: "maplibre" }, "hero")).toBe("none");
   });
@@ -63,6 +71,18 @@ describe("chooseEngine", () => {
     expect(chooseEngine(saver, "hero")).toBe("google");
     expect(chooseEngine(saver, "secondary")).toBe("maplibre");
     expect(chooseEngine({ ...good, deviceMemory: 2 }, "secondary")).toBe("maplibre");
+  });
+});
+
+describe("parseEngine", () => {
+  it("reads maplibre / google, ignoring case and spaces", () => {
+    expect(parseEngine("maplibre")).toBe("maplibre");
+    expect(parseEngine(" Google ")).toBe("google");
+  });
+  it("treats empty or unknown values as automatic", () => {
+    expect(parseEngine(undefined)).toBeUndefined();
+    expect(parseEngine("")).toBeUndefined();
+    expect(parseEngine("mapbox")).toBeUndefined();
   });
 });
 

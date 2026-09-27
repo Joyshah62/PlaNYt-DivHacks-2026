@@ -30,7 +30,8 @@ A New York print magazine, with Google's photorealistic 3D city as its photograp
 | `src/components/home/fonts.ts` | The three `next/font` families → `edFonts` class string |
 | `src/components/home/data.ts` | All copy, links and camera positions for the home page; `ORBIT_SECONDS` |
 | `src/components/home/HeroStage.tsx` | Hero + intro choreography |
-| `src/components/home/PlanDemo.tsx` | "Watch it plan" self-playing demo |
+| `src/components/home/PlanDemo.tsx` | "Watch it plan" self-playing demo (cycles through `DEMOS`) |
+| `src/components/home/PresetFlip.tsx` | The hero's split-flap shortcuts (cycles through `PRESETS`) |
 | `src/components/home/NeighborhoodStory.tsx` | Scrollytelling chapters over a pinned map |
 | `src/components/home/Colophon.tsx` | Footer |
 | `src/components/home/cityMap*.ts`, `useCityMap.ts` | The map abstraction (§6) |
@@ -91,12 +92,12 @@ only spacing values. `--offset` (4 → 8px) is the hard shadow offset.
 | `.ed-h2` | Section headline |
 | `.ed-btn`, `.ed-btn--ghost` | Square, mono, uppercase buttons (ink fill / outline) |
 | `.ed-prompt` | The prompt box: field, ink border, hard offset shadow, red shadow on focus |
-| `.ed-chips` | Italic underlined text links (journey shortcuts) |
+| `.ed-chips`, `.ed-flip` | Italic underlined text links; in the hero they flip like a split-flap board |
 | `.ed-bullet` | Red numbered route bullet (①②③): stop numbers everywhere |
 | `.ed-row`, `.ed-crowd` | Itinerary row (bullet, time, name + reason, crowd bars with the chosen hour in red) |
 | `.ed-callout` | Paper card over a map with the offset shadow ("44 min less travel") |
-| `.ed-story-index`, `.ed-chapter` | Pinned table of contents + chapter with an outlined Roman numeral behind it |
-| `.ed-colophon-*` | Footer: closing line, three ruled columns, full-width wordmark, baseline |
+| `.ed-chapter` | Scrollytelling chapter with an outlined Roman numeral behind it |
+| `.ed-colophon-*` | Footer: closing line + button, three ruled columns, baseline |
 
 Section structure: sections are separated by a **3px double rule** (`border-top: 3px double
 var(--rule)`); inside, 1px rules. Map panels sit flush to the rule with a 1px `--rule` border.
@@ -112,8 +113,9 @@ var(--rule)`); inside, 1px rules. Map panels sit flush to the rule with a 1px `-
   Building; the headline re-sets; the map orbits. Plays on every load; skipped (landed) for
   reduced motion and lite devices.
 - **Orbits:** every map that circles a landmark uses `ORBIT_SECONDS` (360s per turn, ~1°/s).
-- **Loops only when watched:** the plan demo replays 60s after finishing, only while it's on
-  screen and the tab is visible.
+- **Loops only when watched:** the plan demo plays the next of three example plans 60s after
+  finishing, only while it's on screen and the tab is visible. The hero's shortcuts flip one slot
+  every 3.2s (nine presets, three on show), pausing on hover/focus and off screen.
 - **Theme switch:** the new theme spreads from the toggle as a circle (View Transitions, 750ms).
 - **Reduced motion:** no intro, no orbits, demo shows its final state, theme switches instantly.
 
@@ -126,10 +128,11 @@ Components never touch Google or MapLibre directly; they use the `CityMap` inter
 - **Engines:** Google photorealistic 3D (`cityMapGoogle.ts`, Maps JS channel `beta`: `alpha` breaks
   overlays) by default; MapLibre flat satellite (`cityMapLibre.ts`) as the fallback when there's no
   key, Google fails (auth, `gmp-error`), or on lite devices for secondary maps. No WebGL → no map.
-- **Development:** `NEXT_PUBLIC_MAP_ENGINE=maplibre` in `.env.local` uses the free map everywhere.
-  Leave it unset for demos and hosting. `NEXT_PUBLIC_*` values are baked in at build time, so a
-  local `npm run build` also picks up `.env.local`: remove the line before building a Google 3D
-  demo build.
+- **Engine key:** `NEXT_PUBLIC_MAP_ENGINE` = `maplibre` (free; use in `.env.local` for everyday
+  development) or `google` (3D everywhere, including lite devices; use for demos and hosting).
+  Unset = automatic (Google when a key is set; MapLibre for secondary maps on lite devices).
+  `NEXT_PUBLIC_*` values are baked in at build time, so a local `npm run build` also picks up
+  `.env.local`: set it to `google` before building a Google 3D demo build.
 - **Cost rules:** each Google 3D map load is billed (10,000 free/month). Create maps only near the
   viewport (`useInView(..., { once: true })`), never destroy/recreate on scroll, stop animations
   off screen and in hidden tabs. A visitor who stays in the hero costs one load.

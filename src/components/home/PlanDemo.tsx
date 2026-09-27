@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { interpolate, routePath, type LatLng } from "./camera";
-import { DEMO, ORBIT_SECONDS } from "./data";
+import { DEMOS, ORBIT_SECONDS, type DemoPlan } from "./data";
 import { useCityMap } from "./useCityMap";
 import { useInView, usePageVisible, usePrefersReducedMotion } from "./visibility";
 
 const REPLAY_AFTER_MS = 60_000;
-const label = (i: number) => `${i + 1} · ${DEMO.stops[i].name}`;
+const label = (plan: DemoPlan, i: number) => `${i + 1} · ${plan.stops[i].name}`;
 
 export function PlanDemo() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -23,16 +23,19 @@ export function PlanDemo() {
   const visible = useInView(sectionRef, { rootMargin: "-30% 0px -30% 0px" });
   const pageVisible = usePageVisible();
   const reduced = usePrefersReducedMotion();
-  const { map } = useCityMap(hostRef, DEMO.overview, "secondary", near);
+  const { map } = useCityMap(hostRef, DEMOS[0].overview, "secondary", near);
+  const [planIndex, setPlanIndex] = useState(0);
   const [shown, setShown] = useState(0);
   const [done, setDone] = useState(false);
+  const plan = DEMOS[planIndex];
 
-  const play = useCallback(async () => {
+  const play = useCallback(async (index: number) => {
     if (!map || !typedRef.current) return;
     runRef.current?.abort();
     const run = new AbortController();
     runRef.current = run;
     const typed = typedRef.current;
+    const plan = DEMOS[index];
     const wait = (ms: number) =>
       new Promise<void>((resolve, reject) => {
         const t = setTimeout(resolve, ms);
@@ -40,34 +43,35 @@ export function PlanDemo() {
       });
 
     map.clearOverlays();
+    setPlanIndex(index);
     setShown(0);
     setDone(false);
     typed.textContent = "";
     if (reduced) {
-      typed.textContent = DEMO.sentence;
-      DEMO.stops.forEach((s, i) => map.addPin(s, label(i)));
-      map.setRoute(routePath(DEMO.stops, 24));
-      map.jumpTo(DEMO.route);
-      setShown(DEMO.stops.length);
+      typed.textContent = plan.sentence;
+      plan.stops.forEach((s, i) => map.addPin(s, label(plan, i)));
+      map.setRoute(routePath(plan.stops, 24));
+      map.jumpTo(plan.route);
+      setShown(plan.stops.length);
       setDone(true);
       return;
     }
     try {
-      void map.flyTo(DEMO.overview, 800);
-      for (let i = 1; i <= DEMO.sentence.length; i++) {
-        typed.textContent = DEMO.sentence.slice(0, i);
+      void map.flyTo(plan.overview, 800);
+      for (let i = 1; i <= plan.sentence.length; i++) {
+        typed.textContent = plan.sentence.slice(0, i);
         await wait(26);
       }
       await wait(300);
-      void map.flyTo(DEMO.route, 1600);
+      void map.flyTo(plan.route, 1600);
       await wait(1200);
-      const path: LatLng[] = [DEMO.stops[0]];
-      for (let i = 0; i < DEMO.stops.length; i++) {
-        map.addPin(DEMO.stops[i], label(i));
+      const path: LatLng[] = [plan.stops[0]];
+      for (let i = 0; i < plan.stops.length; i++) {
+        map.addPin(plan.stops[i], label(plan, i));
         setShown(i + 1);
-        const next = DEMO.stops[i + 1];
+        const next = plan.stops[i + 1];
         if (next) {
-          for (const p of interpolate(DEMO.stops[i], next, 24)) {
+          for (const p of interpolate(plan.stops[i], next, 24)) {
             path.push(p);
             map.setRoute(path);
             await wait(28);
@@ -81,30 +85,32 @@ export function PlanDemo() {
     }
   }, [map, reduced]);
 
-  // Play once, the first time the section is in the middle of the screen with its map ready.
+  const playNext = useCallback(() => void play((planIndex + 1) % DEMOS.length), [play, planIndex]);
+
+  // Play the first plan the first time the section is in the middle of the screen with its map ready.
   useEffect(() => {
     if (map && visible && !started.current) {
       started.current = true;
-      void play();
+      void play(0);
     }
   }, [map, visible, play]);
 
   useEffect(() => () => runRef.current?.abort(), []);
 
-  // Keep it alive: after a minute of the finished demo sitting in view, play it again. Leaving
+  // Keep it alive: after a minute of a finished plan sitting in view, plan the next one. Leaving
   // the section (or hiding the tab) resets the minute; nothing replays off screen.
   useEffect(() => {
     if (!done || reduced || !visible || !pageVisible) return;
-    const timer = setTimeout(() => void play(), REPLAY_AFTER_MS);
+    const timer = setTimeout(playNext, REPLAY_AFTER_MS);
     return () => clearTimeout(timer);
-  }, [done, reduced, visible, pageVisible, play]);
+  }, [done, reduced, visible, pageVisible, playNext]);
 
   // Idle when off screen.
   useEffect(() => {
     if (!map || !done || reduced) return;
-    if (visible && pageVisible) map.orbit(DEMO.route, ORBIT_SECONDS);
+    if (visible && pageVisible) map.orbit(plan.route, ORBIT_SECONDS);
     else map.stop();
-  }, [map, done, visible, pageVisible, reduced]);
+  }, [map, done, visible, pageVisible, reduced, plan]);
 
   return (
     <section ref={sectionRef} id="watch" className="ed-demo ed-paper" aria-labelledby="watch-title">
@@ -116,7 +122,7 @@ export function PlanDemo() {
           <span className="ed-btn">Plan →</span>
         </div>
         <ol className="ed-itin" aria-label="Example itinerary">
-          {DEMO.stops.map((s, i) => (
+          {plan.stops.map((s, i) => (
             <li key={s.name} className={`ed-row${i < shown ? " on" : ""}`}>
               <span className="ed-bullet">{i + 1}</span>
               <span className="ed-row-time">{s.time}</span>
@@ -125,21 +131,24 @@ export function PlanDemo() {
                 <div className="ed-row-why">{s.why}</div>
               </div>
               <div className="ed-crowd" role="img" aria-label={`Crowds by hour at ${s.name}; Roam picked a quiet one`}>
-                {s.crowd.map((h, j) => <b key={j} className={j === s.slot ? "on" : undefined} style={{ height: h * 2 }} />)}
+                {s.crowd.map((h, j) => <b key={j} className={j === s.slot ? "on" : undefined} style={{ height: `${h * 11}%` }} />)}
               </div>
             </li>
           ))}
         </ol>
-        <button type="button" className="ed-btn ed-btn--ghost ed-demo-replay" onClick={() => void play()} disabled={!map}>
-          ↻ Replay
-        </button>
-        <p className="ed-footnote ed-mono">An example day. In the planner, the crowd bars come from MTA subway ridership near each stop.</p>
+        <div className="ed-demo-controls">
+          <button type="button" className="ed-btn ed-btn--ghost" onClick={playNext} disabled={!map}>
+            ↻ Another plan
+          </button>
+          <span className="ed-mono ed-demo-count">Plan {planIndex + 1} of {DEMOS.length}</span>
+        </div>
+        <p className="ed-footnote ed-mono">Example days. In the planner, the crowd bars come from MTA subway ridership near each stop.</p>
       </div>
       <div className="ed-demo-map">
         <div ref={hostRef} className="ed-map-host" />
         <div className={`ed-callout${done ? " on" : ""}`}>
           <span className="ed-mono ed-kicker">Roam&apos;s order</span>
-          <strong>44 min less travel</strong>
+          <strong>{plan.saving}</strong>
           <em>and every stop at its quiet hour</em>
         </div>
       </div>

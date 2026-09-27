@@ -23,9 +23,9 @@ The UX hierarchy:
 1. **Hero:** "New York" rises with Google's photorealistic 3D Manhattan inside the letters, the page dives through a letter, and the camera lands orbiting the Empire State Building. The deck holds the prompt (submits to `/plan?q=…`) and three journey links. Plays on every page load (a refresh starts at the top); reduced motion and lite devices start landed.
 2. **Watch it plan:** a self-typing prompt builds an example itinerary while the route draws on a 3D map.
 3. **Neighborhoods:** scrollytelling; a pinned 3D map flies to each neighborhood.
-4. **Colophon:** a closing line with a "Plan your day" button, three ruled columns (sections, sources, colophon), the "Roam" wordmark spanning the page, and a baseline with "Back to top".
+4. **Colophon:** a closing line with a "Plan your day" button, three ruled columns (sections, sources, colophon), and a baseline with "Back to top".
 
-**Details:** the theme toggle reveals the new theme as a circle spreading from the button; the plan demo replays itself 60s after finishing while it stays on screen; the neighborhood column has a pinned table of contents and an outlined Roman numeral behind each chapter; map credits are collapsed to a small ⓘ. Full design system: `docs/DESIGN.md`.
+**Details:** the theme toggle reveals the new theme as a circle spreading from the button; the hero's three journey shortcuts flip like a split-flap board through nine presets; the plan demo cycles through three example days (the Met, Brooklyn, downtown), moving to the next 60s after finishing while it stays on screen or on "Another plan"; each neighborhood chapter has an outlined Roman numeral behind it; map credits are collapsed to a small ⓘ. Full design system: `docs/DESIGN.md`.
 
 **Performance:** copy is server-rendered; each map is created only near the viewport and idles off screen; Google failures fall back to MapLibre.
 

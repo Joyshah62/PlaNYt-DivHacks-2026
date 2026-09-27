@@ -59,8 +59,6 @@ export function Colophon() {
         </section>
       </div>
 
-      <div className="ed-colophon-mast ed-display" aria-hidden>{BRAND.name}</div>
-
       <div className="ed-colophon-base ed-mono">
         <span>© {new Date().getFullYear()} {BRAND.name} · New York, N.Y.</span>
         <a href="#top">Back to top ↑</a>
