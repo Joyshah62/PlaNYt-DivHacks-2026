@@ -6,7 +6,7 @@ import type { StopInput } from "../bridge/index";
 import { cn } from "../bridge/ui";
 import type { Trip } from "../core/types";
 import { AvatarBubble } from "./Avatar";
-import { PlaceSearch } from "./PlaceSearch";
+import { IdeaToPlace } from "./IdeaToPlace";
 
 function ago(at: number): string {
   const s = Math.max(0, Math.round((Date.now() - at) / 1000));
@@ -22,12 +22,14 @@ export function IdeasPanel({
   onPost,
   onVote,
   onToPlace,
+  tripId,
 }: {
   trip: Trip;
   memberId: string | null;
   onPost: (text: string) => Promise<unknown> | unknown;
   onVote: (ideaId: string, on: boolean) => void;
-  onToPlace: (ideaId: string, stop: StopInput) => void;
+  onToPlace: (ideaId: string, stop: StopInput, authorId: string) => void;
+  tripId: string;
 }) {
   const [text, setText] = useState("");
   const [finding, setFinding] = useState<string | null>(null);
@@ -65,7 +67,7 @@ export function IdeasPanel({
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
                     {linked ? (
                       <span className="inline-flex items-center gap-1 text-brand">
-                        <MapPin className="size-3" aria-hidden /> became {linked}
+                        <MapPin className="size-3" aria-hidden /> → added as {linked}
                       </span>
                     ) : (
                       memberId &&
@@ -92,17 +94,18 @@ export function IdeasPanel({
                   <b>{idea.votes.length}</b>
                 </button>
               </div>
-              {finding === idea.id && (
-                <div className="mt-2 rounded-xl border border-border bg-background p-2">
-                  <PlaceSearch
-                    initialQuery={idea.text.replace(/[?!.]+$/, "")}
-                    chosen={new Set(trip.candidates.map((c) => c.stop.key))}
-                    onPick={(stop) => {
-                      setFinding(null);
-                      onToPlace(idea.id, stop);
-                    }}
-                  />
-                </div>
+              {finding === idea.id && memberId && (
+                <IdeaToPlace
+                  tripId={tripId}
+                  memberId={memberId}
+                  ideaId={idea.id}
+                  addedKeys={new Set(trip.candidates.map((c) => c.stop.key))}
+                  onClose={() => setFinding(null)}
+                  onChoose={(stop, authorId) => {
+                    setFinding(null);
+                    onToPlace(idea.id, stop, authorId);
+                  }}
+                />
               )}
             </li>
           );

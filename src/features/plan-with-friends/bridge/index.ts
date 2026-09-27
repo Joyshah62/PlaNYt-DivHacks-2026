@@ -7,9 +7,9 @@ export { clock, duration, nycNowMin, nycToday, WEEKDAYS, weekdayOf } from "@/lib
 export { BRAND, CROWD_COLOR, CROWD_LABEL, LEG_VERB } from "@/lib/plan/display";
 export { inNycArea } from "@/lib/osm/geo";
 export { ATTRACTIONS, type Attraction } from "@/lib/plan/attractions";
-export { CATEGORY } from "@/lib/discover/categories";
+export { CATEGORIES, CATEGORY } from "@/lib/discover/categories";
 export { parseOsmHours } from "@/lib/discover/hours";
-export { nearestStations, STATIONS } from "@/lib/plan/crowd";
+export { crowdBand, crowdProfile, nearestStations, STATIONS } from "@/lib/plan/crowd";
 export { subwayLeg } from "@/lib/plan/travel";
 export type { AssistantResult } from "@/lib/plan/types";
 

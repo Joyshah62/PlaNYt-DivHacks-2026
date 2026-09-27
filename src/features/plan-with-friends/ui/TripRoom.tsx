@@ -98,11 +98,11 @@ export function TripRoom({ id }: { id: string }) {
             <StartPointCard start={me.start} onSet={actions.setStart} added={people.filter((p) => p.start).length} total={people.length} />
           )}
           {me && !room.locked && <FreeTimeCard meId={me.id} people={people.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar, free: p.free ?? null }))} group={trip.window} onSet={actions.setFree} />}
-          {me && !room.locked && <AskRoam onSuggest={actions.suggest} />}
+          {me && !room.locked && <AskRoam tripId={id} memberId={me.id} addedKeys={new Set(trip.candidates.map((c) => c.stop.key))} onAdd={actions.suggest} />}
           <PlacesPanel trip={trip} memberId={me?.id ?? null} locked={room.locked} onVote={actions.vote} onSuggest={actions.suggest} onRemove={actions.remove} />
         </div>
         <div className={cn("lg:col-start-1", tab !== "ideas" && "hidden lg:block")}>
-          <IdeasPanel trip={trip} memberId={me?.id ?? null} onPost={actions.postIdea} onVote={actions.voteIdea} onToPlace={actions.ideaToPlace} />
+          <IdeasPanel trip={trip} memberId={me?.id ?? null} onPost={actions.postIdea} onVote={actions.voteIdea} onToPlace={actions.ideaToPlace} tripId={id} />
         </div>
         <div className={cn("flex flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start", tab !== "day" && "hidden lg:flex")}>
           <GroupMapPanel trip={trip} plan={draft.plan} memberId={me?.id ?? null} onSuggest={actions.suggest} />

@@ -16,7 +16,11 @@ export const JoinBody = z.object({ name: Name, avatar: AvatarSchema });
 export const CandidateBody = z.object({
   memberId: MemberId,
   stop: StopSchema.refine(inNycArea, { message: "That place isn't in New York City." }),
+  note: z.string().trim().max(140, "Keep the why under 140 characters.").nullish(),
+  creditTo: MemberId.nullish(),
 });
+export const AskBody = z.object({ memberId: MemberId, text: z.string().trim().min(3, "Tell Roam a little more.").max(600) });
+export const IdeaSuggestBody = z.object({ memberId: MemberId, ideaId: z.string().regex(/^[A-Za-z0-9_-]{4,16}$/) });
 export const VoteBody = z.object({ memberId: MemberId, stopKey: z.string().min(1).max(80), on: z.boolean() });
 export const RemoveBody = z.object({ memberId: MemberId, stopKey: z.string().min(1).max(80) });
 const PointSchema = z.object({ lat: z.number(), lon: z.number() }).refine(inNycArea, { message: "Pick a starting point in New York City." });

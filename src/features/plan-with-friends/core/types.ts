@@ -49,6 +49,8 @@ export interface Candidate {
   addedBy: string;
   addedAt: number;
   votes: string[];
+  /** The suggester's optional "why". */
+  note?: string | null;
 }
 
 export interface Trip {

@@ -22,17 +22,23 @@ export function PlacesPanel({
   memberId: string | null;
   locked: boolean;
   onVote: (stopKey: string, on: boolean) => void;
-  onSuggest: (stop: StopInput) => void;
+  onSuggest: (stop: StopInput, note?: string | null) => void;
   onRemove: (stopKey: string) => void;
 }) {
   const [picking, setPicking] = useState(false);
+  const [preview, setPreview] = useState<StopInput | null>(null);
+  const [why, setWhy] = useState("");
   const [removing, setRemoving] = useState<string | null>(null);
   const { inDay, waiting } = rankCandidates(trip);
   const full = trip.candidates.length >= MAX_CANDIDATES;
 
-  const suggest = (stop: StopInput) => {
+  const existing = (key: string) => trip.candidates.find((c) => c.stop.key === key) ?? null;
+  const confirmPreview = () => {
+    if (!preview) return;
+    onSuggest(preview, why.trim() || null);
+    setPreview(null);
+    setWhy("");
     setPicking(false);
-    onSuggest(stop);
   };
 
   const row = (c: Candidate, inTheDay: boolean) => {
@@ -46,6 +52,7 @@ export function PlacesPanel({
         <PlaceThumb stop={c.stop} className="size-12" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{c.stop.name}</p>
+          {c.note && <p className="truncate text-xs text-muted-foreground italic">&ldquo;{c.note}&rdquo;</p>}
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
             <span className="flex items-center pl-1">
               {c.votes.map((v) =>
@@ -129,11 +136,34 @@ export function PlacesPanel({
         <div className="mt-3 rounded-xl border border-border bg-background p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-semibold text-muted-foreground">Suggest a place</span>
-            <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setPicking(false)}>
+            <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setPicking(false); setPreview(null); }}>
               Close
             </button>
           </div>
-          <PlaceSearch chosen={new Set(trip.candidates.map((c) => c.stop.key))} disabled={full} onPick={suggest} />
+          {preview ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <PlaceThumb stop={preview} className="size-16" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{preview.name}</p>
+                  <p className="text-xs text-muted-foreground">{existing(preview.key) ? `Already suggested · ${existing(preview.key)!.votes.length} vote${existing(preview.key)!.votes.length === 1 ? "" : "s"}` : "New suggestion"}</p>
+                </div>
+              </div>
+              {!existing(preview.key) && (
+                <input value={why} onChange={(e) => setWhy(e.target.value)} maxLength={140} placeholder="Why? (optional) e.g. best cookies in the city" aria-label="Why this place (optional)" className="rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-brand" />
+              )}
+              <div className="flex gap-2">
+                <Button onClick={confirmPreview} className="rounded-full">
+                  {existing(preview.key) ? "Upvote it" : "Add it"}
+                </Button>
+                <Button variant="outline" className="rounded-full" onClick={() => setPreview(null)}>
+                  Back
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <PlaceSearch chosen={new Set(trip.candidates.map((c) => c.stop.key))} disabled={full} onPick={setPreview} />
+          )}
         </div>
       )}
     </section>

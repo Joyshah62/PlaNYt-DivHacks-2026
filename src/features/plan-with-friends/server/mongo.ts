@@ -76,7 +76,7 @@ export function mongoBackend(db: () => Promise<Db>): TripBackend {
     },
     async getCandidates(id) {
       const doc = await load(id);
-      return Object.fromEntries((doc?.candidates ?? []).map(({ stop, addedBy, addedAt }) => [stop.key, { stop, addedBy, addedAt }]));
+      return Object.fromEntries((doc?.candidates ?? []).map(({ stop, addedBy, addedAt, note }) => [stop.key, { stop, addedBy, addedAt, note: note ?? null }]));
     },
     async addCandidate(id, record) {
       const result = await (await trips()).updateOne(

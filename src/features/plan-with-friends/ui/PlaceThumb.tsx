@@ -43,10 +43,10 @@ export function PlaceThumb({ stop, className }: { stop: Pick<StopInput, "key" | 
 
   const tint = TINTS[[...stop.key].reduce((h, c) => h + c.charCodeAt(0), 0) % TINTS.length];
   return (
-    <span className={cn("relative block shrink-0 overflow-hidden rounded-xl bg-gradient-to-br", tint, className)}>
+    <span title={loaded ? `Photo: ${loaded.credit}` : undefined} className={cn("relative block shrink-0 overflow-hidden rounded-xl bg-gradient-to-br", tint, className)}>
       {loaded ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={loaded.url} alt="" title={`Photo: ${loaded.credit}`} loading="lazy" className="size-full object-cover" />
+        <img src={loaded.url} alt="" aria-hidden loading="lazy" className="size-full object-cover" />
       ) : (
         <span aria-hidden className={cn("grid size-full place-items-center text-sm font-semibold text-white/80", loaded === undefined && "animate-pulse")}>
           {stop.name.charAt(0).toUpperCase()}

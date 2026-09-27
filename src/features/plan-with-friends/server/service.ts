@@ -125,13 +125,15 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
       return { trip: await saved(id), memberId: mid };
     },
 
-    async addCandidate(id: string, memberId: string, stop: StopInput) {
+    /** `creditTo` credits someone else's idea (Turn into a place); their vote is the one recorded. */
+    async addCandidate(id: string, memberId: string, stop: StopInput, extra: { note?: string | null; creditTo?: string | null } = {}) {
       const { trip } = await editable(id, memberId);
+      const by = extra.creditTo && extra.creditTo in trip.members ? extra.creditTo : memberId;
       if (!trip.candidates.some((c) => c.stop.key === stop.key)) {
         if (trip.candidates.length >= MAX_CANDIDATES) throw new TripError(400, "This trip has enough ideas. Vote on the ones already here.");
-        await db.addCandidate(id, { stop, addedBy: memberId, addedAt: now() });
+        await db.addCandidate(id, { stop, addedBy: by, addedAt: now(), note: extra.note ?? null });
       }
-      await db.setVote(id, stop.key, memberId, true);
+      await db.setVote(id, stop.key, by, true);
       return saved(id);
     },
 

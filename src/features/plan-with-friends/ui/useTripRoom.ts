@@ -83,15 +83,15 @@ export function useTripRoom(id: string) {
         setError(e instanceof Error ? e.message : "Couldn't join.");
       }
     },
-    suggest: (stop: StopInput) => memberId && act(() => tripApi<Trip>(`/${id}/candidates`, { memberId, stop })),
+    suggest: (stop: StopInput, note?: string | null) => memberId && act(() => tripApi<Trip>(`/${id}/candidates`, { memberId, stop, note: note || null })),
     remove: (stopKey: string) => memberId && act(() => tripApi<Trip>(`/${id}/remove`, { memberId, stopKey })),
     vote: (stopKey: string, on: boolean) => memberId && act(() => tripApi<Trip>(`/${id}/vote`, { memberId, stopKey, on })),
     setStart: (point: { lat: number; lon: number } | null) => memberId && act(() => tripApi<Trip>(`/${id}/start`, { memberId, point })),
     postIdea: (text: string) => memberId && act(() => tripApi<Trip>(`/${id}/ideas`, { memberId, text })),
     voteIdea: (ideaId: string, on: boolean) => memberId && act(() => tripApi<Trip>(`/${id}/ideas/vote`, { memberId, ideaId, on })),
-    async ideaToPlace(ideaId: string, stop: StopInput) {
+    async ideaToPlace(ideaId: string, stop: StopInput, authorId: string) {
       if (!memberId) return;
-      await act(() => tripApi<Trip>(`/${id}/candidates`, { memberId, stop }));
+      await act(() => tripApi<Trip>(`/${id}/candidates`, { memberId, stop, creditTo: authorId }));
       await act(() => tripApi<Trip>(`/${id}/ideas/link`, { memberId, ideaId, placeKey: stop.key }));
     },
     setFree: (free: { from: number; to: number } | null) => memberId && act(() => tripApi<Trip>(`/${id}/free`, { memberId, free })),

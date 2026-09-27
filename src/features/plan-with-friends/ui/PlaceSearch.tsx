@@ -4,6 +4,7 @@ import { Check, Loader2, MapPin, Search, Sparkles } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { APP_API, ATTRACTIONS, type StopInput } from "../bridge/index";
 import { cn, stopFromAttraction } from "../bridge/ui";
+import { PlaceThumb } from "./PlaceThumb";
 
 interface Result {
   key: string;
@@ -134,6 +135,7 @@ export function PlaceSearch({
                   onClick={() => pick(r.stop)}
                   className={cn("flex w-full items-center gap-3 px-4 py-2.5 text-left transition", active === i ? "bg-accent" : "hover:bg-accent")}
                 >
+                  {!forStart && <PlaceThumb stop={r.stop} className="size-9 rounded-lg" />}
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5 font-medium">
                       <span className="truncate">{r.name}</span>

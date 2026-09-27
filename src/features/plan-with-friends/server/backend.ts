@@ -17,6 +17,7 @@ export interface CandidateRecord {
   stop: StopInput;
   addedBy: string;
   addedAt: number;
+  note?: string | null;
 }
 
 /** Trips saved before v2 kept members as plain names and an organizer id; the service upgrades them on read. */
