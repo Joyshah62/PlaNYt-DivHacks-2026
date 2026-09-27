@@ -47,6 +47,17 @@ export function addDays(date: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * The day to plan: never a past one. A weekday resolved to the week just gone ("Saturday", said on
+ * a Sunday) means the coming one; anything older or malformed means no date was given.
+ */
+export function upcoming(date: string | null | undefined, today: string): string | null {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  if (date >= today) return date;
+  const next = addDays(date, 7);
+  return next >= today ? next : null;
+}
+
 export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /** Minutes after midnight right now in New York, whatever the device's zone. */

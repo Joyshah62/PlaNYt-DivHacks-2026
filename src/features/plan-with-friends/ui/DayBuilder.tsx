@@ -100,8 +100,8 @@ export function DayBuilder({
           </p>
         </div>
         {editable && it.manual && (
-          <button type="button" onClick={onRegenerate} className="tr-day-regen">
-            <RefreshCw className="size-3.5" aria-hidden /> Regenerate plan
+          <button type="button" onClick={onRegenerate} className="ed-btn ed-btn--ghost tr-day-regen">
+            <RefreshCw aria-hidden /> Regenerate plan
           </button>
         )}
       </div>

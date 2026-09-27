@@ -80,4 +80,10 @@ describe("ranking places by rating, popularity and travel", () => {
   it("still lets a much longer trip outweigh a slightly better place", () => {
     expect(scoreOf(place(4.6, 300, 4), fit, 0, null)).toBeLessThan(scoreOf(place(4.7, 400, 30), fit, 0, null));
   });
+
+  it("without ratings, prefers a famous place a little further along, but not one far off the route", () => {
+    const unknown = { ...base, travelDelta: 4 };
+    expect(scoreOf({ ...base, travelDelta: 12, renown: 3 }, intent, 1, null)).toBeLessThan(scoreOf(unknown, intent, 1, null));
+    expect(scoreOf({ ...base, travelDelta: 40, renown: 3 }, intent, 1, null)).toBeGreaterThan(scoreOf(unknown, intent, 1, null));
+  });
 });

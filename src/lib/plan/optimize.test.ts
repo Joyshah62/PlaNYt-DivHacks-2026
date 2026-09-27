@@ -22,6 +22,18 @@ function input(overrides: Partial<OptimizeInput> & Pick<OptimizeInput, "travel">
 }
 
 describe("optimize", () => {
+  it("won't zig-zag across town to dodge a crowd", () => {
+    // Stops on a line at 0, 10 and 40 minutes from the start; the far one is quiet only early.
+    // Dodging its afternoon crowd means going out to it first and coming all the way back.
+    const pos = [0, 10, 40];
+    const travel = pos.map((a) => pos.map((b) => Math.abs(a - b)));
+    const busyLater = Array.from({ length: 24 }, (_, h) => (h < 12 ? 0 : 1));
+    const day = input({ travel, fromOrigin: pos, visitMin: [120, 120, 120], levels: [null, null, busyLater], crowdWeight: 1.2 });
+    const { best } = optimize(day);
+    expect(best.order).toEqual([0, 1, 2]);
+    expect(best.travelMin).toBe(40);
+  });
+
   it("finds the shortest path through points on a line", () => {
     // Stops at positions 0, 30, 10, 20 on a line; the best tour visits them in position order.
     const pos = [0, 30, 10, 20];

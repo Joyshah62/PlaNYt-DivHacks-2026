@@ -62,7 +62,9 @@ export async function readPoiRows(): Promise<unknown[]> {
   return (JSON.parse(raw) as { places: unknown[] }).places;
 }
 
-export { searchLocal } from "@/lib/discover/sources";
+export { searchGoogle, searchLocal } from "@/lib/discover/sources";
+export { weightedRating } from "@/lib/discover/evaluate";
+export { renownOf } from "@/lib/discover/renown";
 export { fallbackIntent } from "@/lib/discover/intent";
 export type { Intent, Candidate as DiscoverCandidate } from "@/lib/discover/types";
 

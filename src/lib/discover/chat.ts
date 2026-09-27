@@ -80,7 +80,7 @@ const schemas = {
 };
 const descriptions: Record<keyof typeof schemas, string> = {
   lookup_place: "Identify a particular place from the traveler's original description, such as a chef's restaurant, a venue from a movie, or an uncertain name. Copy their description into query; NEVER substitute a venue name from memory. Searches real listings across NYC and asks them to choose before adding. Preserve the requested afterStopKey, replaceKey and visitMin. Use before add_place whenever the traveler did not name the business. If 'after the museum' could mean multiple stops, ask which museum first.",
-  search_places: "Search real places of a kind (a café, pizza, a rooftop bar) and calculate where each fits. Rewrite the query with conversation context. Refine true preserves the previous search's filters. Include any chosen neighborhood in the query. nearMe is true when they want places near where they are right now (\"near me\", \"nearby\", \"around here\"); otherwise it searches along the trip. afterStopKey must be a current trip key, or \"new:1\" for the first place added by add_place in this same turn (\"new:2\" for the second); preferredStartMin is minutes after midnight or null for automatic timing.",
+  search_places: "Search real places of a kind (a café, pizza, a rooftop bar) and calculate where each fits. Rewrite the query with conversation context. Refine true preserves the previous search's filters. Include any chosen neighborhood in the query. nearMe is true when they want places near where they are right now (\"near me\", \"nearby\", \"around here\"); otherwise it searches along the trip. afterStopKey must be a current trip key, or \"new:1\" for the first place added by add_place in this same turn (\"new:2\" for the second); preferredStartMin is minutes after midnight when they asked for a time for this place, else null; never take it from the day's meals or other stops.",
   add_place: "Preview adding one specific, named place or address (Times Square, the Whitney, 350 5th Ave). If the place is already in the trip, this moves it instead: use it for 'move', 'reschedule' or 'change the time of' a stop. afterStopKey is a current trip key to place it after, or null to let the planner find the best spot. visitMin is null for a typical visit. startMin is the requested arrival time in minutes after midnight (7pm = 1140), or null; preserve approximate times such as around 7pm. meal is lunch or dinner when requested, otherwise null. Always include both timing and meal when adding a restaurant for dinner at a chosen time. avoidCrowds is true when they want to skip peak or busy times; the planner then picks the quietest spot in the day for it. replaceKey is the key of a current stop this place goes in place of (\"X instead of Y\", \"swap Y for X\", \"replace Y with X\"): it takes that stop's spot, so a swap is this one call, never remove_stop. If the name matches a numbered option, that option is used. For a kind of place rather than a named one, use search_places.",
   preview_place: "Preview adding a numbered option from the latest offers. Use for 'add the second one'. Never invent an index. replaceKey is the key of a current stop it goes in place of ('the second one instead of Cafe Reggio'), or null. User applies the preview using a button.",
   remove_stop: "Preview removing a current trip stop, identified by its key, when they only want it gone. Generated meal breaks use meal-lunch or meal-dinner; removing one disables that break. For swapping one place for another, use add_place or preview_place with replaceKey instead. Ask first if ambiguous.",
@@ -539,12 +539,19 @@ async function propose(request: Request, title: string): Promise<NonNullable<Cha
   return { title, plan, warnings };
 }
 
+/** Whether a message gives a time of day ("at 3", "2:30pm", "for lunch", "in the evening"). */
+export const saysWhen = (text: string) =>
+  /\b\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)|\b(?:at|around|by|before|after|from)\s+\d{1,2}(?::\d{2})?\b|\b(?:noon|midnight|breakfast|brunch|lunch|dinner|supper|morning|afternoon|evening|tonight|night|sunset|sunrise|earlier|later)\b/i.test(text);
+
 async function search(args: unknown, input: Input, request: Request, added: string[]): Promise<DiscoverResponse> {
   const a = schemas.search_places.parse(args);
   const after = a.afterStopKey ? resolveKey(a.afterStopKey, added) : null;
   if (a.nearMe && !input.here) throw new ChatError("I don't know where you are right now. Tell me a street or neighborhood, like \"cafés near Union Square\", or allow location access when your browser asks.");
   const area = a.nearMe && input.here ? { kind: "here" as const, ...input.here } : a.refine && input.previousArea ? input.previousArea : { kind: "trip" as const };
-  const res = await discover({ query: a.query, request, here: input.here, previous: a.refine ? input.previous : null, area, areaPinned: a.nearMe, placement: { after, preferredStartMin: a.preferredStartMin }, placementPinned: after !== null });
+  // A time only when they said one: the model otherwise borrows the day's lunch time for "a café
+  // after the Met", and every option then shows as arriving late.
+  const preferredStartMin = saysWhen(input.message) ? a.preferredStartMin : null;
+  const res = await discover({ query: a.query, request, here: input.here, previous: a.refine ? input.previous : null, area, areaPinned: a.nearMe, placement: { after, preferredStartMin }, placementPinned: after !== null });
   const data = await res.json();
   if (!res.ok) throw new ChatError(data.error ?? "Couldn't search right now.");
   return data as DiscoverResponse;

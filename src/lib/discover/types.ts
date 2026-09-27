@@ -59,6 +59,8 @@ export interface Candidate {
   source: "google" | "openstreetmap";
   /** Meters from the nearest point of the search area. */
   meters: number;
+  /** How famous and well regarded it is (0-3), for places without ratings; see renown.ts. */
+  renown?: number;
 }
 
 /** A candidate tried in the day by the planner, with everything its card says. */

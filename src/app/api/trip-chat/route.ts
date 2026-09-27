@@ -28,7 +28,11 @@ async function respond(req: Request, progress: Progress) {
   try { body = await req.json(); }
   catch { return Response.json({ error: "Expected a JSON body." }, { status: 400 }); }
   const parsed = ChatInput.safeParse(body);
-  if (!parsed.success) return Response.json({ error: "Please refresh your trip and try that request again." }, { status: 400 });
+  if (!parsed.success) {
+    // Which field, not what was in it: enough to find a client sending something out of bounds.
+    console.warn("[trip-chat] invalid request:", parsed.error.issues.slice(0, 3).map((i) => `${i.path.join(".")} ${i.code}`).join("; "));
+    return Response.json({ error: "Please refresh your trip and try that request again." }, { status: 400 });
+  }
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
   const conversationId = parsed.data.conversationId ?? randomUUID();
   const owner = conversationOwner(session?.user.id ?? null, conversationId);

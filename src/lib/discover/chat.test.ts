@@ -154,8 +154,12 @@ describe("conversational trip tools", () => {
   });
   it("passes placement and time to search instead of inventing results", async () => {
     vi.mocked(discover).mockResolvedValueOnce(Response.json({ intent: { summary: "Pizza" }, results: [], area: { kind: "trip", label: "Along your trip" }, source: "openstreetmap", note: null }));
-    await executeChatTool("search_places", { query: "pizza after the Met", refine: false, afterStopKey: "a", preferredStartMin: 720 }, input);
+    await executeChatTool("search_places", { query: "pizza after the Met", refine: false, afterStopKey: "a", preferredStartMin: 720 }, { ...input, message: "pizza after the Met at noon" });
     expect(discover).toHaveBeenLastCalledWith(expect.objectContaining({ placement: { after: "a", preferredStartMin: 720 }, placementPinned: true }));
+    // A time nobody asked for (the day's lunch, say) isn't passed on.
+    vi.mocked(discover).mockResolvedValueOnce(Response.json({ intent: { summary: "Cafés" }, results: [], area: { kind: "trip", label: "Along your trip" }, source: "openstreetmap", note: null }));
+    await executeChatTool("search_places", { query: "cafe after the Met", refine: false, afterStopKey: "a", preferredStartMin: 750 }, { ...input, message: "add a cafe after the Met" });
+    expect(discover).toHaveBeenLastCalledWith(expect.objectContaining({ placement: { after: "a", preferredStartMin: null } }));
   });
   it("surfaces scheduling conflicts in the change preview", async () => {
     vi.mocked(buildPlan).mockResolvedValueOnce({ request, stops: [{ name: "The Met", issue: "late" }], skipped: [], summary: { overMin: 20 } } as never);
@@ -530,5 +534,16 @@ describe("deciding whether a change goes in", () => {
     const { reply: settled, problems } = await settle(late, input);
     expect(settled.resolution).toBeUndefined();
     expect(problems).toEqual(["The day finishes 40 minutes after your requested end time."]);
+  });
+});
+
+describe("times the traveler asked for", () => {
+  it("keeps a preferred time only when the message gives one", async () => {
+    const { saysWhen } = await import("./chat");
+    expect(saysWhen("add a cafe after the Met")).toBe(false);
+    expect(saysWhen("pizza near MoMA")).toBe(false);
+    expect(saysWhen("coffee at 3pm")).toBe(true);
+    expect(saysWhen("somewhere for lunch")).toBe(true);
+    expect(saysWhen("a bar later")).toBe(true);
   });
 });

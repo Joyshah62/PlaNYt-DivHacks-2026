@@ -39,7 +39,7 @@ export function createBot(roam: Roam, publicUrl: string) {
   }
 
   async function startTrip(thread: Thread, text: string, skipQuestions = false): Promise<string[]> {
-    const r = await roam.assistant(text, thread.profile ?? DEFAULT_PROFILE, { memoryId: thread.memoryId ?? null, knowsGroup: !!thread.profile, skipQuestions });
+    const r = await roam.assistant(text.slice(0, 1500), thread.profile ?? DEFAULT_PROFILE, { memoryId: thread.memoryId ?? null, knowsGroup: !!thread.profile, skipQuestions });
     if (r.memoryId) thread.memoryId = r.memoryId;
     if (r.questions?.length) {
       // Their next text answers these, in their own words.
@@ -67,10 +67,12 @@ export function createBot(roam: Roam, publicUrl: string) {
     const offers = thread.offers?.tripKeys.includes(tripKey(plan.request)) ? thread.offers : null;
     const reply = await roam.tripChat({
       request: plan.request,
-      message: text,
+      // Kept within what the web app accepts: a long voice note or a full itinerary in the history
+      // would otherwise be refused outright.
+      message: text.slice(0, 600),
       action,
-      history: thread.history.slice(-HISTORY),
-      offers: offers?.results ?? [],
+      history: thread.history.slice(-HISTORY).map((h) => ({ ...h, text: h.text.slice(0, 2000) })),
+      offers: (offers?.results ?? []).map((o) => ({ ...o, name: o.name.slice(0, 120) })),
       previousArea: offers?.area,
       previous: offers?.intent ?? null,
       memoryId: thread.memoryId ?? null,

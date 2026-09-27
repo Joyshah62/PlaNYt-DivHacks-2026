@@ -196,7 +196,28 @@ function greedy(input: OptimizeInput): number[] {
   return order;
 }
 
+/** Extra travel, beyond the most direct order, that a quieter order may cost before it counts as zig-zagging. */
+const ZIGZAG_MIN = 15;
+const ZIGZAG_SHARE = 0.25;
+
+/**
+ * The best order, without zig-zagging across town to dodge crowds: when the crowd-aware order
+ * travels much further than the most direct one (by over 15 minutes and a quarter), and the direct
+ * one keeps every opening hour and time as well, the direct one wins. Crowds still choose between
+ * orders that are about as direct.
+ */
 export function optimize(input: OptimizeInput): { best: Simulation; exhaustive: boolean } {
+  const quiet = search(input);
+  if (!input.crowdWeight) return quiet;
+  const direct = search({ ...input, crowdWeight: 0 });
+  const extra = quiet.best.travelMin - direct.best.travelMin;
+  if (extra <= Math.max(ZIGZAG_MIN, direct.best.travelMin * ZIGZAG_SHARE)) return quiet;
+  if (direct.best.issues > quiet.best.issues || direct.best.overMin > quiet.best.overMin) return quiet;
+  // Scored with the real crowd weight, so the plan's numbers stay comparable.
+  return { best: simulate(input, direct.best.order), exhaustive: quiet.exhaustive && direct.exhaustive };
+}
+
+function search(input: OptimizeInput): { best: Simulation; exhaustive: boolean } {
   const n = input.visitMin.length;
   if (n === 0) return { best: simulate(input, []), exhaustive: true };
 
@@ -208,7 +229,7 @@ export function optimize(input: OptimizeInput): { best: Simulation; exhaustive: 
 
   // Overtime is only known at the end, and the return leg only once the last stop is set,
   // so the bound is the partial cost alone. Both are non-negative, so it stays a lower bound.
-  const search = (t: number, cost: number, loc: Loc) => {
+  const walk = (t: number, cost: number, loc: Loc) => {
     if (cost >= best.cost) return;
     if (++nodes > NODE_BUDGET) {
       exhaustive = false;
@@ -226,13 +247,13 @@ export function optimize(input: OptimizeInput): { best: Simulation; exhaustive: 
       const step = visitAt(input, j, t + leg);
       used[j] = true;
       order.push(j);
-      search(step.endMin, cost + leg + step.cost, nextLoc(input, loc, j));
+      walk(step.endMin, cost + leg + step.cost, nextLoc(input, loc, j));
       order.pop();
       used[j] = false;
       if (!exhaustive) return;
     }
   };
-  search(input.startMin, 0, -1);
+  walk(input.startMin, 0, -1);
   if (!exhaustive) best = improve(input, best);
   return { best, exhaustive };
 }

@@ -1093,22 +1093,9 @@
   font-size: var(--t-small);
   color: var(--ed-muted);
 }
-.tr-day-regen {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25em;
-  padding: 0.25em 0.75em;
-  border: 1px solid var(--rule);
-  background: var(--paper);
-  font-size: var(--t-small);
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
-}
-.tr-day-regen:hover {
-  border-color: var(--red);
-  color: var(--red);
-}
+/* A secondary action beside the heading: the mono ghost button, a size down. */
+.tr-day-regen { padding: 0.7em 1em; flex: none; }
+.tr-day-regen svg { width: 1.1em; height: 1.1em; }
 .tr-day-stale {
   display: flex;
   flex-wrap: wrap;
@@ -1405,3 +1392,23 @@
 .tr-bars-track > div { position: absolute; inset-block: 0; }
 .tr-dial { display: block; width: 100%; max-width: 14em; margin: var(--s-1) auto 0; }
 
+
+/* --- Compact trip room: tighter rhythm so the whole day fits in fewer screens. --- */
+.tr-head { padding-block: var(--s-2) var(--s-1); }
+.tr-head .tr-display { font-size: clamp(36px, 3.4vw, 76px); margin-block: 0.1em 0.15em; }
+.tr-grid { padding-top: var(--s-1); row-gap: var(--s-2); }
+.tr-grid .ed-panel { padding-block: var(--s-1) var(--s-2); }
+.tr-day-list { margin-top: var(--s-1); }
+.tr-day-content { padding-bottom: var(--s-1); }
+@media (min-width: 1024px) {
+  .tr-map-container { height: clamp(15em, 32dvh, 26em); }
+}
+/* Each stop's crowd bars sit beside its time and votes instead of under them. */
+@media (min-width: 640px) {
+  .tr-day-content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(9em, 13em); column-gap: var(--s-2); align-items: end; }
+  .tr-day-content > * { grid-column: 1 / -1; }
+  .tr-day-content > .tr-day-meta { grid-column: 1; align-self: start; }
+  .tr-day-content > .tr-day-crowd { grid-column: 2; margin-top: 0; max-width: none; }
+}
+.tr-map-info { gap: 0.35em; padding: var(--s-1) 0 0; }
+.tr-day-stale { margin-top: var(--s-1); padding: 0.5em var(--s-1); }

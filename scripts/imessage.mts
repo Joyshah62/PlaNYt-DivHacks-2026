@@ -97,7 +97,9 @@ async function reply(space: Space, thread: Thread, text: string) {
   } catch (error) {
     // A number Photon won't message can't be told about it either.
     if (explainSendError(thread.id, error)) return;
-    console.error(`[${thread.id}] handling "${text}":`, error);
+    // The planner's own answers ("Couldn't find that place") are replies, not crashes: one line, no stack.
+    if (error instanceof RoamError && error.status !== null && error.status < 500) console.warn(`[${thread.id}] planner answered ${error.status}: ${error.message}`);
+    else console.error(`[${thread.id}] handling "${text}":`, error);
     await space.send(error instanceof RoamError ? error.message : "Sorry, something went wrong on my end. Try that again in a minute.");
   }
 }
