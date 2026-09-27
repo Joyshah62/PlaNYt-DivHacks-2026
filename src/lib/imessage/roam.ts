@@ -37,7 +37,7 @@ export interface TripChatBody {
 
 export class RoamError extends Error {}
 
-export function roamClient(baseUrl: string): Roam {
+export function roamClient(baseUrl: string, bridgeToken = process.env.PHONE_BRIDGE_TOKEN): Roam {
   async function call<T>(path: string, init?: RequestInit, timeoutMs = 60_000): Promise<T> {
     let res: Response;
     try {
@@ -61,7 +61,7 @@ export function roamClient(baseUrl: string): Roam {
     // Prices first seen take a while to look up; the itinerary goes without rather than waiting.
     budget: (request) => call<DayBudget>("/api/budget", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ request }) }, 8_000).catch(() => null),
     shortLink: (code) =>
-      call<{ id: string }>("/api/plan/short", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) }, 5_000).then((b) => b.id, () => null),
+      call<{ id: string }>("/api/plan/short", { method: "POST", headers: { "content-type": "application/json", ...(bridgeToken && { authorization: `Bearer ${bridgeToken}` }) }, body: JSON.stringify({ code }) }, 5_000).then((b) => b.id, () => null),
     async weather(date) {
       // The forecast changes slowly; one fetch per half hour covers every trip.
       if (!forecast || Date.now() - forecast.at > 30 * 60_000) {

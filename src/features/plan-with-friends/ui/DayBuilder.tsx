@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, GripVertical, Plus, RefreshCw, X } from "lucide-react";
-import { useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import { clock, CROWD_COLOR, CROWD_LABEL, duration, isMealBreak, LEG_VERB, type DayPlan } from "../bridge/index";
 import { CrowdStrip } from "../bridge/ui";
 import type { Trip } from "../core/types";
@@ -31,6 +31,7 @@ export function DayBuilder({
 }) {
   const [drag, setDrag] = useState<Drag>(null);
   const [over, setOver] = useState<number | "tray" | null>(null);
+  const starting = useRef<number | undefined>(undefined);
   const it = trip.itinerary;
   const locked = !!trip.lockedCode;
   const stops = (plan?.stops ?? []).filter((s) => !isMealBreak(s));
@@ -69,9 +70,11 @@ export function DayBuilder({
             e.dataTransfer.effectAllowed = "move";
             e.dataTransfer.setData("text/plain", key);
             // Chrome cancels a drag if the page changes during dragstart; show the drop zones just after.
-            window.setTimeout(() => setDrag({ key, from }));
+            starting.current = window.setTimeout(() => setDrag({ key, from }));
           },
           onDragEnd: () => {
+            // A drag that ends at once mustn't leave the drop zones showing.
+            window.clearTimeout(starting.current);
             setDrag(null);
             setOver(null);
           },

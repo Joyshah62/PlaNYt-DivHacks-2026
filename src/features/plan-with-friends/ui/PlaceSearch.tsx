@@ -10,7 +10,7 @@ interface Result {
   key: string;
   name: string;
   detail: string;
-  source: "catalog" | "osm";
+  source: "catalog" | "osm" | "address";
   stop: StopInput;
 }
 
@@ -134,7 +134,17 @@ export function PlaceSearch({
                   onMouseEnter={() => setActive(i)}
                   onClick={() => pick(r.stop)}
                 >
-                  {!forStart && <PlaceThumb stop={r.stop} className="tr-search-thumb" />}
+                  {!forStart &&
+                    (r.source === "address" ? (
+                      // A street address has no photo worth a lookup on every keystroke.
+                      <span aria-hidden className="tr-thumb tr-search-thumb">
+                        <span className="tr-thumb-empty">
+                          <MapPin />
+                        </span>
+                      </span>
+                    ) : (
+                      <PlaceThumb stop={r.stop} className="tr-search-thumb" />
+                    ))}
                   <span className="tr-search-content">
                     <span className="tr-search-title">
                       <span>{r.name}</span>
