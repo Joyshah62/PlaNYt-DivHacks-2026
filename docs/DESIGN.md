@@ -115,7 +115,9 @@ var(--rule)`); inside, 1px rules. Map panels sit flush to the rule with a 1px `-
 - **Orbits:** every map that circles a landmark uses `ORBIT_SECONDS` (360s per turn, ~1°/s).
 - **Loops only when watched:** the plan demo plays the next of three example plans 60s after
   finishing, only while it's on screen and the tab is visible. The hero's shortcuts flip one slot
-  every 3.2s (nine presets, three on show), pausing on hover/focus and off screen.
+  every 4.5s like a flip clock (nine presets, three on show): the old label tips back and falls
+  away over 0.55s, the new one swings down and settles with a small bounce over 0.9s. Pauses on
+  hover/focus and off screen.
 - **Theme switch:** the new theme spreads from the toggle as a circle (View Transitions, 750ms).
 - **Reduced motion:** no intro, no orbits, demo shows its final state, theme switches instantly.
 
@@ -150,6 +152,9 @@ Components never touch Google or MapLibre directly; they use the `CityMap` inter
   surrounding text colour.
 
 ## 8. Building the next pages (handoff)
+
+The full brief for the planner redesign is **`docs/HANDOFF-planner.md`**. In short:
+
 
 1. **Promote the tokens first.** Split `src/app/home.css` into `src/app/editorial.css` (the `.ed`
    tokens, §3, and the primitives in §4: paper, type roles, buttons, prompt, chips, bullets,

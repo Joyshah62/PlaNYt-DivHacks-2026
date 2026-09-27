@@ -86,11 +86,22 @@
 
 .ed-chips { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-2); margin: var(--s-2) 0 0; padding: 0; list-style: none; font-style: italic; font-size: var(--t-small); }
 .ed-chips a { text-decoration: none; border-bottom: 1px solid currentColor; }
-/* Split-flap shortcuts (PresetFlip): the old label folds away, the new one flips down into place. */
-.ed-flip-slot { perspective: 30em; }
-.ed-flip { display: inline-block; transform-origin: 50% 50%; animation: ed-flip-in 0.34s cubic-bezier(0.2, 0.7, 0.2, 1); transition: transform 0.24s ease-in, opacity 0.24s ease-in; }
-.ed-flip.out { transform: rotateX(-90deg); opacity: 0; }
-@keyframes ed-flip-in { from { transform: rotateX(90deg); opacity: 0; } }
+/* Split-flap shortcuts (PresetFlip), paced like a flip clock: the old label tips back and falls
+   away (0.55s, accelerating), then the new one swings down from above and settles with a small
+   bounce (0.9s). A shade darkens each flap as it turns edge-on. Timings match PresetFlip.tsx. */
+.ed-flip-slot { perspective: 22em; }
+.ed-flip {
+  display: inline-block; transform-origin: 50% 50%; backface-visibility: hidden; will-change: transform;
+  animation: ed-flip-in 0.9s cubic-bezier(0.22, 0.61, 0.36, 1); /* no fill: .out must be free to transition */
+  transition: transform 0.55s cubic-bezier(0.55, 0, 0.75, 0.3), opacity 0.55s ease-in, filter 0.55s ease-in;
+}
+.ed-flip.out { transform: rotateX(-88deg); opacity: 0; filter: brightness(0.55); }
+@keyframes ed-flip-in {
+  0% { transform: rotateX(88deg); opacity: 0; filter: brightness(0.55); }
+  55% { transform: rotateX(-10deg); opacity: 1; filter: brightness(1); }
+  78% { transform: rotateX(4deg); }
+  100% { transform: rotateX(0deg); }
+}
 
 .ed-bullet {
   display: inline-grid; place-items: center; flex: none; width: 2.2em; height: 2.2em; border-radius: 50%;

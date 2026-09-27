@@ -25,7 +25,7 @@ The UX hierarchy:
 3. **Neighborhoods:** scrollytelling; a pinned 3D map flies to each neighborhood.
 4. **Colophon:** a closing line with a "Plan your day" button, three ruled columns (sections, sources, colophon), and a baseline with "Back to top".
 
-**Details:** the theme toggle reveals the new theme as a circle spreading from the button; the hero's three journey shortcuts flip like a split-flap board through nine presets; the plan demo cycles through three example days (the Met, Brooklyn, downtown), moving to the next 60s after finishing while it stays on screen or on "Another plan"; each neighborhood chapter has an outlined Roman numeral behind it; map credits are collapsed to a small ⓘ. Full design system: `docs/DESIGN.md`.
+**Details:** the theme toggle reveals the new theme as a circle spreading from the button; the hero's three journey shortcuts flip like a flip clock through nine presets (one every 4.5s); the plan demo cycles through three example days (the Met, Brooklyn, downtown), moving to the next 60s after finishing while it stays on screen or on "Another plan"; each neighborhood chapter has an outlined Roman numeral behind it; map credits are collapsed to a small ⓘ. Full design system: `docs/DESIGN.md`.
 
 **Performance:** copy is server-rendered; each map is created only near the viewport and idles off screen; Google failures fall back to MapLibre.
 
@@ -234,6 +234,8 @@ Each leg animates in on plan load (MapLibre interpolation).
 
 ## Color System
 
+> Planner, as it is today. The home page uses the editorial system in `docs/DESIGN.md`, and the planner is moving to it (`docs/HANDOFF-planner.md`).
+
 The UI uses CSS custom properties defined on `:root` so light/dark mode works at the theme level:
 
 | Token | Use |
@@ -252,6 +254,8 @@ The palette is designed to work at small sizes (map dots, 2px legend lines) with
 ---
 
 ## Typography
+
+> Planner, as it is today. See `docs/DESIGN.md` for the editorial type system.
 
 Two typefaces:
 - **Display font** (`font-display`): used for headings, the logo, the hero H1, and card numbers — a distinctive, slightly editorial feel

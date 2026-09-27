@@ -6,8 +6,8 @@ import { PRESETS } from "./data";
 import { usePrefersReducedMotion } from "./visibility";
 
 const SLOTS = 3;
-const FLIP_EVERY_MS = 3200;
-const FLIP_HALF_MS = 240; // matches .ed-flip.out's transition
+const FLIP_EVERY_MS = 4500;
+const FLIP_HALF_MS = 550; // the fall-away; matches .ed-flip.out's transition in home.css
 
 /**
  * The hero's shortcuts, like a split-flap board: three show at a time and, one slot per beat,
