@@ -75,9 +75,9 @@ export function TripRoom({ id, viewer = null }: { id: string; viewer?: Viewer | 
         </div>
       </header>
 
-      {(room.offline || room.error || room.rememberWarning) && (
+      {(room.offline || room.slow || room.error || room.rememberWarning) && (
         <div className="ed-gut tr-status">
-          {room.offline && <p className="ed-small ed-muted">Reconnecting…</p>}
+          {room.offline ? <p className="ed-small ed-muted">Reconnecting…</p> : room.slow && <p className="ed-small ed-muted">The connection is slow. Still trying…</p>}
           {room.rememberWarning && <p className="ed-small ed-muted">You&apos;re in, but this browser won&apos;t remember you after you close it.</p>}
           {room.error && <p role="alert" className="ed-alert">{room.error}</p>}
         </div>

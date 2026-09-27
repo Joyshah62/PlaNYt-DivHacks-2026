@@ -3,7 +3,7 @@
 import { AlarmClock, AlertTriangle, Bike, Bookmark, BookmarkCheck, CalendarPlus, Car, CarTaxiFront, ChevronDown, Footprints, Hourglass, Lightbulb, Link2, Map as MapIcon, MapPin, MessageCircle, Pencil, Share2, TrainFront, Umbrella, Users, UtensilsCrossed, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ATTRACTION_BY_ID } from "@/lib/plan/attractions";
-import { crowdBand } from "@/lib/plan/crowd";
+import { crowdBand } from "@/lib/plan/crowdBand";
 import { isMealBreak } from "@/lib/plan/profile";
 import { CROWD_LABEL, LEG_VERB, MODE_LABEL } from "@/lib/plan/display";
 import { clock, duration, nycToday, WEEKDAYS } from "@/lib/plan/time";

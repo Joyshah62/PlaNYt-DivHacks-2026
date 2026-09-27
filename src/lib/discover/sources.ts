@@ -23,8 +23,8 @@ const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\"]/g, "\\$&");
 type PoiRow = [string, string, number, number, Category, string | null, string | null, string | null, string | null, string | null];
 let poiRows: Promise<PoiRow[] | null> | null = null;
 
-/** The downloaded NYC places, read once; null if the data file hasn't been built. */
-function loadPois(): Promise<PoiRow[] | null> {
+/** The downloaded NYC places, read once and shared (trip room search uses it too); null if the data file hasn't been built. */
+export function loadPois(): Promise<PoiRow[] | null> {
   poiRows ??= readFile(path.join(process.cwd(), "src/lib/discover/poi-data.json"), "utf8")
     .then((text) => (JSON.parse(text) as { places: PoiRow[] }).places)
     .catch(() => null);
@@ -182,6 +182,23 @@ let googleOffUntil = 0;
  * key, API not enabled, over the cap), so the caller falls back to OSM.
  */
 export async function searchGoogle(points: SearchPoint[], intent: Intent): Promise<Candidate[] | null> {
+  // The same search within a few minutes (a group asking twice, a retry) costs nothing the second time.
+  const cacheKey = JSON.stringify([points.map((p) => [p.lat.toFixed(3), p.lon.toFixed(3), p.radius]), intent]);
+  const hit = googleCache.get(cacheKey);
+  if (hit && hit.until > Date.now()) return [...hit.results];
+  const results = await fetchGoogle(points, intent);
+  if (results) {
+    if (googleCache.size >= GOOGLE_CACHE_MAX) googleCache.delete(googleCache.keys().next().value!);
+    googleCache.set(cacheKey, { until: Date.now() + GOOGLE_CACHE_MS, results });
+  }
+  return results;
+}
+
+const GOOGLE_CACHE_MS = 10 * 60 * 1000;
+const GOOGLE_CACHE_MAX = 300;
+const googleCache = new Map<string, { until: number; results: Candidate[] }>();
+
+async function fetchGoogle(points: SearchPoint[], intent: Intent): Promise<Candidate[] | null> {
   const key = googlePlacesKey();
   if (!key || Date.now() < googleOffUntil) return null;
   if (!(await reserve("search"))) return null;

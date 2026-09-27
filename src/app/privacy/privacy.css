@@ -1,0 +1,28 @@
+/* Privacy policy: a contents column beside a readable text column, in the editorial system. */
+.pv { min-height: 100dvh; display: flex; flex-direction: column; }
+.pv-head { padding-block: var(--s-3) var(--s-2); border-bottom: 1px solid var(--rule); margin-inline: var(--gut); padding-inline: 0; }
+.pv-title { font: 400 clamp(44px, 5.4vw, 120px) / 0.92 var(--f-display); margin-block: var(--s-1); }
+.pv-grid { display: grid; gap: var(--s-3); padding-block: var(--s-3) var(--s-4); }
+.pv-toc ol { display: grid; gap: 0.5em; margin-top: var(--s-1); font-size: var(--t-small); }
+.pv-toc a { text-decoration: none; }
+.pv-toc a:hover { color: var(--red); }
+/* A comfortable reading measure for long text; the page itself stays full width. */
+.pv-body { display: grid; gap: var(--s-3); max-width: 44em; font-size: var(--t-lead); line-height: 1.55; }
+.pv-body section { scroll-margin-top: var(--s-3); border-top: 1px solid var(--rule); padding-top: var(--s-2); }
+.pv-body section:first-child { border-top: 0; padding-top: 0; }
+.pv-body h2 { margin-bottom: 0.6em; }
+.pv-body h2 .ed-kicker { margin-right: 0.5em; vertical-align: middle; }
+.pv-body p + p { margin-top: 0.8em; }
+.pv-body ul { display: grid; gap: 0.6em; padding-left: 1.1em; list-style: square; }
+.pv-body li::marker { color: var(--red); }
+.pv-body dl { display: grid; grid-template-columns: minmax(8em, max-content) minmax(0, 1fr); gap: 0.5em var(--s-2); margin-block: 0.8em; }
+.pv-body dt { font-weight: 600; }
+.pv-body dd { color: var(--ed-muted); }
+@media (min-width: 1024px) {
+  .pv-grid { grid-template-columns: minmax(12em, 1fr) minmax(0, 3fr); }
+  .pv-toc { position: sticky; top: var(--s-2); align-self: start; }
+}
+@media (max-width: 640px) {
+  .pv-body dl { grid-template-columns: minmax(0, 1fr); }
+  .pv-body dd { margin-bottom: 0.4em; }
+}

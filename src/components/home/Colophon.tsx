@@ -60,7 +60,7 @@ export function Colophon() {
       </div>
 
       <div className="ed-colophon-base ed-mono">
-        <span>© {new Date().getFullYear()} {BRAND.name} · New York, N.Y.</span>
+        <span>© {new Date().getFullYear()} {BRAND.name} · New York, N.Y. · <Link href="/privacy">Privacy</Link></span>
         <a href="#top">Back to top ↑</a>
       </div>
     </footer>

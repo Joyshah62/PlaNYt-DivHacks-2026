@@ -1,6 +1,6 @@
-import { CATEGORIES, CATEGORY, CROWD_LABEL, clock, crowdBand, crowdProfile, weekdayOf, type StopInput } from "../bridge/index";
+import { CATEGORIES, CATEGORY, CROWD_LABEL, clock, crowdBand, weekdayOf, type StopInput } from "../bridge/index";
 import { inNycArea } from "../bridge/index";
-import { fallbackIntent, geminiJson, geminiKey, guardrail, renownOf, resolveDestination, searchGoogle, searchLocal, TRAVEL_SCOPE, weightedRating, type DiscoverCandidate, type Intent } from "../bridge/server";
+import { crowdProfile, fallbackIntent, geminiJson, geminiKey, guardrail, renownOf, resolveDestination, searchGoogle, searchLocal, TRAVEL_SCOPE, weightedRating, type DiscoverCandidate, type Intent } from "../bridge/server";
 import type { Point } from "../core/fairness";
 import type { SuggestionItem } from "../core/suggestions";
 import type { Idea, Trip } from "../core/types";

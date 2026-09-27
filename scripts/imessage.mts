@@ -36,6 +36,9 @@ if (process.env.PORT && !BRIDGE_TOKEN.trim()) {
   process.exit(1);
 }
 
+/** A thread in the logs: its last four digits, not the whole phone number or email. */
+const who = (id: string) => `…${id.replace(/\D/g, "").slice(-4) || id.slice(-4)}`;
+
 const app = await Spectrum({
   projectId: process.env.SPECTRUM_PROJECT_ID,
   projectSecret: process.env.SPECTRUM_PROJECT_SECRET,
@@ -82,7 +85,7 @@ function explainSendError(id: string, error: unknown): boolean {
 const queues = new Map<string, Promise<void>>();
 function serially(id: string, job: () => Promise<void>) {
   const next = (queues.get(id) ?? Promise.resolve()).then(job).catch((error) => {
-    if (!explainSendError(id, error)) console.error(`[${id}]`, error);
+    if (!explainSendError(id, error)) console.error(`[${who(id)}]`, error);
   });
   queues.set(id, next);
   return next;
@@ -98,8 +101,9 @@ async function reply(space: Space, thread: Thread, text: string) {
     // A number Photon won't message can't be told about it either.
     if (explainSendError(thread.id, error)) return;
     // The planner's own answers ("Couldn't find that place") are replies, not crashes: one line, no stack.
-    if (error instanceof RoamError && error.status !== null && error.status < 500) console.warn(`[${thread.id}] planner answered ${error.status}: ${error.message}`);
-    else console.error(`[${thread.id}] handling "${text}":`, error);
+    if (error instanceof RoamError && error.status !== null && error.status < 500) console.warn(`[${who(thread.id)}] planner answered ${error.status}: ${error.message}`);
+    // What they wrote stays out of the logs; its length is enough to spot an oversized message.
+    else console.error(`[${who(thread.id)}] handling a ${text.length}-character message:`, error);
     await space.send(error instanceof RoamError ? error.message : "Sorry, something went wrong on my end. Try that again in a minute.");
   }
 }
@@ -123,7 +127,7 @@ async function replyFromVoice(
     });
     await reply(space, thread, text);
   } catch (error) {
-    console.error(`[${thread.id}] voice:`, error);
+    console.error(`[${who(thread.id)}] voice:`, error);
     await space.send("I couldn't make out that voice note. Try again or text me instead.");
   }
 }

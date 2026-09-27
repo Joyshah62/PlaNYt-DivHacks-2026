@@ -1,5 +1,5 @@
 import type { OpenWindow } from "./attractions";
-import { levelDuring } from "./crowd";
+import { levelDuring } from "./crowdBand";
 
 /**
  * Orders a day's stops. Every order is simulated through the clock - travel,
@@ -208,7 +208,9 @@ const ZIGZAG_SHARE = 0.25;
  */
 export function optimize(input: OptimizeInput): { best: Simulation; exhaustive: boolean } {
   const quiet = search(input);
-  if (!input.crowdWeight) return quiet;
+  // No second search when it can't matter: crowds ignored, or so little travel that the direct
+  // order can't save more than the threshold.
+  if (!input.crowdWeight || quiet.best.travelMin <= ZIGZAG_MIN) return quiet;
   const direct = search({ ...input, crowdWeight: 0 });
   const extra = quiet.best.travelMin - direct.best.travelMin;
   if (extra <= Math.max(ZIGZAG_MIN, direct.best.travelMin * ZIGZAG_SHARE)) return quiet;

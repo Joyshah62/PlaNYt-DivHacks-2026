@@ -257,6 +257,9 @@ function SignIn({ next, googleEnabled, initialMode, oauthError }: { next: string
           {signup ? "Sign in" : "Create an account"}
         </button>
       </p>
+      <p className="ed-small ed-muted">
+        How we handle your data: <Link href="/privacy" className="ed-link">privacy policy</Link>.
+      </p>
     </div>
   );
 }

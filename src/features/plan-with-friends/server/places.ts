@@ -1,5 +1,5 @@
-import { ATTRACTIONS, CATEGORY, nearestStations, parseOsmHours, STATIONS, type StopInput } from "../bridge/index";
-import { readPoiRows, suggestAddresses } from "../bridge/server";
+import { ATTRACTIONS, CATEGORY, parseOsmHours, type StopInput } from "../bridge/index";
+import { nearestStations, readPoiRows, STATIONS, suggestAddresses } from "../bridge/server";
 import { createPlaceIndex, type PlaceHit, type PoiRow } from "../core/placeSearch";
 
 type Index = ReturnType<typeof createPlaceIndex>;

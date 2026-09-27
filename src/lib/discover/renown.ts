@@ -1,4 +1,5 @@
 import { geminiJson, geminiKey } from "@/lib/llm/gemini";
+import { getDb, hasMongo } from "@/lib/mongo";
 import type { Candidate } from "./types";
 
 /**
@@ -28,11 +29,37 @@ const SYSTEM =
 /** Answers stay good for hours; one search never waits long for them. */
 const cache = new Map<string, number>();
 const TIMEOUT_MS = 7000;
+/** Grades kept in MongoDB too, so a restart or another server doesn't pay for them again. */
+const COLLECTION = "place_renown";
+type RenownDoc = { _id: string; renown: number; at: Date };
+
+async function stored(ids: string[]): Promise<Map<string, number>> {
+  if (!ids.length || !hasMongo()) return new Map();
+  try {
+    const docs = await (await getDb()).collection<RenownDoc>(COLLECTION).find({ _id: { $in: ids } }).toArray();
+    return new Map(docs.map((d) => [d._id, d.renown]));
+  } catch (error) {
+    console.warn("[discover/renown] couldn't read saved grades:", error instanceof Error ? error.message : error);
+    return new Map();
+  }
+}
+
+function store(grades: [string, number][]) {
+  if (!grades.length || !hasMongo()) return;
+  void getDb()
+    .then((db) => db.collection<RenownDoc>(COLLECTION).bulkWrite(grades.map(([_id, renown]) => ({ updateOne: { filter: { _id }, update: { $set: { renown, at: new Date() } }, upsert: true } })), { ordered: false }))
+    .catch((error: unknown) => console.warn("[discover/renown] couldn't save grades:", error instanceof Error ? error.message : error));
+}
 
 export async function renownOf(candidates: Candidate[]): Promise<Renown> {
   const out: Renown = new Map();
   const unrated = candidates.filter((c) => c.rating === null);
   for (const c of unrated) if (cache.has(c.id)) out.set(c.id, cache.get(c.id)!);
+  const saved = await stored(unrated.filter((c) => !cache.has(c.id)).map((c) => c.id));
+  for (const [id, renown] of saved) {
+    cache.set(id, renown);
+    out.set(id, renown);
+  }
   const ask = unrated.filter((c) => !cache.has(c.id)).slice(0, 40);
   if (!ask.length || !geminiKey()) return out;
   const list = ask.map((c, i) => `${i}. ${c.name} (${c.kind}${c.address ? `, ${c.address}` : ""})`).join("\n");
@@ -41,13 +68,16 @@ export async function renownOf(candidates: Candidate[]): Promise<Renown> {
       geminiJson(SYSTEM, list, { name: "place_renown", schema: SCHEMA as unknown as Record<string, unknown> }, { timeoutMs: TIMEOUT_MS, effort: "low" }),
       new Promise((resolve) => setTimeout(() => resolve(null), TIMEOUT_MS)),
     ])) as { grades?: { i: number; renown: number }[] } | null;
+    const fresh: [string, number][] = [];
     for (const g of parsed?.grades ?? []) {
       const c = ask[g.i];
       if (!c || !Number.isInteger(g.renown)) continue;
       const renown = Math.max(0, Math.min(3, g.renown));
       cache.set(c.id, renown);
       out.set(c.id, renown);
+      fresh.push([c.id, renown]);
     }
+    store(fresh);
   } catch (error) {
     console.warn("[discover/renown]", error instanceof Error ? error.message : error);
   }

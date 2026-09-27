@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Candidate } from "./types";
 
 const geminiJson = vi.fn();
+vi.mock("@/lib/mongo", () => ({ hasMongo: () => false, getDb: vi.fn() }));
 vi.mock("@/lib/llm/gemini", () => ({ geminiKey: () => "test", geminiJson: (...args: unknown[]) => geminiJson(...args) }));
 const { renownOf, renownText } = await import("./renown");
 

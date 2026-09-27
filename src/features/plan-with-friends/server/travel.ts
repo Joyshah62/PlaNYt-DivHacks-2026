@@ -1,4 +1,4 @@
-import { nearestStations, STATIONS, subwayLeg } from "../bridge/index";
+import { nearestStations, STATIONS, subwayLeg } from "../bridge/server";
 import { fairestPoint, MEETUP_PREFIX, walkMinutes, type FairPick, type Point } from "../core/fairness";
 
 /** Door to door by subway or on foot, whichever is quicker. No network: safe to run on every read. */

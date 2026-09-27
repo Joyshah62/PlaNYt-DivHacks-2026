@@ -924,7 +924,7 @@ export async function chat(input: z.infer<typeof ChatInput>, progress: Progress 
         progress("Searching the web…");
         const q = schemas.web_search.safeParse(c.args);
         const found = q.success && lookups++ < MAX_LOOKUPS ? await webSearch(q.data.query, { recent: q.data.recent }) : null;
-        console.info("[trip-chat] web:", q.success ? q.data.query : "?", found ? `${found.results.length} results` : "nothing");
+        console.info("[trip-chat] web search:", found ? `${found.results.length} results` : "nothing");
         if (found) sources.push(...found.results.slice(0, 3).map(({ title, url }) => ({ title, url })));
         output = found ? { answer: found.answer, results: found.results } : "No web results are available right now. Say you couldn't check, and suggest the place's official site.";
       } else {
@@ -967,7 +967,7 @@ export async function chat(input: z.infer<typeof ChatInput>, progress: Progress 
     else messages.push({ role: "user", content: `(${check})` });
     const response = await ask(1);
     const more = (response?.calls ?? []).filter((c) => CHANGES.has(c.name) && !seen.has(`${c.name}:${JSON.stringify(c.args ?? {})}`));
-    console.info("[trip-chat] repair:", more.map((c) => c.name).join(" ") || (response?.text ?? "").slice(0, 100));
+    console.info("[trip-chat] repair:", more.map((c) => c.name).join(" ") || "no tool calls");
     if (more.length) {
       const retried = await settle(await runTools([...work, ...more], input, progress).catch((error: unknown) => {
         console.warn("[trip-chat] repair retry failed, keeping the first proposal:", error instanceof Error ? error.message : error);
