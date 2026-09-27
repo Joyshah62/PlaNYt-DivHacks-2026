@@ -37,6 +37,7 @@ function fakeRoam(chatReplies: ChatReply[]) {
     tripChat: vi.fn(async () => chatReplies.shift()!),
     weather: vi.fn(async () => null),
     budget: vi.fn(async () => null),
+    shortLink: vi.fn(async () => "Ab3_x9Zq"),
   };
   return roam;
 }
@@ -59,7 +60,7 @@ describe("the iMessage conversation", () => {
 
     const first = await bot.handle(thread, "The Met and MoMA on Saturday");
     expect(first.join("\n")).toContain("1. 9am  The Met");
-    expect(first.join("\n")).toContain("Map: https://roam.test/plan?plan=");
+    expect(first.join("\n")).toContain("Map: https://roam.test/p/Ab3_x9Zq");
 
     const both = await bot.handle(thread, "add times square and a cafe there");
     expect(both.join("\n")).toContain("1. 787 Coffee");
@@ -115,6 +116,13 @@ describe("asking before planning", () => {
     await bot.handle(thread, "skip");
     expect(roam.assistant).toHaveBeenLastCalledWith("Museums", DEFAULT_PROFILE, expect.objectContaining({ skipQuestions: true }));
   });
+});
+
+it("falls back to the full plan link when it can't be shortened", async () => {
+  const roam = fakeRoam([]);
+  vi.mocked(roam.shortLink).mockResolvedValue(null);
+  const texts = await createBot(roam, "https://roam.test").handle(newThread("any;-;+15550000000"), "The Met and MoMA on Saturday");
+  expect(texts.join("\n")).toContain("Map: https://roam.test/plan?plan=");
 });
 
 describe("short replies", () => {

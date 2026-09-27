@@ -18,11 +18,16 @@ const tripKey = (r: PlanRequest) => JSON.stringify(r);
  * numbered places and YES/NO for changes instead of buttons.
  */
 export function createBot(roam: Roam, publicUrl: string) {
-  const link = (r: PlanRequest) => `${publicUrl}/plan?plan=${encodePlan(r)}`;
+  /** A short /p/ link when the web app can make one; the full plan link otherwise. */
+  const link = async (r: PlanRequest) => {
+    const code = encodePlan(r);
+    const id = await roam.shortLink(code);
+    return id ? `${publicUrl}/p/${id}` : `${publicUrl}/plan?plan=${code}`;
+  };
   /** The day as a text; with the traveler's profile, the budget totals for everyone going. */
   const show = async (plan: DayPlan, profile?: Profile | null) => {
-    const [weather, budget] = await Promise.all([roam.weather(plan.request.date), roam.budget(plan.request)]);
-    return itinerary(plan, { weather, budget, link: link(plan.request), people: profile ? partySize(profile) : null });
+    const [weather, budget, url] = await Promise.all([roam.weather(plan.request.date), roam.budget(plan.request), link(plan.request)]);
+    return itinerary(plan, { weather, budget, link: url, people: profile ? partySize(profile) : null });
   };
 
   /** A fresh plan (or none) replaces everything that was about the old one. */
@@ -88,7 +93,7 @@ export function createBot(roam: Roam, publicUrl: string) {
     const texts = applied ? [...chatReply({ ...reply, proposal: undefined }), await show(applied, thread.profile)] : chatReply(reply);
     // Over text, saving, sharing and the calendar all come down to the plan's link.
     const actions = reply.actions ?? [];
-    if (actions.some((a) => a.action !== "new_plan")) texts.push(`Here's your day to save, share or add to your calendar: ${link(thread.plan!.request)}`);
+    if (actions.some((a) => a.action !== "new_plan")) texts.push(`Here's your day to save, share or add to your calendar: ${await link(thread.plan!.request)}`);
     const fresh = actions.find((a) => a.action === "new_plan" && a.text);
     if (fresh) texts.push(...(await startTrip(thread, fresh.text!)));
     thread.history = [...thread.history, { role: "user" as const, text }, { role: "assistant" as const, text: texts.join("\n") }].slice(-HISTORY);

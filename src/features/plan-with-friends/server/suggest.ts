@@ -100,27 +100,45 @@ function fromDiscover(c: DiscoverCandidate, why: string | null, trip: Trip): Sug
   return { key: stop.key, name: c.name, area: c.address, category: c.kind, crowdHint: crowdHint(c, trip), why, stop };
 }
 
+/** A place found by geocoding its name, for places our own lists don't have. */
+function fromPoint(name: string, p: Point, want: Want, trip: Trip): SuggestionItem {
+  const def = want.category ? CATEGORY[want.category] : null;
+  const stop: StopInput = { key: `place-${norm(name).replace(/ /g, "-")}`.slice(0, 80), name: name.slice(0, 120), lat: p.lat, lon: p.lon, visitMin: def?.visitMin ?? 60, attractionId: null };
+  return { key: stop.key, name: stop.name, area: null, category: def?.label ?? "Place", crowdHint: crowdHint(p, trip), why: want.why, stop };
+}
+
+async function geocoded(text: string): Promise<Point | null> {
+  const p = await resolveDestination(text).catch(() => null);
+  return p && inNycArea(p) ? { lat: p.lat, lon: p.lon } : null;
+}
+
 async function resolveWant(want: Want, trip: Trip, limit: number): Promise<SuggestionItem[]> {
   if (want.named) {
     const [hit] = await searchPlaces(want.named, 1);
     if (hit) return [{ key: hit.stop.key, name: hit.name, area: hit.detail.split(" · ").slice(1).join(" · ") || null, category: hit.detail.split(" · ")[0], crowdHint: crowdHint(hit, trip), why: want.why, stop: hit.stop }];
+    // Not in our lists (the Chess & Checkers House): the map still knows where it is.
+    const at = await geocoded(want.named);
+    if (at) return [fromPoint(want.named, at, want, trip)];
   }
   const base = fallbackIntent(want.query, null);
   const intent: Intent = { ...base, category: want.category ?? base.category, cuisine: want.cuisine ?? base.cuisine, keywords: want.keywords.length ? want.keywords : base.keywords };
   // Somewhere they named beats the meeting spot; it's geocoded as an area, not a person.
-  const asked = want.near ? await resolveDestination(`${want.near}, New York`).catch(() => null) : null;
-  const center = asked && inNycArea(asked) ? { lat: asked.lat, lon: asked.lon } : centerOf(trip);
+  const asked = want.near ? await geocoded(`${want.near}, New York`) : null;
+  const center = asked ?? centerOf(trip);
   const near = (radius: number, i: Intent) => searchLocal([{ ...center, radius }], i).then((r) => (r ?? []).sort((a, b) => a.meters - b.meters));
   // Keywords only match names, so a mood ("artsy", "historical") matches almost nothing: top up
   // with the closest places of that kind, then look further out if the area is thin.
-  let found = await near(1800, intent);
+  const matched = await near(1800, intent);
+  let found = matched;
   if (found.length < limit && (intent.keywords.length || intent.cuisine)) found = [...found, ...(await near(1800, { ...intent, keywords: [], cuisine: null }))];
   if (found.length < limit) found = [...found, ...(await near(4500, { ...intent, keywords: [], cuisine: null }))];
   const seen = new Set<string>();
-  return found
+  const items = found
     .filter((c) => !seen.has(c.id) && (seen.add(c.id), true))
     .slice(0, limit)
     .map((c) => fromDiscover(c, want.why, trip));
+  // "Chess in Central Park" with nothing named for chess: the place they asked for is the answer.
+  return asked && want.near && !matched.length ? [fromPoint(want.near, asked, want, trip), ...items].slice(0, limit) : items;
 }
 
 function dedupe(items: SuggestionItem[]): SuggestionItem[] {
@@ -130,7 +148,7 @@ function dedupe(items: SuggestionItem[]): SuggestionItem[] {
 
 const ASK_SYSTEM =
   "You help a group of friends plan a day in New York City. From their message and the trip context, say what they want as up to 5 'wants', one per kind of place, in the order asked ('breakfast at 9, then shopping, then a movie' is three, the first at 540). " +
-  "Use 'named' only for a specific place they named. Keep 'why' under 10 words and about the group (their times, where they meet, what they voted for).";
+  "Use 'named' for a specific place they named, or the one well-known place an activity plainly means (chess in Central Park is the Chess & Checkers House). Keep 'why' under 10 words and about the group (their times, where they meet, what they voted for).";
 
 export interface AskAnswer {
   reply: string;
@@ -165,8 +183,8 @@ export async function askRoom(trip: Trip, text: string): Promise<AskAnswer> {
 }
 
 const IDEA_SYSTEM =
-  "A friend left a note in a group trip chat. Say what place they want as exactly one 'want'. If the note names a specific place, put its name in 'named'. " +
-  "Otherwise give search words like 'dessert' and the category.";
+  "A friend left a note in a group trip chat. Say what place they want as exactly one 'want'. If the note names a specific place, or an activity that plainly means one well-known place " +
+  "(chess in Central Park is the Chess & Checkers House), put its real name in 'named'. Otherwise give search words like 'dessert' and the category. Put any area they mention in 'near'.";
 
 /** "Turn into a place": one specific place to confirm, or a few to choose from near the meeting spot. */
 export async function ideaSuggestions(trip: Trip, idea: Idea): Promise<{ mode: "confirm" | "choose"; label: string; items: SuggestionItem[]; usedAi: boolean }> {
@@ -176,5 +194,5 @@ export async function ideaSuggestions(trip: Trip, idea: Idea): Promise<{ mode: "
   const want = ai?.wants[0] ?? (await plainWant(idea.text.replace(/[?!.]+$/, "")));
   const items = await resolveWant(want, trip, 5);
   const named = !!want.named && items.length === 1;
-  return { mode: named ? "confirm" : "choose", label: named ? `Add ${items[0].name}?` : `${want.query}${want.why ? ` · ${want.why}` : ""}`, items, usedAi: !!ai };
+  return { mode: named ? "confirm" : "choose", label: named ? `Add ${items[0].name}?` : want.query, items, usedAi: !!ai };
 }

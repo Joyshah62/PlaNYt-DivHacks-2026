@@ -12,6 +12,8 @@ export interface Roam {
   weather(date: string): Promise<DayWeather | null>;
   /** The day's budget, or null if it isn't ready within a few seconds. */
   budget(request: PlanRequest): Promise<DayBudget | null>;
+  /** A short id for a plan code (opened at /p/<id>), or null if the web app can't make one. */
+  shortLink(code: string): Promise<string | null>;
 }
 
 export interface AssistantOptions {
@@ -58,6 +60,8 @@ export function roamClient(baseUrl: string): Roam {
     tripChat: (body) => post("/api/trip-chat", body),
     // Prices first seen take a while to look up; the itinerary goes without rather than waiting.
     budget: (request) => call<DayBudget>("/api/budget", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ request }) }, 8_000).catch(() => null),
+    shortLink: (code) =>
+      call<{ id: string }>("/api/plan/short", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) }, 5_000).then((b) => b.id, () => null),
     async weather(date) {
       // The forecast changes slowly; one fetch per half hour covers every trip.
       if (!forecast || Date.now() - forecast.at > 30 * 60_000) {

@@ -1,5 +1,5 @@
 import { ATTRACTIONS, CATEGORY, nearestStations, parseOsmHours, STATIONS, type StopInput } from "../bridge/index";
-import { readPoiRows } from "../bridge/server";
+import { readPoiRows, suggestAddresses } from "../bridge/server";
 import { createPlaceIndex, type PlaceHit, type PoiRow } from "../core/placeSearch";
 
 type Index = ReturnType<typeof createPlaceIndex>;
@@ -37,7 +37,29 @@ const osmHours = (text: string) => parseOsmHours(text.replace(/,\s*(?=(?:Mo|Tu|W
 
 export type PlaceResult = PlaceHit & { stop: StopInput };
 
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+/** Street addresses matching what's typed, as places you can pick. */
+async function searchAddresses(q: string, limit: number): Promise<PlaceResult[]> {
+  const found = await suggestAddresses(q, limit).catch((error: unknown) => {
+    console.error("[trips/places]", error instanceof Error ? error.message : error);
+    return [];
+  });
+  return found.map((a) => {
+    const key = `addr-${slug(a.name)}`.slice(0, 80);
+    const hit = { key, name: a.name, lat: a.lat, lon: a.lon, detail: ["Address", a.area].filter(Boolean).join(" · "), visitMin: 60, hoursText: null, source: "address" as const, attractionId: null };
+    return { ...hit, stop: { key, name: a.name.slice(0, 120), lat: a.lat, lon: a.lon, visitMin: 60, attractionId: null } };
+  });
+}
+
+/** Named places as you type; a query starting with a number ("554 W 148th") is an address, so addresses come first. */
 export async function searchPlaces(q: string, limit = 8, withStations = false): Promise<PlaceResult[]> {
+  if (!/^\s*\d/.test(q)) return searchNamed(q, limit, withStations);
+  const [addresses, named] = await Promise.all([searchAddresses(q, 4), searchNamed(q, limit, withStations)]);
+  return [...addresses, ...named].slice(0, limit);
+}
+
+async function searchNamed(q: string, limit: number, withStations: boolean): Promise<PlaceResult[]> {
   const hits = (await placeIndex(withStations)).search(q, limit);
   return hits.map((h) => ({
     ...h,

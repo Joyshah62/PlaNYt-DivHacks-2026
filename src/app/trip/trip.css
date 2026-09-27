@@ -23,7 +23,7 @@
 .tr-who {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(45%, 11em), 1fr));
-  border-top: 3px double var(--rule);
+  border-top: 1px solid var(--rule);
   margin-top: var(--s-3);
   list-style: none;
 }
@@ -90,7 +90,7 @@
 .tr-form {
   display: grid;
   gap: var(--s-2);
-  border-top: 3px double var(--rule);
+  border-top: 1px solid var(--rule);
   padding-top: var(--s-2);
 }
 
@@ -110,7 +110,7 @@
 }
 
 /* Rules run inside the gutters, like the app bar's. */
-.tr-head { margin-inline: var(--gut); padding-block: var(--s-3) var(--s-2); border-bottom: 3px double var(--rule); }
+.tr-head { margin-inline: var(--gut); padding-block: var(--s-3) var(--s-2); border-bottom: 1px solid var(--rule); }
 .tr-head .tr-display { margin-bottom: var(--s-1); }
 .tr-who-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); }
 .tr-status { display: grid; gap: 0.3em; padding-top: var(--s-1); }
@@ -142,8 +142,6 @@
   .tr-col-day {
     grid-column: 2;
     grid-row: 1 / span 2;
-    position: sticky;
-    top: var(--s-2);
   }
 }
 @media (max-width: 1023px) {
@@ -160,6 +158,9 @@
   min-width: 0;
 }
 .tr-col > * { min-width: 0; max-width: 100%; }
+/* The header's rule already sits above each column's first panel. */
+.tr-col-places > .ed-panel:first-child, .tr-col-day > .ed-panel:first-child { border-top: 0; padding-top: 0; }
+@media (max-width: 1023.98px) { .tr-col-ideas > .ed-panel:first-child { border-top: 0; padding-top: 0; } }
 
 .tr-dock {
   position: fixed;
@@ -1146,9 +1147,9 @@
 .tr-day-stop.dragging {
   opacity: 0.4;
 }
-.tr-day-stop.drop-target {
-  outline: 1.5px dashed var(--red);
-}
+/* A red line where the dragged stop will land. */
+.tr-day-stop.drop-before { box-shadow: 0 -2px 0 var(--red); }
+.tr-day-stop.drop-after { box-shadow: 0 2px 0 var(--red); }
 .tr-day-time {
   padding-top: 0.125em;
   font-size: var(--t-small);
