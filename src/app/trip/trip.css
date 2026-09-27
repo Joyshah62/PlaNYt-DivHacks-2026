@@ -1412,3 +1412,9 @@
 }
 .tr-map-info { gap: 0.35em; padding: var(--s-1) 0 0; }
 .tr-day-stale { margin-top: var(--s-1); padding: 0.5em var(--s-1); }
+/* Who's coming sits to the right of the title on wider screens, on the title's baseline. */
+@media (min-width: 640px) {
+  .tr-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s-3); align-items: end; }
+  .tr-head > :not(.tr-who-line) { grid-column: 1; }
+  .tr-head > .tr-who-line { grid-column: 2; grid-row: 1 / span 2; padding-bottom: 0.5em; justify-content: flex-end; }
+}

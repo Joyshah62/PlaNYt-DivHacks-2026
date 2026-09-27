@@ -1,6 +1,7 @@
 import { clock } from "../../bridge/index";
 import { readBody, respond, tripId } from "../http";
 import { actingMember } from "../member";
+import { MAX_CANDIDATES } from "../../core/types";
 import { AskBody } from "../schema";
 import { TripError } from "../service";
 import { getTripStore } from "../store";
@@ -22,6 +23,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/trips/[id]/
     const answer = await askRoom(trip, text);
     if (memberId !== trip.hostId || trip.lockedCode || !answer.picks.length) return { ...answer, planned: false };
 
+    // Check room for every new place first: failing halfway would leave places added but no day planned.
+    const fresh = answer.picks.filter((s) => !trip.candidates.some((c) => c.stop.key === s.key)).length;
+    if (trip.candidates.length + fresh > MAX_CANDIDATES) throw new TripError(400, "This trip has enough ideas to plan from. Remove a few, or vote on the ones already here.");
     for (const stop of answer.picks) await store.addCandidate(id, memberId, stop);
     const planned = await store.setItinerary(id, memberId, answer.picks.map((s) => s.key));
     const day = answer.picks.map((s) => `${s.name}${s.fixedStartMin != null ? ` at ${clock(s.fixedStartMin)}` : ""}`).join(" → ");

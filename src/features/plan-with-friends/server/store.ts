@@ -20,7 +20,10 @@ const hooks: TripHooks = {
   // The approved day lands in every member's saved trips, on every device they sign in on, and by text.
   onLock: async ({ id, title, date, code, memberIds, hostName }) => {
     const userIds = userIdsOf(memberIds);
-    await Promise.all([saveForMembers({ id, title, code, userIds }), textMembers({ code, userIds, intro: approvedLine(title, date, hostName, code) })]);
+    // Each on its own: a failed save mustn't hide a failed text, or the other way round.
+    const [saved, texted] = await Promise.allSettled([saveForMembers({ id, title, code, userIds }), textMembers({ code, userIds, intro: approvedLine(title, date, hostName, code) })]);
+    if (saved.status === "rejected") console.error(`[trips] ${id}: couldn't save the approved day to members' trips:`, saved.reason instanceof Error ? saved.reason.message : saved.reason);
+    if (texted.status === "rejected") console.error(`[trips] ${id}: couldn't text the approved day:`, texted.reason instanceof Error ? texted.reason.message : texted.reason);
   },
 };
 

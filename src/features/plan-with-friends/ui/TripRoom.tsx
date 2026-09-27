@@ -70,7 +70,7 @@ export function TripRoom({ id, viewer = null }: { id: string; viewer?: Viewer | 
         <div className="tr-who-line">
           <AvatarStack people={people} size="md" />
           <span className="ed-mono ed-muted">
-            {people.length} {people.length === 1 ? "person" : "people"} · hosted by {host}
+            {people.length} {people.length === 1 ? "person" : "people"} · organized by {host}
           </span>
         </div>
       </header>

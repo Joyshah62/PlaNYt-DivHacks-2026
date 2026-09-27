@@ -969,7 +969,10 @@ export async function chat(input: z.infer<typeof ChatInput>, progress: Progress 
     const more = (response?.calls ?? []).filter((c) => CHANGES.has(c.name) && !seen.has(`${c.name}:${JSON.stringify(c.args ?? {})}`));
     console.info("[trip-chat] repair:", more.map((c) => c.name).join(" ") || (response?.text ?? "").slice(0, 100));
     if (more.length) {
-      const retried = await settle(await runTools([...work, ...more], input, progress).catch(() => reply), input);
+      const retried = await settle(await runTools([...work, ...more], input, progress).catch((error: unknown) => {
+        console.warn("[trip-chat] repair retry failed, keeping the first proposal:", error instanceof Error ? error.message : error);
+        return reply;
+      }), input);
       if (!retried.problems.length || retried.reply.proposal) ({ reply, problems } = retried);
     }
     if (problems.length && reply.proposal) {
