@@ -85,12 +85,6 @@ export default function Home() {
                 Browse 40+ places on the map
               </Link>
             </p>
-            <p className="animate-rise mt-2 text-sm text-muted-foreground" style={{ "--delay": "260ms" } as React.CSSProperties}>
-              Planning with friends?{" "}
-              <Link href="/start" className="font-medium text-foreground underline-offset-4 hover:underline">
-                Start a trip room →
-              </Link>
-            </p>
           </div>
 
           <div className="relative hidden lg:block" aria-hidden>
