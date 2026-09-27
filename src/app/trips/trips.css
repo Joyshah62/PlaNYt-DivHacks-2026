@@ -1,6 +1,6 @@
 /* Your trips: saved days and trip rooms beside the conversations, in the editorial system. */
 .tp { min-height: 100dvh; display: flex; flex-direction: column; }
-.tp-head { margin-inline: var(--gut); padding-block: var(--s-3) var(--s-2); border-bottom: 3px double var(--rule); }
+.tp-head { margin-inline: var(--gut); padding-block: var(--s-3) var(--s-2); border-bottom: 1px solid var(--rule); }
 .tp-title { font: 400 clamp(44px, 5.4vw, 120px) / 0.92 var(--f-display); margin-block: var(--s-1); text-wrap: balance; }
 .tp-grid { display: grid; gap: var(--s-3); padding-block: var(--s-3) var(--s-4); }
 .tp-col { display: grid; gap: var(--s-3); align-content: start; min-width: 0; }
