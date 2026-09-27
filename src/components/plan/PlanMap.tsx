@@ -9,7 +9,7 @@ import { MapThemeSwitcher } from "@/components/map/MapThemeSwitcher";
 import { STYLES, ensureWorker, prefersReducedMotion, resolveColors, resolveMissingStyleImages, useDarkScheme, useMapTheme } from "@/components/map/mapStyle";
 import { ATTRACTIONS } from "@/lib/plan/attractions";
 import { positionAt, type Timeline } from "@/lib/plan/playback";
-import { clock, WEEKDAYS } from "@/lib/plan/time";
+import { clock } from "@/lib/plan/time";
 import type { LegMode, PointLabel } from "@/lib/plan/types";
 
 export interface MapStop {
@@ -694,10 +694,6 @@ export function PlanMap(props: PlanMapProps) {
     }
   }
 
-  const hours = timeline
-    ? Array.from({ length: Math.floor(timeline.endMin / 60) - Math.ceil(timeline.startMin / 60) + 1 }, (_, i) => Math.ceil(timeline.startMin / 60) + i)
-    : [];
-
   const inset = props.bottomInset ? { bottom: props.bottomInset + 10 } : undefined;
 
   return (
@@ -795,49 +791,38 @@ export function PlanMap(props: PlanMapProps) {
       )}
 
       {timeline && props.player && !props.hideOverlays && (
-        <div style={inset} className="pl-player">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={togglePlay}
-              aria-label={playing ? "Pause" : ended ? "Replay your day" : "Play your day"}
-              className={cn("pl-play", !engaged && "halo")}
-            >
-              {playing ? <Pause aria-hidden /> : ended ? <RotateCcw aria-hidden /> : <Play className="translate-x-px" aria-hidden />}
+        // Quiet until used: a small "Play your day" pill, which becomes a one-line scrubber once the day is playing.
+        <div style={inset} className={cn("pl-player", engaged && "engaged")}>
+          <button type="button" onClick={togglePlay} aria-label={playing ? "Pause" : ended ? "Replay your day" : "Play your day"} className="pl-play">
+            {playing ? <Pause aria-hidden /> : ended ? <RotateCcw aria-hidden /> : <Play className="translate-x-px" aria-hidden />}
+          </button>
+          {engaged ? (
+            <>
+              <span className="pl-clock">{clock(t)}</span>
+              <input
+                type="range"
+                min={timeline.startMin}
+                max={timeline.endMin}
+                step={1}
+                value={Math.round(t)}
+                onChange={(e) => {
+                  setPlaying(false);
+                  setScrub({ for: timeline, t: Number(e.target.value), engaged: true });
+                }}
+                aria-label="Time of day"
+                aria-valuetext={clock(t)}
+                className="pl-scrub"
+                style={{ "--progress": `${((t - timeline.startMin) / (timeline.endMin - timeline.startMin)) * 100}%` } as React.CSSProperties}
+              />
+            </>
+          ) : (
+            <button type="button" onClick={togglePlay} tabIndex={-1} className="pl-player-label">
+              {is3d ? "Ride along in 3D" : "Watch your day"}
             </button>
-            <div className="min-w-0 flex-1">
-              <p className="pl-clock">{clock(t)}</p>
-              <p className="pl-small pl-muted mt-1 truncate italic" aria-live="polite">
-                {engaged
-                  ? (position?.label ?? "")
-                  : is3d
-                    ? `Ride along your ${WEEKDAYS[props.player.dow]} in 3D`
-                    : `Play your ${WEEKDAYS[props.player.dow]}: the route, hour by hour`}
-              </p>
-            </div>
-          </div>
-          <input
-            type="range"
-            min={timeline.startMin}
-            max={timeline.endMin}
-            step={1}
-            value={Math.round(t)}
-            onChange={(e) => {
-              setPlaying(false);
-              setScrub({ for: timeline, t: Number(e.target.value), engaged: true });
-            }}
-            aria-label="Time of day"
-            aria-valuetext={clock(t)}
-            className="pl-scrub mt-2"
-            style={{ "--progress": `${((t - timeline.startMin) / (timeline.endMin - timeline.startMin)) * 100}%` } as React.CSSProperties}
-          />
-          <div className="pl-mono pl-muted pointer-events-none flex justify-between max-sm:hidden" aria-hidden>
-            {hours
-              .filter((_, i) => i % Math.ceil(hours.length / 7) === 0)
-              .map((h) => (
-                <span key={h}>{clock(h * 60).replace(":00", "")}</span>
-              ))}
-          </div>
+          )}
+          <span className="sr-only" aria-live="polite">
+            {engaged ? (position?.label ?? "") : ""}
+          </span>
         </div>
       )}
     </div>

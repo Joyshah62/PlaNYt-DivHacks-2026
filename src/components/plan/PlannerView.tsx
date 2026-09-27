@@ -286,14 +286,14 @@ export function PlannerView({ initialPrompt, initialPlan }: { initialPrompt: str
     assistantOpen.current = open;
     if (open) setUnread(false);
   }, []);
-  // Until the reader drags the divider, the column takes about a third of the window.
+  // Until the reader drags the divider, the column is a reading column: a little over a quarter of the window, 400–560px.
   const [panelWidth, setPanelWidth] = useState<number | null>(null);
   // Phone layout: the panel is a sheet over a full-screen map, dragged between three heights.
   const isPhone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE_QUERY).matches, () => false);
   const viewportH = useSyncExternalStore(subscribePhone, () => window.visualViewport?.height ?? window.innerHeight, () => 800);
   const viewportW = useSyncExternalStore(subscribePhone, () => window.visualViewport?.width ?? window.innerWidth, () => 1280);
   const maxPanelWidth = Math.max(360, Math.min(720, viewportW - 372));
-  const visiblePanelWidth = Math.min(panelWidth ?? Math.max(420, Math.round(viewportW * 0.36)), maxPanelWidth);
+  const visiblePanelWidth = Math.min(panelWidth ?? Math.min(560, Math.max(400, Math.round(viewportW * 0.28))), maxPanelWidth);
   const [sheet, setSheet] = useState<SheetSnap>("half");
   const [dragH, setDragH] = useState<number | null>(null);
   const sheetDrag = useRef<{ y: number; h: number; moved: boolean } | null>(null);
