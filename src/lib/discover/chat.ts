@@ -1,4 +1,4 @@
-import { GEMINI_FALLBACK_MODEL, geminiChat, geminiKey, transient, type GeminiMessage, type GeminiTool } from "@/lib/llm/gemini";
+import { geminiChat, geminiKey, withFallbacks, type GeminiMessage, type GeminiTool } from "@/lib/llm/gemini";
 import { z } from "zod";
 import { PlanRequestSchema, StopSchema } from "@/lib/plan/schema";
 import { buildPlan, type LegSource } from "@/lib/plan/build";
@@ -129,17 +129,10 @@ const CALL_TIMEOUT_MS = 15_000;
 /** A retry after a stall gets longer: the model was busy, not broken. */
 const RETRY_TIMEOUT_MS = 25_000;
 /**
- * A transient failure (a stall, a rate limit) gets one retry, on GEMINI_FALLBACK_MODEL when one is set.
+ * A transient failure (a stall, a rate limit) moves down the fallbacks: the lighter Gemini, then Grok.
  */
-async function withFallback<T>(call: (model: string | undefined, timeoutMs: number) => Promise<T>): Promise<T> {
-  try {
-    return await call(undefined, CALL_TIMEOUT_MS);
-  } catch (error) {
-    if (!transient(error)) throw error;
-    console.warn(`[trip-chat] model stalled, retrying on ${GEMINI_FALLBACK_MODEL}:`, error instanceof Error ? error.message : error);
-    return call(GEMINI_FALLBACK_MODEL, RETRY_TIMEOUT_MS);
-  }
-}
+const withFallback = <T>(call: (model: string | undefined, timeoutMs: number) => Promise<T>): Promise<T> =>
+  withFallbacks((model, attempt) => call(model, attempt ? RETRY_TIMEOUT_MS : CALL_TIMEOUT_MS), "trip-chat");
 
 /** Web lookups per message: enough for "is it open, and do I need tickets?". */
 const MAX_LOOKUPS = 2;

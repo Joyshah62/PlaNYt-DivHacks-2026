@@ -7,6 +7,20 @@ export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.1-flash-lite";
 export const GEMINI_ASSISTANT_MODEL = GEMINI_MODEL;
 export const geminiKey = () => process.env.GEMINI_API_KEY || null;
+/**
+ * The last resort, when both Gemini models fail: Grok, through xAI's compatible API, only with
+ * GROK_API_KEY set. A non-reasoning model, since it answers in about a second; a reasoning one
+ * can take longer than the whole retry allows.
+ */
+export const GROK_MODEL = process.env.GROK_FALLBACK_MODEL || "grok-4.20-0309-non-reasoning";
+export const grokKey = () => process.env.GROK_API_KEY || null;
+const isGrok = (model: string) => model.startsWith("grok");
+
+/** The models tried, in order, after the first one stalls or is busy. */
+export function fallbackModels(first: string = GEMINI_MODEL): string[] {
+  const chain = [GEMINI_FALLBACK_MODEL, ...(grokKey() ? [GROK_MODEL] : [])];
+  return chain.filter((m, i) => m !== first && chain.indexOf(m) === i);
+}
 
 export type GeminiMessage =
   | { role: "system" | "user"; content: string }
@@ -38,6 +52,31 @@ export function transient(error: unknown): boolean {
   return error instanceof GeminiError && (error.status === null || error.status === 429 || error.status >= 500);
 }
 
+/**
+ * Runs `call` on the first model, then on each fallback in turn while failures are transient
+ * (a stall, a rate limit, a server error). The last failure is what's thrown.
+ */
+export async function withFallbacks<T>(call: (model: string | undefined, attempt: number) => Promise<T>, label = "gemini", first: string = GEMINI_MODEL): Promise<T> {
+  try {
+    return await call(undefined, 0);
+  } catch (error) {
+    if (!transient(error)) throw error;
+    let last = error;
+    let failed = first;
+    for (const [i, model] of fallbackModels(first).entries()) {
+      console.warn(`[${label}] ${failed} failed, retrying on ${model}:`, last instanceof Error ? last.message : last);
+      try {
+        return await call(model, i + 1);
+      } catch (next) {
+        if (!transient(next)) throw next;
+        last = next;
+        failed = model;
+      }
+    }
+    throw last;
+  }
+}
+
 export interface GeminiReply {
   /** The assistant message as sent, to put back into the conversation. */
   message: Extract<GeminiMessage, { role: "assistant" }>;
@@ -59,18 +98,26 @@ export async function geminiChat(opts: {
   /** Another model than GEMINI_MODEL, e.g. the fallback. */
   model?: string;
 }): Promise<GeminiReply> {
-  const key = geminiKey();
-  if (!key) throw new GeminiError("GEMINI_API_KEY is not set.", 401);
   const model = opts.model ?? GEMINI_MODEL;
+  const grok = isGrok(model);
+  const key = grok ? grokKey() : geminiKey();
+  if (!key) throw new GeminiError(`${grok ? "GROK_API_KEY" : "GEMINI_API_KEY"} is not set.`, 401);
+  const provider = grok ? "Grok" : "Gemini";
+  // Gemini signs its tool calls (extra_content); that's Gemini's own field, so another provider gets them without it.
+  const messages = grok
+    ? opts.messages.map((m) => m.role === "assistant" && m.tool_calls
+      ? { ...m, tool_calls: m.tool_calls.map(({ id, type, function: fn }) => ({ id, type, function: fn })) }
+      : m)
+    : opts.messages;
   const signal = AbortSignal.timeout(opts.timeoutMs ?? 20_000);
   const send = async (effort: boolean): Promise<Response> => {
     try {
-      return await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+      return await fetch(grok ? "https://api.x.ai/v1/chat/completions" : "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
         body: JSON.stringify({
           model,
-          messages: opts.messages,
+          messages,
           ...(opts.tools?.length && { tools: opts.tools, tool_choice: "auto" }),
           ...(effort && { reasoning_effort: opts.effort }),
           ...(opts.schema && { response_format: { type: "json_schema", json_schema: { name: opts.schema.name, schema: opts.schema.schema } } }),
@@ -80,19 +127,19 @@ export async function geminiChat(opts: {
     } catch (error) {
       // A timeout keeps its name, so callers can tell a stall from a refusal.
       if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) throw error;
-      throw new GeminiError(error instanceof Error ? error.message : "Couldn't reach Gemini.");
+      throw new GeminiError(error instanceof Error ? error.message : `Couldn't reach ${provider}.`);
     }
   };
   // Only some reasoning models take an effort; the others are remembered below and asked without one.
-  const effort = !!opts.effort && !NO_EFFORT.has(model);
+  const effort = !!opts.effort && !grok && !NO_EFFORT.has(model);
   let res = await send(effort);
   if (!res.ok && effort && res.status === 400) {
     const why = await res.text();
-    if (!/reasoning_?effort/i.test(why)) throw new GeminiError(`Gemini ${res.status}: ${why.slice(0, 300)}`, res.status);
+    if (!/reasoning_?effort/i.test(why)) throw new GeminiError(`${provider} ${res.status}: ${why.slice(0, 300)}`, res.status);
     NO_EFFORT.add(model);
     res = await send(false);
   }
-  if (!res.ok) throw new GeminiError(`Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`, res.status);
+  if (!res.ok) throw new GeminiError(`${provider} ${res.status}: ${(await res.text()).slice(0, 300)}`, res.status);
   const body = (await res.json()) as { choices?: { message?: { content?: string | null; tool_calls?: GeminiToolCall[] } }[] };
   const m = body.choices?.[0]?.message ?? {};
   const calls = (m.tool_calls ?? []).map((c) => {
@@ -114,11 +161,14 @@ export async function geminiChat(opts: {
 /** One answer shaped by `schema`, parsed; null when the reply isn't JSON. */
 export async function geminiJson(system: string, user: string, schema: { name: string; schema: Record<string, unknown> }, opts: { timeoutMs?: number; effort?: "low" | "high"; model?: string } = {}): Promise<unknown> {
   const messages: GeminiMessage[] = [{ role: "system", content: system }, { role: "user", content: user }];
-  const reply = await geminiChat({ messages, schema, timeoutMs: opts.timeoutMs ?? 20_000, effort: opts.effort, model: opts.model }).catch((error) => {
-    if (!transient(error)) throw error;
-    console.warn(`[gemini] ${opts.model ?? GEMINI_MODEL} stalled, retrying Gemini:`, error instanceof Error ? error.message : error);
-    return geminiChat({ messages, schema, timeoutMs: 25_000, model: GEMINI_FALLBACK_MODEL });
-  });
+  // A retry gets longer (the model was busy, not broken) and its model's default reasoning.
+  const reply = await withFallbacks(
+    (model) => model
+      ? geminiChat({ messages, schema, timeoutMs: 25_000, model })
+      : geminiChat({ messages, schema, timeoutMs: opts.timeoutMs ?? 20_000, effort: opts.effort, model: opts.model }),
+    "gemini",
+    opts.model ?? GEMINI_MODEL,
+  );
   try {
     return JSON.parse(reply.text ?? "null");
   } catch {
