@@ -56,6 +56,11 @@ export function DayBuilder({
     setDrag(null);
     setOver(null);
   };
+  /** Where a drop on stop i lands: before it in its top half, after it in its bottom half. */
+  const slotAt = (i: number, e: DragEvent) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return e.clientY > r.top + r.height / 2 ? i + 1 : i;
+  };
   const dragProps = (key: string, from: "day" | "tray") =>
     editable
       ? {
@@ -63,7 +68,8 @@ export function DayBuilder({
           onDragStart: (e: DragEvent) => {
             e.dataTransfer.effectAllowed = "move";
             e.dataTransfer.setData("text/plain", key);
-            setDrag({ key, from });
+            // Chrome cancels a drag if the page changes during dragstart; show the drop zones just after.
+            window.setTimeout(() => setDrag({ key, from }));
           },
           onDragEnd: () => {
             setDrag(null);
@@ -130,10 +136,10 @@ export function DayBuilder({
                 onDragOver={(e) => {
                   if (!drag) return;
                   e.preventDefault();
-                  setOver(i);
+                  setOver(slotAt(i, e));
                 }}
-                onDrop={onDropAt(i)}
-                className={`tr-day-stop ${drag?.key === s.key ? "dragging" : ""} ${over === i && drag ? "drop-target" : ""}`}
+                onDrop={(e) => onDropAt(slotAt(i, e))(e)}
+                className={`tr-day-stop ${drag?.key === s.key ? "dragging" : ""} ${drag && over === i ? "drop-before" : ""} ${drag && over === i + 1 && i === stops.length - 1 ? "drop-after" : ""}`}
               >
                 <span className="tr-day-time">{clock(s.startMin)}</span>
                 <div className="tr-day-content">

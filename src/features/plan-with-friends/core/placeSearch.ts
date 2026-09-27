@@ -18,7 +18,7 @@ export interface PlaceHit {
   detail: string;
   visitMin: number;
   hoursText: string | null;
-  source: "catalog" | "osm";
+  source: "catalog" | "osm" | "address";
   attractionId: string | null;
 }
 
