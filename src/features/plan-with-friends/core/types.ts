@@ -3,6 +3,7 @@ import type { FreeWindow, GroupWindow } from "./availability";
 import type { Avatar } from "./avatars";
 import type { Consensus } from "./consensus";
 import type { FairPick } from "./fairness";
+import type { ItineraryState } from "./itinerary";
 
 export const MAX_DAY_STOPS = 10;
 export const MAX_CANDIDATES = 30;
@@ -71,5 +72,6 @@ export interface Trip {
   fairness: Fairness | null;
   /** When the group can meet, from everyone's free time. */
   window: GroupWindow | null;
+  itinerary: ItineraryState;
   lockedCode: string | null;
 }

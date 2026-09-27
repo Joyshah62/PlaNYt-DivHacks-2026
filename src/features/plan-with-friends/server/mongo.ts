@@ -57,6 +57,9 @@ export function mongoBackend(db: () => Promise<Db>): TripBackend {
     async setDeadline(id, deadline) {
       await (await trips()).updateOne({ _id: id }, { $set: { "meta.deadline": deadline, expiresAt: expiry() } });
     },
+    async setItinerary(id, itinerary) {
+      await (await trips()).updateOne({ _id: id }, { $set: { "meta.itinerary": itinerary, expiresAt: expiry() } });
+    },
     async lock(id, code) {
       const result = await (await trips()).updateOne({ _id: id, "meta.lockedCode": null }, { $set: { "meta.lockedCode": code, expiresAt: expiry() } });
       return result.modifiedCount === 1;

@@ -17,6 +17,10 @@ export interface Consensus {
 }
 
 /** cyrb53: a fast, deterministic hash that runs the same on the server and in the browser. */
+export function hashOf(value: unknown): string {
+  return hash(JSON.stringify(value));
+}
+
 function hash(text: string): string {
   let h1 = 0xdeadbeef;
   let h2 = 0x41c6ce57;

@@ -33,5 +33,7 @@ const Free = z
   .object({ from: z.number().int().min(5 * 60), to: z.number().int().max(27 * 60) })
   .refine((w) => w.to - w.from >= 60, { message: "Pick at least an hour." });
 export const FreeBody = z.object({ memberId: MemberId, free: Free.nullable() });
+export const ItineraryBody = z.object({ memberId: MemberId, order: z.array(z.string().min(1).max(80)).max(30) });
+export const RegenerateBody = z.object({ memberId: MemberId });
 export const ConfirmBody = z.object({ memberId: MemberId, on: z.boolean() });
 export const DeadlineBody = z.object({ memberId: MemberId, at: z.number().int().nullable() });

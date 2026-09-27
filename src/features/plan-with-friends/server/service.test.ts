@@ -249,6 +249,43 @@ describe("trip service: availability", () => {
   });
 });
 
+describe("trip service: the day's itinerary", () => {
+  it("builds the day automatically until someone arranges it", async () => {
+    const { trip } = await start([met, park, bridge]);
+    expect(trip.itinerary).toMatchObject({ manual: false, stale: false });
+    expect(trip.itinerary.keys.sort()).toEqual(["brooklyn-bridge", "central-park", "met"]);
+    expect(trip.draft?.keepOrder).toBeUndefined();
+  });
+
+  it("keeps a hand-made order, last writer wins, and it survives new votes as stale", async () => {
+    const { trip, memberId } = await start([met, park, bridge]);
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.setItinerary(trip.id, memberId, ["central-park", "met"]);
+    let t = await svc.setItinerary(trip.id, rishi, ["met", "central-park"]);
+    expect(t.itinerary).toMatchObject({ keys: ["met", "central-park"], manual: true, stale: false, editedBy: rishi, tray: ["brooklyn-bridge"] });
+    expect(t.draft).toMatchObject({ keepOrder: true });
+    expect(t.draft?.stops.map((s) => s.key)).toEqual(["met", "central-park"]);
+    t = await svc.vote(trip.id, rishi, "brooklyn-bridge", true);
+    expect(t.itinerary).toMatchObject({ keys: ["met", "central-park"], stale: true });
+    t = await svc.regenerate(trip.id, memberId);
+    expect(t.itinerary).toMatchObject({ manual: false, stale: false });
+  });
+
+  it("fits the automatic day into the group's time", async () => {
+    const { trip, memberId } = await start([met, park, bridge]);
+    const t = await svc.setFree(trip.id, memberId, { from: 14 * 60, to: 16 * 60 + 30 });
+    expect(t.itinerary.keys.length).toBeLessThan(3);
+    expect(t.itinerary.tray.length).toBeGreaterThan(0);
+  });
+
+  it("won't take an empty or locked day", async () => {
+    const { trip, memberId } = await start([met]);
+    expect(await status(svc.setItinerary(trip.id, memberId, ["nope"]))).toBe(400);
+    await svc.confirm(trip.id, memberId, true);
+    expect(await status(svc.setItinerary(trip.id, memberId, ["met"]))).toBe(409);
+  });
+});
+
 describe("trip service: deciding together", () => {
   it("locks when everyone is in, and freezes the trip", async () => {
     const { trip, memberId } = await start();

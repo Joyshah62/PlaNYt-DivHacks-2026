@@ -20,6 +20,7 @@ const trip: Trip = {
   draft: null,
   fairness: null,
   window: { from: 900, to: 1320, everyone: true, missing: [] },
+  itinerary: { keys: [], manual: false, stale: false, editedBy: null, editedAt: null, tray: [] },
   lockedCode: null,
 };
 

@@ -4,7 +4,8 @@ import { defaultAvatar, type Avatar } from "../core/avatars";
 import { consensus } from "../core/consensus";
 import { applyWindow, sharedWindow, type FreeWindow } from "../core/availability";
 import { fairestPoint, MEETUP_PREFIX, roundPoint, withGroupStart, type Point } from "../core/fairness";
-import { draftRequest } from "../core/rank";
+import { basisOf, resolveItinerary } from "../core/itinerary";
+import { rankCandidates } from "../core/rank";
 import { IDEAS_SHOWN, MAX_CANDIDATES, MAX_IDEAS, MAX_MEMBERS, type Fairness, type Member, type Trip, type TripSettings } from "../core/types";
 import type { StoredMember, StoredMeta, TripBackend, TripMeta } from "./backend";
 import { areaLabel, fairestMeetup, groupTravel } from "./travel";
@@ -41,6 +42,7 @@ function upgradeMeta(stored: StoredMeta): TripMeta {
     settings: stored.settings,
     deadline: stored.deadline ?? null,
     lockedCode: stored.lockedCode,
+    itinerary: stored.itinerary ?? null,
   };
 }
 
@@ -49,7 +51,7 @@ function upgradeMember(memberId: string, stored: StoredMember): Member {
 }
 
 export function createTripService(db: TripBackend, now: () => number = Date.now) {
-  async function read(id: string): Promise<{ meta: TripMeta; trip: Trip }> {
+  async function read(id: string): Promise<{ meta: TripMeta; trip: Trip; basis: string }> {
     const stored = await db.getMeta(id);
     if (!stored) throw new TripError(404, "This trip has expired or the link is wrong.");
     const meta = upgradeMeta(stored);
@@ -63,17 +65,31 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
     const free: Record<string, FreeWindow> = {};
     for (const [mid, m] of Object.entries(members)) if (m.free) free[mid] = m.free;
     const window = sharedWindow(free);
-    const base = draftRequest({ ...partial, settings: applyWindow(partial.settings, window) });
+    const settings = applyWindow(partial.settings, window);
+    const { inDay, waiting } = rankCandidates(partial);
+    const voted = [...inDay, ...waiting].filter((c) => c.votes.length > 0);
+    const meetupPick = voted.find((c) => c.stop.key.startsWith(MEETUP_PREFIX)) ?? null;
+    const places = voted.filter((c) => !c.stop.key.startsWith(MEETUP_PREFIX));
     const starts: Record<string, Point> = {};
     for (const [mid, m] of Object.entries(members)) if (m.start) starts[mid] = { lat: m.start.lat, lon: m.start.lon };
-    const fairness: Fairness | null = Object.keys(starts).length
-      ? {
-          starts: Object.keys(starts).length,
-          firstStop: base ? fairestPoint(starts, base.stops.filter((s) => !s.key.startsWith(MEETUP_PREFIX)), groupTravel) : null,
-          meetup: fairestMeetup(starts),
-        }
+    const startPoints = Object.values(starts);
+    // Budget the day from the meetup spot if voted in, else the middle of where people start.
+    const planningFrom = meetupPick?.stop ?? (startPoints.length ? { lat: startPoints.reduce((a, p) => a + p.lat, 0) / startPoints.length, lon: startPoints.reduce((a, p) => a + p.lon, 0) / startPoints.length } : null);
+    const basis = basisOf({
+      ranking: places.map((c) => [c.stop.key, c.votes.length]),
+      window: window ? { from: window.from, to: window.to } : null,
+      origin: planningFrom ? { lat: planningFrom.lat, lon: planningFrom.lon } : null,
+    });
+    const itinerary = resolveItinerary({ places, stored: meta.itinerary ?? null, basis, budget: settings.endMin - settings.startMin, travel: groupTravel, origin: planningFrom });
+    const byKey = new Map(places.map((c) => [c.stop.key, c.stop]));
+    const dayStops = itinerary.keys.map((k) => byKey.get(k)!);
+    // The fair first stop is chosen among places actually in the day.
+    const fairness: Fairness | null = startPoints.length
+      ? { starts: startPoints.length, firstStop: dayStops.length ? fairestPoint(starts, dayStops, groupTravel) : null, meetup: fairestMeetup(starts) }
       : null;
-    const draft = base ? withGroupStart(base, fairness?.firstStop ?? null) : null;
+    const draft = dayStops.length
+      ? withGroupStart({ ...settings, stops: meetupPick ? [...dayStops, meetupPick.stop] : dayStops, ...(itinerary.manual ? { keepOrder: true } : {}) }, itinerary.manual ? null : (fairness?.firstStop ?? null))
+      : null;
     const memberIds = Object.keys(members).sort((a, b) => members[a].joinedAt - members[b].joinedAt);
     const c = consensus({ members: memberIds, confirmations, draft, deadline: meta.deadline, now: now() });
     let lockedCode = meta.lockedCode;
@@ -82,8 +98,8 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
       const code = encodePlan(draft);
       lockedCode = (await db.lock(id, code)) ? code : ((await db.getMeta(id))?.lockedCode ?? code);
     }
-    const trip: Trip = { ...partial, ideas: ideaList.ideas, deadline: meta.deadline, confirmations, consensus: c, draft, fairness, window, lockedCode };
-    return { meta, trip };
+    const trip: Trip = { ...partial, ideas: ideaList.ideas, deadline: meta.deadline, confirmations, consensus: c, draft, fairness, window, itinerary, lockedCode };
+    return { meta, trip, basis };
   }
 
   async function editable(id: string, memberId: string) {
@@ -185,6 +201,23 @@ export function createTripService(db: TripBackend, now: () => number = Date.now)
     async setFree(id: string, memberId: string, free: FreeWindow | null) {
       const { trip } = await editable(id, memberId);
       await db.setMember(id, memberId, { ...trip.members[memberId], free });
+      return saved(id);
+    },
+
+    /** Last write wins: whoever saved most recently is shown as the editor. */
+    async setItinerary(id: string, memberId: string, order: string[]) {
+      const { trip, basis } = await editable(id, memberId);
+      const known = new Set(trip.candidates.filter((c) => c.votes.length > 0).map((c) => c.stop.key));
+      const clean = [...new Set(order)].filter((k) => known.has(k) && !k.startsWith(MEETUP_PREFIX));
+      if (!clean.length) throw new TripError(400, "Keep at least one place in the day.");
+      if (clean.length > 10) throw new TripError(400, "The day fits up to 10 places.");
+      await db.setItinerary(id, { order: clean, editedBy: memberId, editedAt: now(), basis });
+      return saved(id);
+    },
+
+    async regenerate(id: string, memberId: string) {
+      await editable(id, memberId);
+      await db.setItinerary(id, null);
       return saved(id);
     },
 

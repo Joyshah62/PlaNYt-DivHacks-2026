@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { clock } from "../bridge/index";
 
 const STEP = 30;
@@ -23,6 +23,13 @@ export function TimeRangeSlider({
 }) {
   const track = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<"from" | "to" | null>(null);
+  const keyTimer = useRef<number | null>(null);
+  useEffect(() => () => void (keyTimer.current && window.clearTimeout(keyTimer.current)), []);
+  // Arrow keys can fire fast; save once they stop so saves can't land out of order.
+  const commitSoon = (v: { from: number; to: number }) => {
+    if (keyTimer.current) window.clearTimeout(keyTimer.current);
+    keyTimer.current = window.setTimeout(() => onCommit(v), 400);
+  };
   const pct = (m: number) => ((m - min) / (max - min)) * 100;
   const snap = (m: number) => Math.min(max, Math.max(min, Math.round(m / STEP) * STEP));
 
@@ -60,7 +67,7 @@ export function TimeRangeSlider({
         const delta = e.key === "ArrowRight" || e.key === "ArrowUp" ? STEP : e.key === "ArrowLeft" || e.key === "ArrowDown" ? -STEP : 0;
         if (!delta) return;
         e.preventDefault();
-        onCommit(move(which, value[which] + delta));
+        commitSoon(move(which, value[which] + delta));
       }}
       className="absolute top-1/2 grid size-5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none place-items-center rounded-full border-2 border-brand bg-background shadow transition active:cursor-grabbing active:scale-110"
       style={{ left: `${pct(value[which])}%` }}

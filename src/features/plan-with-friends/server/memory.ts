@@ -31,6 +31,10 @@ export function memoryBackend(trips: Map<string, MemoryEntry> = shared()): TripB
       const entry = trips.get(id);
       if (entry) entry.meta.deadline = deadline;
     },
+    async setItinerary(id, itinerary) {
+      const entry = trips.get(id);
+      if (entry) entry.meta.itinerary = structuredClone(itinerary);
+    },
     async lock(id, code) {
       const entry = trips.get(id);
       if (!entry || entry.meta.lockedCode) return false;

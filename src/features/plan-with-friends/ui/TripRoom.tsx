@@ -8,7 +8,7 @@ import { AskRoam } from "./AskRoam";
 import { AvatarStack } from "./Avatar";
 import { ConsensusBar } from "./ConsensusBar";
 import { missingFor, type FreeWindow } from "../core/availability";
-import { DraftDay } from "./DraftDay";
+import { DayBuilder } from "./DayBuilder";
 import { FreeTimeCard } from "./FreeTimeCard";
 import { GettingHomePanel } from "./GettingHomePanel";
 import { GroupMapPanel } from "./GroupMapPanel";
@@ -106,7 +106,7 @@ export function TripRoom({ id }: { id: string }) {
         </div>
         <div className={cn("flex flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start", tab !== "day" && "hidden lg:flex")}>
           <GroupMapPanel trip={trip} plan={draft.plan} memberId={me?.id ?? null} onSuggest={actions.suggest} />
-          <DraftDay plan={draft.plan} updating={draft.updating} error={draft.error} locked={room.locked} whoMisses={(s, e) => missingFor(free, s, e).map(emoji)} />
+          <DayBuilder trip={trip} plan={draft.plan} updating={draft.updating || room.busy} error={draft.error} canEdit={!!me} whoMisses={(s, e) => missingFor(free, s, e).map(emoji)} onSave={actions.saveItinerary} onRegenerate={actions.regenerate} />
           <GettingHomePanel trip={trip} tripId={id} plan={draft.plan} />
         </div>
       </div>

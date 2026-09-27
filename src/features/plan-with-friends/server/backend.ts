@@ -1,4 +1,5 @@
 import type { StopInput } from "../bridge/index";
+import type { StoredItinerary } from "../core/itinerary";
 import type { Idea, Member, TripSettings } from "../core/types";
 
 export const TRIP_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -11,6 +12,8 @@ export interface TripMeta {
   settings: TripSettings;
   deadline: number | null;
   lockedCode: string | null;
+  /** Set once someone arranges the day by hand. */
+  itinerary?: StoredItinerary | null;
 }
 
 export interface CandidateRecord {
@@ -29,6 +32,7 @@ export interface TripBackend {
   getMeta(id: string): Promise<StoredMeta | null>;
   setMeta(meta: TripMeta): Promise<void>;
   setDeadline(id: string, deadline: number | null): Promise<void>;
+  setItinerary(id: string, itinerary: StoredItinerary | null): Promise<void>;
   /** Sets lockedCode only if the trip isn't locked yet; false when someone else locked it first. */
   lock(id: string, code: string): Promise<boolean>;
   getMembers(id: string): Promise<Record<string, StoredMember>>;
