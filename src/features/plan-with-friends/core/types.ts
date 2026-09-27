@@ -64,7 +64,6 @@ export interface Trip {
   candidates: Candidate[];
   /** Oldest first, the latest IDEAS_SHOWN. */
   ideas: Idea[];
-  deadline: number | null;
   confirmations: Record<string, string>;
   consensus: Consensus;
   /** The day the group is deciding on, including where it starts. */

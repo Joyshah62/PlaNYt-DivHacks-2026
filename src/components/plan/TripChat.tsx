@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, Loader2, Mic, RotateCcw, Volume2 } from "lucide-react";
-import type { ChatReply } from "@/lib/discover/chat";
+import { ArrowUp, CalendarPlus, Check, Link2, Loader2, Mic, RotateCcw, Volume2 } from "lucide-react";
+import type { AppAction, ChatReply } from "@/lib/discover/chat";
 import type { DiscoverResponse } from "@/lib/discover/types";
 import type { DayPlan } from "@/lib/plan/types";
 import { clock, duration } from "@/lib/plan/time";
@@ -22,6 +22,7 @@ export function TripChat({
   onApply,
   onReply,
   onView,
+  onAction,
 }: {
   plan: DayPlan;
   discover: Discover;
@@ -31,6 +32,8 @@ export function TripChat({
   onReply?: () => void;
   /** "View" on a found place: show it on the map. */
   onView?: (place: { key: string; name: string; lat: number; lon: number }) => void;
+  /** Save, calendar or share, when the assistant was asked to. */
+  onAction?: (action: Exclude<AppAction["action"], "new_plan">) => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -97,6 +100,8 @@ export function TripChat({
       }
       const listing = reply.discovery?.results.map((r, i) => `${i + 1}. ${r.name}`).join("; ");
       setMessages((list) => [...list, { id: id * 2 + 1, role: "assistant", text: reply.message + (listing ? `\nOptions: ${listing}` : ""), reply, tripKey }]);
+      // Saving needs no tap; copying and downloading do, so those become buttons on the reply.
+      if (reply.actions?.some((a) => a.action === "save")) onAction?.("save");
       onReply?.();
     } catch (e) {
       if (!abort.signal.aborted) setError(e instanceof Error ? e.message : "Couldn't send your message.");
@@ -204,6 +209,10 @@ export function TripChat({
           <button type="button" className="pl-textbtn pl-muted w-fit" disabled={disabled} onClick={() => void speak(message)} aria-label={speakingId === message.id ? "Stop speaking" : "Listen to reply"}>
             <Volume2 aria-hidden /> {speakingId === message.id ? "Stop" : "Listen"}
           </button>
+          {onAction && reply?.actions?.some((a) => a.action === "share_link" || a.action === "calendar") && <div className="pl-chips">
+            {reply.actions.some((a) => a.action === "share_link") && <button type="button" onClick={() => onAction("share_link")} className="pl-chip"><Link2 className="size-4" aria-hidden /> Copy link</button>}
+            {reply.actions.some((a) => a.action === "calendar") && <button type="button" onClick={() => onAction("calendar")} className="pl-chip"><CalendarPlus className="size-4" aria-hidden /> Add to calendar</button>}
+          </div>}
           {reply?.discovery && <>
             <p className="pl-mono pl-muted">{reply.discovery.area.label} · {reply.discovery.source === "google" ? "Details from Google" : "OpenStreetMap, no ratings"}</p>
             {reply.discovery.note && <p className="pl-small pl-muted">{reply.discovery.note}</p>}

@@ -14,6 +14,7 @@ import { WeatherIcon } from "./WeatherIcon";
 import { stopFromAttraction } from "./StopPicker";
 import { Fold } from "./Fold";
 import { arrowKeys } from "./arrowKeys";
+import { canShareNatively } from "@/lib/plan/shareLink";
 
 const LEG_ICON: Record<LegMode, typeof Footprints> = { walk: Footprints, subway: TrainFront, bike: Bike, car: Car, taxi: CarTaxiFront };
 /** Places where rain changes the visit. */
@@ -76,7 +77,7 @@ function Mosaic({ photos }: { photos: string[] }) {
 }
 
 /** Copy link, calendar and Google Maps, behind one Share button. */
-function ShareMenu({ onShare, onCalendar, dayRoute }: { onShare: () => void; onCalendar: () => void; dayRoute: string | null }) {
+function ShareMenu({ onShare, onNativeShare, onCalendar, dayRoute }: { onShare: () => void; onNativeShare?: () => void; onCalendar: () => void; dayRoute: string | null }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -109,6 +110,12 @@ function ShareMenu({ onShare, onCalendar, dayRoute }: { onShare: () => void; onC
       </button>
       {open && (
         <div role="menu" aria-label="Share this day" className="pl-menu-list" ref={list} onKeyDown={(e) => arrowKeys(e, '[role="menuitem"]', false)}>
+          {/* Phones: their own share sheet (Messages, WhatsApp…), which also has Copy. */}
+          {onNativeShare && canShareNatively() && (
+            <button type="button" role="menuitem" onClick={pick(onNativeShare)}>
+              <Share2 aria-hidden /> Send link…
+            </button>
+          )}
           <button type="button" role="menuitem" onClick={pick(onShare)}>
             <Link2 aria-hidden /> Copy link
           </button>
@@ -140,6 +147,7 @@ export function Itinerary({
   onEdit,
   onSave,
   onShare,
+  onNativeShare,
   onCalendar,
   onAsk,
   note,
@@ -160,6 +168,8 @@ export function Itinerary({
   onEdit: () => void;
   onSave: () => void;
   onShare: () => void;
+  /** Sends the link through the phone's share sheet. */
+  onNativeShare?: () => void;
   onCalendar: () => void;
   /** Opens the trip assistant: the main way to change the day. */
   onAsk: () => void;
@@ -243,7 +253,7 @@ export function Itinerary({
           {isSaved ? <BookmarkCheck className="pl-red" aria-hidden /> : <Bookmark aria-hidden />}
           {isSaved ? "Saved" : "Save"}
         </button>
-        <ShareMenu onShare={onShare} onCalendar={onCalendar} dayRoute={dayRoute} />
+        <ShareMenu onShare={onShare} onNativeShare={onNativeShare} onCalendar={onCalendar} dayRoute={dayRoute} />
         {phone}
         <button type="button" onClick={onEdit} className="pl-textbtn end">
           <Pencil aria-hidden /> Edit stops

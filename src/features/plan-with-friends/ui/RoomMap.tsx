@@ -57,7 +57,11 @@ export default function RoomMap({ people, stops, origin }: { people: MapPerson[]
       setReady(true);
     });
     mapRef.current = map;
+    // The panel settles its size after the map starts (fonts, the grid, a tab shown), and MapLibre only watches the window.
+    const sized = new ResizeObserver(() => map.resize());
+    sized.observe(container.current);
     return () => {
+      sized.disconnect();
       window.clearTimeout(failSafe);
       markers.current.forEach((m) => m.remove());
       stopWatchingAttribution();

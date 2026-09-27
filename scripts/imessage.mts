@@ -131,7 +131,7 @@ if (BRIDGE_TOKEN) {
   startBridge({
     port: BRIDGE_PORT,
     token: BRIDGE_TOKEN,
-    async send(handle, request) {
+    async send(handle, request, intro) {
       const space = await im.space.create(await im.user(handle));
       const thread = store.get(space.id);
       const plan = await roam.plan(request);
@@ -141,7 +141,7 @@ if (BRIDGE_TOKEN) {
         thread.muted = false;
         await store.save();
         const texts = [
-          "👋 Hi from PlaNYt! Here's your NYC day.",
+          intro ?? "👋 Hi from PlaNYt! Here's your NYC day.",
           await bot.show(plan, thread.profile),
           "Text or send a voice note to change anything (\"add a café after the Met\"). On the day, I'll text you when it's time to head to each stop. Reply STOP to pause updates.",
         ];

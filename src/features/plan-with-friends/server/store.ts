@@ -1,4 +1,5 @@
-import { getDb, hasMongo, saveForMembers } from "../bridge/server";
+import { clock, decodePlan } from "../bridge/index";
+import { getDb, hasMongo, saveForMembers, textMembers } from "../bridge/server";
 import { memoryBackend } from "./memory";
 import { mongoBackend } from "./mongo";
 import { createTripService, type TripHooks, type TripService } from "./service";
@@ -8,9 +9,19 @@ let service: TripService | null = null;
 /** Account members' ids are "u_" + their user id (see member.ts); guests have none to save to. */
 const userIdsOf = (memberIds: string[]) => memberIds.filter((m) => m.startsWith("u_")).map((m) => m.slice(2));
 
+/** "🎉 Khyati approved the plan for Saturday in NYC (Sat, Oct 3, from 10am)." */
+function approvedLine(title: string, date: string, hostName: string, code: string): string {
+  const day = new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  const start = decodePlan(code)?.startMin;
+  return `🎉 ${hostName} approved the plan for ${title} (${day}${start != null ? `, from ${clock(start)}` : ""}). Here's the day:`;
+}
+
 const hooks: TripHooks = {
-  // The agreed day lands in every member's saved trips, on every device they sign in on.
-  onLock: ({ id, title, code, memberIds }) => saveForMembers({ id, title, code, userIds: userIdsOf(memberIds) }),
+  // The approved day lands in every member's saved trips, on every device they sign in on, and by text.
+  onLock: async ({ id, title, date, code, memberIds, hostName }) => {
+    const userIds = userIdsOf(memberIds);
+    await Promise.all([saveForMembers({ id, title, code, userIds }), textMembers({ code, userIds, intro: approvedLine(title, date, hostName, code) })]);
+  },
 };
 
 export function getTripStore(): TripService {

@@ -57,9 +57,6 @@ export function mongoBackend(db: () => Promise<Db>): TripBackend {
         { upsert: true },
       );
     },
-    async setDeadline(id, deadline) {
-      await (await trips()).updateOne({ _id: id }, { $set: { "meta.deadline": deadline, expiresAt: expiry() } });
-    },
     async setItinerary(id, itinerary) {
       await (await trips()).updateOne({ _id: id }, { $set: { "meta.itinerary": itinerary, expiresAt: expiry() } });
     },

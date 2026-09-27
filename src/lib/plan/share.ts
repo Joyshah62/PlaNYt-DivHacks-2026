@@ -143,6 +143,8 @@ export interface SavedPlan {
   title: string;
   savedAt: string;
   code: string;
+  /** The account has it, so its absence there means it was deleted on another device. */
+  synced?: boolean;
 }
 
 const STORAGE_KEY = "roam:saved-plans";

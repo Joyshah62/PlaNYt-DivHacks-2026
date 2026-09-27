@@ -16,6 +16,8 @@ interface Want {
   /** A neighborhood they asked about ("in the East Village"), else null. */
   near: string | null;
   why: string | null;
+  /** When they want to be there, in minutes after midnight ("breakfast at 9" is 540). */
+  at?: number | null;
 }
 
 const WANTS_SCHEMA = {
@@ -24,19 +26,20 @@ const WANTS_SCHEMA = {
     reply: { type: "string", description: "One friendly sentence to the group." },
     wants: {
       type: "array",
-      maxItems: 3,
+      maxItems: 5,
       items: {
         type: "object",
         properties: {
           named: { type: ["string", "null"], description: "A specific place's name if they named one, else null." },
           query: { type: "string", description: "Short search words, e.g. 'dessert' or 'rooftop bar'." },
-          category: { type: ["string", "null"], enum: [...CATEGORIES, null] },
+          category: { type: ["string", "null"], enum: [...CATEGORIES, null], description: "The closest kind of place, even for a mood: 'artsy' is gallery or museum, 'historical' is landmark or museum. Null only for a named place." },
           cuisine: { type: ["string", "null"] },
-          keywords: { type: "array", items: { type: "string" }, maxItems: 4 },
+          keywords: { type: "array", items: { type: "string" }, maxItems: 4, description: "Words likely in a matching place's name ('pizza', 'art'); not moods or adjectives." },
           near: { type: ["string", "null"], description: "A NYC neighborhood or area they asked for, e.g. 'East Village'; null if none." },
           why: { type: ["string", "null"], description: "Under 10 words: why this fits the group." },
+          at: { type: ["integer", "null"], description: "The time they asked to be there, in minutes after midnight (9am = 540, 7pm = 1140); null if they gave none." },
         },
-        required: ["named", "query", "category", "cuisine", "keywords", "near", "why"],
+        required: ["named", "query", "category", "cuisine", "keywords", "near", "why", "at"],
       },
     },
   },
@@ -48,7 +51,7 @@ async function askGemini(system: string, text: string): Promise<{ reply: string;
   try {
     // The app's Gemini client (same model and key as the planner's assistant).
     const parsed = ((await geminiJson(`${TRAVEL_SCOPE}\n\n${system}`, text, { name: "trip_wants", schema: WANTS_SCHEMA as unknown as Record<string, unknown> }, { timeoutMs: 15_000 })) ?? {}) as { reply?: string; wants?: Want[] };
-    return parsed.wants?.length ? { reply: parsed.reply ?? "", wants: parsed.wants.slice(0, 3) } : null;
+    return parsed.wants?.length ? { reply: parsed.reply ?? "", wants: parsed.wants.slice(0, 5) } : null;
   } catch (error) {
     console.error("[trips/suggest]", error instanceof Error ? error.message : error);
     return null;
@@ -107,9 +110,15 @@ async function resolveWant(want: Want, trip: Trip, limit: number): Promise<Sugge
   // Somewhere they named beats the meeting spot; it's geocoded as an area, not a person.
   const asked = want.near ? await resolveDestination(`${want.near}, New York`).catch(() => null) : null;
   const center = asked && inNycArea(asked) ? { lat: asked.lat, lon: asked.lon } : centerOf(trip);
-  const found = (await searchLocal([{ ...center, radius: 1800 }], intent)) ?? [];
+  const near = (radius: number, i: Intent) => searchLocal([{ ...center, radius }], i).then((r) => (r ?? []).sort((a, b) => a.meters - b.meters));
+  // Keywords only match names, so a mood ("artsy", "historical") matches almost nothing: top up
+  // with the closest places of that kind, then look further out if the area is thin.
+  let found = await near(1800, intent);
+  if (found.length < limit && (intent.keywords.length || intent.cuisine)) found = [...found, ...(await near(1800, { ...intent, keywords: [], cuisine: null }))];
+  if (found.length < limit) found = [...found, ...(await near(4500, { ...intent, keywords: [], cuisine: null }))];
+  const seen = new Set<string>();
   return found
-    .sort((a, b) => a.meters - b.meters)
+    .filter((c) => !seen.has(c.id) && (seen.add(c.id), true))
     .slice(0, limit)
     .map((c) => fromDiscover(c, want.why, trip));
 }
@@ -120,18 +129,39 @@ function dedupe(items: SuggestionItem[]): SuggestionItem[] {
 }
 
 const ASK_SYSTEM =
-  "You help a group of friends plan a day in New York City. From their message and the trip context, say what they want as up to 3 'wants'. " +
+  "You help a group of friends plan a day in New York City. From their message and the trip context, say what they want as up to 5 'wants', one per kind of place, in the order asked ('breakfast at 9, then shopping, then a movie' is three, the first at 540). " +
   "Use 'named' only for a specific place they named. Keep 'why' under 10 words and about the group (their times, where they meet, what they voted for).";
 
+export interface AskAnswer {
+  reply: string;
+  items: SuggestionItem[];
+  usedAi: boolean;
+  /** The best match for each thing asked, in the order asked, with any time they gave: the day, if the host asked. */
+  picks: StopInput[];
+  /** What was asked for but not found ("a movie"). */
+  missed: string[];
+}
+
 /** Ask Roam AI, with the room as context. Falls back to the plain words when Gemini isn't available. */
-export async function askRoom(trip: Trip, text: string): Promise<{ reply: string; items: SuggestionItem[]; usedAi: boolean }> {
+export async function askRoom(trip: Trip, text: string): Promise<AskAnswer> {
   const blocked = guardrail(text);
-  if (blocked) return { reply: blocked, items: [], usedAi: false };
+  if (blocked) return { reply: blocked, items: [], usedAi: false, picks: [], missed: [] };
   const ai = await askGemini(ASK_SYSTEM, `${roomContext(trip)}\n\nMessage: ${text}`);
   const wants = ai?.wants ?? [await plainWant(text)];
-  const items = dedupe((await Promise.all(wants.map((w) => resolveWant(w, trip, wants.length > 1 ? 3 : 6)))).flat()).slice(0, 8);
-  const reply = ai?.reply || (items.length ? "Here are some places that match." : "I couldn't find places for that. Try other words.");
-  return { reply, items, usedAi: !!ai };
+  const groups = await Promise.all(wants.map((w) => resolveWant(w, trip, wants.length > 1 ? 3 : 6)));
+  const items = dedupe(groups.flat()).slice(0, 8);
+  const picked = new Set<string>();
+  const picks = groups.flatMap((g, i) => {
+    const first = g.find((item) => !picked.has(item.key));
+    if (!first) return [];
+    picked.add(first.key);
+    const at = wants[i].at;
+    return [{ ...first.stop, ...(typeof at === "number" && at >= 0 && at < 1440 ? { fixedStartMin: at } : {}) }];
+  });
+  const missed = wants.filter((_, i) => !groups[i].length).map((w) => w.named ?? w.query);
+  // The model writes its reply before the search, so it can promise places that never turned up.
+  const reply = !items.length ? "I couldn't find places for that nearby. Try naming a kind of place, like a museum or a café." : ai?.reply || "Here are some places that match.";
+  return { reply, items, usedAi: !!ai, picks, missed };
 }
 
 const IDEA_SYSTEM =

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { decodePlan, DEFAULT_PROFILE, type StopInput } from "../bridge/index";
 import type { Avatar } from "../core/avatars";
 import type { TripSettings } from "../core/types";
@@ -47,7 +47,8 @@ describe("trip service: rooms and members", () => {
       ["met", [memberId]],
       ["central-park", [memberId]],
     ]);
-    expect(trip.consensus).toMatchObject({ total: 1, confirmed: [], reason: "waiting" });
+    // Alone, the host has no one to wait on: it's theirs to approve.
+    expect(trip.consensus).toMatchObject({ total: 0, confirmed: [], reason: "everyone-in" });
   });
 
   it("can start empty", async () => {
@@ -203,7 +204,7 @@ describe("trip service: ideas and chat", () => {
 
   it("keeps chat open after the plan locks, and needs you to have joined", async () => {
     const { trip, memberId } = await start();
-    await svc.confirm(trip.id, memberId, true);
+    await svc.approve(trip.id, memberId);
     expect((await svc.addIdea(trip.id, memberId, "see you at 10!")).ideas).toHaveLength(1);
     expect(await status(svc.addIdea(trip.id, "stranger1234", "hi"))).toBe(403);
   });
@@ -236,11 +237,12 @@ describe("trip service: availability", () => {
   });
 
   it("resets I'm in when someone's hours change the day", async () => {
-    const { trip, memberId } = await start();
+    const { trip } = await start();
     const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
-    await svc.confirm(trip.id, memberId, true);
-    const t = await svc.setFree(trip.id, rishi, { from: 14 * 60, to: 20 * 60 });
-    expect(t.consensus.stale).toEqual([memberId]);
+    const { memberId: joy } = await svc.join(trip.id, "Joy", fox);
+    await svc.confirm(trip.id, rishi, true);
+    const t = await svc.setFree(trip.id, joy, { from: 14 * 60, to: 20 * 60 });
+    expect(t.consensus.stale).toEqual([rishi]);
   });
 
   it("rejects windows shorter than an hour", async () => {
@@ -281,69 +283,72 @@ describe("trip service: the day's itinerary", () => {
   it("won't take an empty or locked day", async () => {
     const { trip, memberId } = await start([met]);
     expect(await status(svc.setItinerary(trip.id, memberId, ["nope"]))).toBe(400);
-    await svc.confirm(trip.id, memberId, true);
+    await svc.approve(trip.id, memberId);
     expect(await status(svc.setItinerary(trip.id, memberId, ["met"]))).toBe(409);
   });
 });
 
 describe("trip service: deciding together", () => {
-  it("locks when everyone is in, and freezes the trip", async () => {
-    const { trip, memberId } = await start();
+  it("waits for the host's approval, whoever is in, then freezes the trip", async () => {
+    const { trip, memberId: host } = await start();
     const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
-    let t = await svc.confirm(trip.id, memberId, true);
-    expect(t.lockedCode).toBeNull();
-    expect(t.consensus).toMatchObject({ confirmed: [memberId], pending: [rishi] });
+    let t = await svc.get(trip.id);
+    // The host approves rather than saying I'm in.
+    expect(t.consensus).toMatchObject({ total: 1, pending: [rishi] });
 
     t = await svc.confirm(trip.id, rishi, true);
-    expect(t.consensus.reason).toBe("unanimous");
+    expect(t.consensus.reason).toBe("everyone-in");
+    expect(t.lockedCode).toBeNull();
+
+    t = await svc.approve(trip.id, host);
     expect(decodePlan(t.lockedCode ?? "")?.stops.map((s) => s.key)).toEqual(["met", "central-park"]);
 
     expect(await status(svc.vote(trip.id, rishi, "met", false))).toBe(409);
     expect(await status(svc.addCandidate(trip.id, rishi, bridge))).toBe(409);
     expect(await status(svc.confirm(trip.id, rishi, false))).toBe(409);
+    expect(await status(svc.approve(trip.id, host))).toBe(409);
     expect(await status(svc.join(trip.id, "Joy", octo))).toBe(409);
   });
 
-  it("stops counting a confirmation once the day changes", async () => {
-    const { trip, memberId } = await start();
+  it("lets only the host approve, and the host approve with people still out", async () => {
+    const { trip, memberId: host } = await start();
     const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
-    await svc.confirm(trip.id, memberId, true);
+    expect(await status(svc.approve(trip.id, rishi))).toBe(403);
+    expect(await status(svc.confirm(trip.id, host, true))).toBe(400);
+    expect((await svc.approve(trip.id, host)).lockedCode).toEqual(expect.any(String));
+  });
+
+  it("tells the app once, with who approved it", async () => {
+    const onLock = vi.fn();
+    svc = createTripService(memoryBackend(store), () => clock++, { onLock });
+    const { trip, memberId: host } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.approve(trip.id, host);
+    expect(onLock).toHaveBeenCalledTimes(1);
+    expect(onLock).toHaveBeenCalledWith(expect.objectContaining({ id: trip.id, title: "Saturday in NYC", date: settings.date, memberIds: [host, rishi], hostName: "Khyati" }));
+  });
+
+  it("stops counting an I'm in once the day changes", async () => {
+    const { trip } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.confirm(trip.id, rishi, true);
     const t = await svc.addCandidate(trip.id, rishi, bridge);
     expect(t.consensus.confirmed).toEqual([]);
-    expect(t.consensus.stale).toEqual([memberId]);
+    expect(t.consensus.stale).toEqual([rishi]);
   });
 
   it("can take back an I'm in", async () => {
-    const { trip, memberId } = await start();
-    await svc.join(trip.id, "Rishi", octo);
-    await svc.confirm(trip.id, memberId, true);
-    const t = await svc.confirm(trip.id, memberId, false);
+    const { trip } = await start();
+    const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
+    await svc.confirm(trip.id, rishi, true);
+    const t = await svc.confirm(trip.id, rishi, false);
     expect(t.consensus.confirmed).toEqual([]);
   });
 
-  it("refuses I'm in when there's no day yet", async () => {
-    const { trip, memberId } = await start([]);
-    expect(await status(svc.confirm(trip.id, memberId, true))).toBe(400);
-  });
-
-  it("lets a majority lock after the deadline", async () => {
-    const { trip, memberId } = await start();
+  it("refuses I'm in and approval when there's no day yet", async () => {
+    const { trip, memberId: host } = await start([]);
     const { memberId: rishi } = await svc.join(trip.id, "Rishi", octo);
-    await svc.join(trip.id, "Joy", fox);
-    await svc.setDeadline(trip.id, rishi, clock + 1000);
-    await svc.confirm(trip.id, memberId, true);
-    let t = await svc.confirm(trip.id, rishi, true);
-    expect(t.lockedCode).toBeNull();
-    clock += 5000;
-    t = await svc.get(trip.id);
-    expect(t.consensus.reason).toBe("majority-after-deadline");
-    expect(t.lockedCode).toEqual(expect.any(String));
-  });
-
-  it("only accepts deadlines in the next two weeks", async () => {
-    const { trip, memberId } = await start();
-    expect(await status(svc.setDeadline(trip.id, memberId, clock - 1))).toBe(400);
-    expect(await status(svc.setDeadline(trip.id, memberId, clock + 15 * 24 * 3600 * 1000))).toBe(400);
-    expect((await svc.setDeadline(trip.id, memberId, null)).deadline).toBeNull();
+    expect(await status(svc.confirm(trip.id, rishi, true))).toBe(400);
+    expect(await status(svc.approve(trip.id, host))).toBe(400);
   });
 });

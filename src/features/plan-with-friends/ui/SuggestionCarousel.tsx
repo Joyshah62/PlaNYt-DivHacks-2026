@@ -31,7 +31,7 @@ export function SuggestionCarousel({ items, addedKeys, onAdd, loading = false, e
     );
   }
   if (error) return <p className="ed-alert">{error}</p>;
-  if (!items.length) return <p className="ed-small ed-muted">{emptyText}</p>;
+  if (!items.length) return emptyText ? <p className="ed-small ed-muted">{emptyText}</p> : null;
 
   return (
     <ul className="tr-carousel" aria-label="Suggested places">

@@ -3,7 +3,10 @@ import path from "node:path";
 
 export { getDb, hasMongo } from "@/lib/mongo";
 import { auth } from "@/lib/auth";
+import { ObjectId } from "mongodb";
 import { db } from "@/lib/db";
+import { canTextPlans, sendPlanText } from "@/lib/imessage/sendPlan";
+import { decodePlan } from "@/lib/plan/share";
 import type { IdentityProvider } from "../identity";
 
 /** PlaNYt accounts (Better Auth): a signed-in traveler takes part as themselves, on any device. */
@@ -32,6 +35,25 @@ export async function saveForMembers(trip: { id: string; title: string; code: st
       },
     })),
   );
+}
+
+/**
+ * Texts the approved day to every account member with a phone number (the
+ * iMessage bot, as "Text it to me" does). Guests and accounts without a number
+ * are skipped; one failed text never stops the others.
+ */
+export async function textMembers(trip: { code: string; userIds: string[]; intro: string }): Promise<void> {
+  const request = decodePlan(trip.code);
+  if (!canTextPlans() || !request?.stops.length || !trip.userIds.length) return;
+  // Better Auth keeps users in "user", keyed by an ObjectId.
+  const ids = [...trip.userIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id)), ...trip.userIds];
+  const users = await db.collection<{ _id: ObjectId | string; phoneNumber?: string | null }>("user").find({ _id: { $in: ids } }, { projection: { phoneNumber: 1 } }).toArray();
+  const phones = [...new Set(users.flatMap((u) => (u.phoneNumber ? [u.phoneNumber] : [])))];
+  for (const phone of phones) {
+    await sendPlanText(phone, request, trip.intro).catch((error: unknown) => {
+      console.error("[trips] couldn't text the approved plan:", error instanceof Error ? error.message : error);
+    });
+  }
 }
 
 /** The ~30k NYC places bundled for Discover (built by scripts/build-poi-data.mjs). */

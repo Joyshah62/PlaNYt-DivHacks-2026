@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { StopInput } from "../bridge/index";
+import { canShareNatively, copyText, shareNatively } from "../bridge/ui";
 import type { Avatar } from "../core/avatars";
 import type { Member, Trip } from "../core/types";
 import { tripApi, TripApiError } from "./client";
@@ -85,6 +86,8 @@ export function useTripRoom(id: string, viewer: Viewer | null = null) {
         setError(e instanceof Error ? e.message : "Couldn't join.");
       }
     },
+    /** A trip the server already changed (the host's Ask planned the day). */
+    adopt: (next: Trip) => setTrip(next),
     suggest: (stop: StopInput, note?: string | null) => memberId && act(() => tripApi<Trip>(`/${id}/candidates`, { memberId, stop, note: note || null })),
     remove: (stopKey: string) => memberId && act(() => tripApi<Trip>(`/${id}/remove`, { memberId, stopKey })),
     vote: (stopKey: string, on: boolean) => memberId && act(() => tripApi<Trip>(`/${id}/vote`, { memberId, stopKey, on })),
@@ -100,13 +103,19 @@ export function useTripRoom(id: string, viewer: Viewer | null = null) {
     saveItinerary: (order: string[]) => memberId && act(() => tripApi<Trip>(`/${id}/itinerary`, { memberId, order })),
     regenerate: () => memberId && act(() => tripApi<Trip>(`/${id}/itinerary/regenerate`, { memberId })),
     confirm: (on: boolean) => memberId && act(() => tripApi<Trip>(`/${id}/confirm`, { memberId, on })),
-    setDeadline: (at: number | null) => memberId && act(() => tripApi<Trip>(`/${id}/deadline`, { memberId, at })),
+    /** The host's final say: locks the day and texts it to everyone. */
+    approve: () => memberId && act(() => tripApi<Trip>(`/${id}/approve`, { memberId })),
+    /** Phones get their share sheet (Messages, WhatsApp…); elsewhere the link is copied. Call it straight from the tap. */
     async copyInvite() {
-      try {
-        await navigator.clipboard.writeText(`${window.location.origin}/trip/${id}`);
+      const url = `${window.location.origin}/trip/${id}`;
+      if (canShareNatively()) {
+        const shared = await shareNatively(trip?.title ? `Plan ${trip.title} with me` : "Plan a NYC day with me", url);
+        if (shared !== "failed") return;
+      }
+      if (await copyText(url)) {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 2000);
-      } catch {
+      } else {
         setError("Copy this page's address to invite friends.");
       }
     },

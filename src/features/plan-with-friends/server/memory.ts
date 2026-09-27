@@ -27,10 +27,6 @@ export function memoryBackend(trips: Map<string, MemoryEntry> = shared()): TripB
       if (entry) entry.meta = structuredClone(meta);
       else trips.set(meta.id, { meta: structuredClone(meta), members: new Map(), confirmations: new Map(), cands: new Map(), votes: new Map(), ideas: [] });
     },
-    async setDeadline(id, deadline) {
-      const entry = trips.get(id);
-      if (entry) entry.meta.deadline = deadline;
-    },
     async setItinerary(id, itinerary) {
       const entry = trips.get(id);
       if (entry) entry.meta.itinerary = structuredClone(itinerary);

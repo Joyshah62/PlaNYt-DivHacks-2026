@@ -10,7 +10,6 @@ import { ConsensusBar } from "./ConsensusBar";
 import { missingFor, type FreeWindow } from "../core/availability";
 import { DayBuilder } from "./DayBuilder";
 import { FreeTimeCard } from "./FreeTimeCard";
-import { GettingHomePanel } from "./GettingHomePanel";
 import { GroupMapPanel } from "./GroupMapPanel";
 import { IdeasPanel } from "./IdeasPanel";
 import { JoinCard } from "./JoinCard";
@@ -61,7 +60,7 @@ export function TripRoom({ id, viewer = null }: { id: string; viewer?: Viewer | 
     <main className="ed-app ed-paper tr-page tr-room">
       <AppBar home="/plan">
         <button type="button" className="ed-btn ed-btn--ghost" onClick={actions.copyInvite}>
-          <Link2 aria-hidden /> {room.copied ? "Link copied" : "Copy invite link"}
+          <Link2 aria-hidden /> {room.copied ? "Link copied" : "Invite friends"}
         </button>
       </AppBar>
 
@@ -107,7 +106,7 @@ export function TripRoom({ id, viewer = null }: { id: string; viewer?: Viewer | 
             <StartPointCard start={me.start} onSet={actions.setStart} added={people.filter((p) => p.start).length} total={people.length} />
           )}
           {me && !room.locked && <FreeTimeCard meId={me.id} people={people.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar, free: p.free ?? null }))} group={trip.window} onSet={actions.setFree} />}
-          {me && !room.locked && <AskRoam tripId={id} memberId={me.id} addedKeys={new Set(trip.candidates.map((c) => c.stop.key))} onAdd={actions.suggest} />}
+          {me && !room.locked && <AskRoam tripId={id} memberId={me.id} addedKeys={new Set(trip.candidates.map((c) => c.stop.key))} onAdd={actions.suggest} plans={me.id === trip.hostId} onPlanned={actions.adopt} />}
           <PlacesPanel trip={trip} memberId={me?.id ?? null} locked={room.locked} onVote={actions.vote} onSuggest={actions.suggest} onRemove={actions.remove} />
         </div>
         <div className="tr-col tr-col-ideas">
@@ -116,12 +115,11 @@ export function TripRoom({ id, viewer = null }: { id: string; viewer?: Viewer | 
         <div className="tr-col tr-col-day">
           <GroupMapPanel trip={trip} plan={draft.plan} memberId={me?.id ?? null} onSuggest={actions.suggest} />
           <DayBuilder trip={trip} plan={draft.plan} updating={draft.updating || room.busy} error={draft.error} canEdit={!!me} whoMisses={(s, e) => missingFor(free, s, e).map(emoji)} onSave={actions.saveItinerary} onRegenerate={actions.regenerate} />
-          <GettingHomePanel trip={trip} tripId={id} plan={draft.plan} />
         </div>
       </div>
 
       <div className="tr-dock">
-        <ConsensusBar trip={trip} memberId={me?.id ?? null} hasDraft={!!trip.consensus.signature} busy={room.busy} onConfirm={actions.confirm} onDeadline={actions.setDeadline} />
+        <ConsensusBar trip={trip} memberId={me?.id ?? null} hasDraft={!!trip.consensus.signature} busy={room.busy} onConfirm={actions.confirm} onApprove={actions.approve} />
       </div>
     </main>
   );
