@@ -1,7 +1,10 @@
 /** Gemini through Google's compatible chat API: tool calls and structured answers. */
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
-/** What a stalled request retries on: GEMINI_FALLBACK_MODEL when set (another model is often free when one is busy), else the same one. */
-export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || GEMINI_MODEL;
+/**
+ * What a stalled or rate-limited request retries on: GEMINI_FALLBACK_MODEL when set, else a lighter
+ * Flash-Lite. Quotas are per model, so another model is often free when the main one is busy.
+ */
+export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.1-flash-lite";
 export const GEMINI_ASSISTANT_MODEL = GEMINI_MODEL;
 export const geminiKey = () => process.env.GEMINI_API_KEY || null;
 
@@ -29,10 +32,10 @@ export class GeminiError extends Error {
   }
 }
 
-/** A stall or a server-side failure, worth another try; a bad key or a bad request isn't. */
+/** A stall, a rate limit or a server-side failure, worth another try (on another model); a bad key or a bad request isn't. */
 export function transient(error: unknown): boolean {
   if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) return true;
-  return error instanceof GeminiError && (error.status === null || error.status >= 500);
+  return error instanceof GeminiError && (error.status === null || error.status === 429 || error.status >= 500);
 }
 
 export interface GeminiReply {
