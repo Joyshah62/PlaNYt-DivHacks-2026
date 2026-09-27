@@ -2,12 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp, Check, ChevronDown, Loader2, MessageCircle, RotateCcw } from "lucide-react";
-import type { ChatReply } from "@/lib/discover/chat";
+import { ArrowUp, Check, ChevronDown, Globe, Loader2, MessageCircle, RotateCcw } from "lucide-react";
+import type { AppAction, ChatReply } from "@/lib/discover/chat";
 import type { DiscoverResponse } from "@/lib/discover/types";
 import type { DayPlan } from "@/lib/plan/types";
 import { clock, duration } from "@/lib/plan/time";
+import { locate, NEAR_ME } from "@/lib/plan/here";
+import { loadMemoryId, storeMemoryId } from "@/lib/memory/local";
 import { ResultCard, type Discover } from "./Discover";
+
+/** A position is reused for a few minutes, so a follow-up doesn't ask again. */
+const HERE_MAX_AGE_MS = 5 * 60_000;
 
 type Message = { id: number; role: "user" | "assistant"; text: string; reply?: ChatReply; tripKey: string };
 const starters = [
@@ -23,6 +28,7 @@ export function TripChat({
   onApply,
   composerTarget,
   onEngage,
+  onAction,
 }: {
   plan: DayPlan;
   discover: Discover;
@@ -32,6 +38,8 @@ export function TripChat({
   composerTarget?: HTMLElement | null;
   /** A message was sent: the conversation should come into view. */
   onEngage?: () => void;
+  /** Something Roam was asked to do in the app: save, calendar, share, a new day. */
+  onAction?: (action: AppAction, plan: DayPlan) => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -43,14 +51,18 @@ export function TripChat({
   const [found, setFound] = useState<{ data: DiscoverResponse; tripKeys: string[] } | null>(null);
   const [undo, setUndo] = useState<{ before: DayPlan; after: string } | null>(null);
   const [applied, setApplied] = useState<number[]>([]);
+  const [pending, setPending] = useState<Message | null>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const section = useRef<HTMLElement>(null);
   const controller = useRef<AbortController | null>(null);
   const sequence = useRef(0);
+  const here = useRef<{ lat: number; lon: number; at: number } | null>(null);
+  const [locating, setLocating] = useState(false);
   const tripKey = JSON.stringify(plan.request);
   const disabled = busy || planning;
   const foundCurrent = found?.tripKeys.includes(tripKey) ?? false;
   const offers = foundCurrent ? found!.data.results : [];
+  const currentPending = pending?.tripKey === tripKey ? pending : null;
 
   useEffect(() => {
     viewport.current?.scrollTo({ top: viewport.current.scrollHeight, behavior: "smooth" });
@@ -72,14 +84,28 @@ export function TripChat({
     // The box sits at the bottom of the panel; bring the conversation up to meet it.
     window.requestAnimationFrame(() => section.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
     try {
+      // "Near me" needs to know where that is; ask the device only when the words do.
+      if (NEAR_ME.test(text) && (!here.current || Date.now() - here.current.at > HERE_MAX_AGE_MS)) {
+        setLocating(true);
+        const p = await locate();
+        setLocating(false);
+        if (p) here.current = { ...p, at: Date.now() };
+      }
       const res = await fetch("/api/trip-chat", {
         method: "POST", headers: { "content-type": "application/json" }, signal: abort.signal,
         body: JSON.stringify({
           request: plan.request, message: text, action,
-          history: messages.slice(-20).map((m) => ({ role: m.role, text: m.text.slice(0, 2000) })),
+          pending: currentPending?.reply?.proposal ? { request: currentPending.reply.proposal.plan.request, title: currentPending.reply.proposal.title } : null,
+          history: messages.slice(-20).map((m) => ({ role: m.role, text: [
+            m.text,
+            m.reply?.choices.length ? `Suggested answers: ${m.reply.choices.map((c, i) => `${i + 1}. ${c.label}: ${c.message}`).join("; ")}` : "",
+            m.reply?.proposal ? `${applied.includes(m.id) ? "Applied change" : "Proposed change"}: ${m.reply.proposal.title}` : "",
+          ].filter(Boolean).join("\n").slice(0, 2000) })),
           offers: offers.map((r) => ({ name: r.name, nextStops: r.nextStops })),
           previousArea: foundCurrent ? found!.data.area : undefined,
+          here: here.current && Date.now() - here.current.at <= HERE_MAX_AGE_MS ? { lat: here.current.lat, lon: here.current.lon } : null,
           previous: foundCurrent ? found!.data.intent : null,
+          memoryId: loadMemoryId(),
         }),
       });
       const body = await res.json();
@@ -87,12 +113,33 @@ export function TripChat({
       if (latestTrip.current !== tripKey) throw new Error("Your trip changed while I was working. Send your request again for the updated trip.");
       if (!res.ok) throw new Error(body.error ?? "Couldn't complete that request.");
       const reply = body as ChatReply;
+      storeMemoryId(reply.memoryId);
+      const responseMessage: Message = { id: id * 2 + 1, role: "assistant", text: reply.message, reply, tripKey };
+      if (reply.resolution === "apply" && reply.proposal) {
+        // Roam's change worked on the planner, so it's in; Undo is below.
+        const next = reply.proposal.plan;
+        setUndo({ before: plan, after: JSON.stringify(next.request) });
+        setApplied((ids) => [...ids, responseMessage.id, ...(currentPending ? [currentPending.id] : [])]);
+        setPending(null); setFound(null); discover.clear();
+        onApply(next);
+        responseMessage.tripKey = JSON.stringify(next.request);
+      } else if (reply.resolution === "discard") {
+        setPending(null); setFound(null); discover.clear();
+      } else if (reply.proposal) {
+        setPending(responseMessage);
+        // Earlier cards contain whole stop lists and could overwrite a refined draft.
+        if (!reply.discovery) { setFound(null); discover.clear(); }
+      }
       if (reply.discovery) {
         setFound({ data: reply.discovery, tripKeys: reply.proposal ? [tripKey, JSON.stringify(reply.proposal.plan.request)] : [tripKey] });
         discover.present(reply.discovery);
       }
+      // For the day as this reply left it, applied change included.
+      const settled = reply.resolution === "apply" && reply.proposal ? reply.proposal.plan : plan;
+      for (const action of reply.actions ?? []) onAction?.(action, settled);
       const listing = reply.discovery?.results.map((r, i) => `${i + 1}. ${r.name}`).join("; ");
-      setMessages((list) => [...list, { id: id * 2 + 1, role: "assistant", text: reply.message + (listing ? `\nOptions: ${listing}` : ""), reply, tripKey }]);
+      responseMessage.text += listing ? `\nOptions: ${listing}` : "";
+      setMessages((list) => [...list, responseMessage]);
     } catch (e) {
       if (!abort.signal.aborted) setError(e instanceof Error ? e.message : "Couldn't send your message.");
     } finally { if (id === sequence.current) setBusy(false); }
@@ -100,12 +147,18 @@ export function TripChat({
 
   function apply(message: Message) {
     const next = message.reply?.proposal?.plan;
-    if (!next || message.tripKey !== tripKey || disabled) return;
+    if (!next || message.id !== currentPending?.id || disabled) return;
     setUndo({ before: plan, after: JSON.stringify(next.request) });
     setApplied((ids) => [...ids, message.id]);
+    setPending(null); setFound(null);
     discover.clear();
     onApply(next);
-    setMessages((list) => [...list, { id: ++sequence.current * 2, role: "assistant", text: "Updated your trip. You can undo this change below.", tripKey: JSON.stringify(next.request) }]);
+    setMessages((list) => [...list, { id: ++sequence.current * 2, role: "assistant", text: `Updated your trip: ${message.reply!.proposal!.title}. What else would you like to adjust? You can undo this change below.`, tripKey: JSON.stringify(next.request) }]);
+  }
+
+  function discard() {
+    setPending(null); setFound(null); discover.clear();
+    setMessages((list) => [...list, { id: ++sequence.current * 2, role: "assistant", text: "Kept your current trip. What would you like to try instead?", tripKey }]);
   }
 
   const composer = <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void send(draft); }}>
@@ -116,18 +169,28 @@ export function TripChat({
   return <section ref={section} aria-label="Ask Roam about your trip" className="mt-5 scroll-mb-24 overflow-hidden rounded-3xl border border-brand/25 bg-card shadow-sm">
     <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-controls="trip-chat-body" className="flex w-full items-center gap-3 bg-brand-soft/50 px-4 py-3 text-left">
       <span className="grid size-9 place-items-center rounded-full bg-brand text-on-color"><MessageCircle className="size-4" aria-hidden /></span>
-      <span className="flex-1"><span className="block text-sm font-semibold">Ask Roam</span><span className="text-xs text-muted-foreground">Add food, swap or drop a stop, change the pace. You approve every change.</span></span>
+      <span className="flex-1"><span className="block text-sm font-semibold">Ask Roam</span><span className="text-xs text-muted-foreground">Talk it through, choose what fits, and shape your day together.</span></span>
       <ChevronDown className={`size-4 transition ${open ? "rotate-180" : ""}`} aria-hidden />
     </button>
     <div id="trip-chat-body" hidden={!open}>
       <div ref={viewport} className="max-h-[55dvh] space-y-4 overflow-y-auto overscroll-contain p-4" role="log" aria-label="Trip conversation" aria-live="polite" aria-relevant="additions">
-        {messages.length === 0 && <div className="flex flex-wrap gap-2">{starters.map((c) => <button key={c.label} type="button" disabled={disabled} onClick={() => void send(c.message)} className="rounded-full border border-brand/25 bg-brand-soft px-3 py-2 text-xs font-medium text-brand disabled:opacity-40">{c.label}</button>)}</div>}
+        {messages.length === 0 && <div className="space-y-3"><p className="text-sm leading-relaxed">What would make this day feel more like you? Tell me what you’re in the mood for, and I’ll help you choose before updating the plan.</p><div className="flex flex-wrap gap-2">{starters.map((c) => <button key={c.label} type="button" disabled={disabled} onClick={() => void send(c.message)} className="rounded-full border border-brand/25 bg-brand-soft px-3 py-2 text-xs font-medium text-brand disabled:opacity-40">{c.label}</button>)}</div></div>}
         {messages.map((message, i) => {
           const reply = message.reply;
           const current = message.tripKey === tripKey;
           const activeResults = foundCurrent && reply?.discovery === found?.data;
           return <div key={message.id} className={message.role === "user" ? "ml-8 rounded-2xl bg-foreground px-3 py-2 text-sm text-background" : "space-y-3"}>
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{reply?.message ?? message.text}</p>
+            {reply?.sources?.length ? (
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                <Globe className="size-3" aria-hidden /> From the web:
+                {reply.sources.map((s) => (
+                  <a key={s.url} href={s.url} target="_blank" rel="noreferrer" title={s.title} className="max-w-48 truncate underline underline-offset-2 hover:text-foreground">
+                    {new URL(s.url).hostname.replace(/^www\./, "")}
+                  </a>
+                ))}
+              </p>
+            ) : null}
             {reply?.discovery && <>
               <p className="text-[11px] text-muted-foreground">{reply.discovery.area.label} · {reply.discovery.source === "google" ? "Place details from Google" : "OpenStreetMap · ratings unavailable"}</p>
               {reply.discovery.note && <p className="text-xs text-muted-foreground">{reply.discovery.note}</p>}
@@ -142,18 +205,18 @@ export function TripChat({
               <ol className="mt-2 space-y-1 text-xs">{reply.proposal.plan.stops.map((s) => <li key={s.key}>{clock(s.startMin)} · {s.name}</li>)}</ol>
               {reply.proposal.warnings.map((w) => <p key={w} className="mt-2 text-xs text-sev-c">{w}</p>)}
               {applied.includes(message.id) ? <p className="mt-3 flex items-center gap-1 text-xs text-brand"><Check className="size-3" /> Applied</p> : <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" disabled={disabled || !current || i !== messages.length - 1} onClick={() => apply(message)} className="rounded-full bg-brand px-3 py-2 text-xs font-semibold text-on-color disabled:opacity-40">{reply.proposal.warnings.length ? "Apply with these conflicts" : "Apply change"}</button>
-                <button type="button" disabled={disabled || i !== messages.length - 1} onClick={() => setMessages((list) => [...list, { id: ++sequence.current * 2, role: "assistant", text: "Kept your current trip. What would you like to try instead?", tripKey }])} className="rounded-full border border-border px-3 py-2 text-xs disabled:opacity-40">Keep current trip</button>
+                <button type="button" disabled={disabled || message.id !== currentPending?.id} onClick={() => apply(message)} className="rounded-full bg-brand px-3 py-2 text-xs font-semibold text-on-color disabled:opacity-40">{reply.proposal.warnings.length ? "Apply with these conflicts" : "Apply change"}</button>
+                <button type="button" disabled={disabled || message.id !== currentPending?.id} onClick={discard} className="rounded-full border border-border px-3 py-2 text-xs disabled:opacity-40">Keep current trip</button>
               </div>}
             </div>}
-            {reply && i === messages.length - 1 && <div className="flex flex-wrap gap-2">{reply.choices.map((c) => <button key={c.label} type="button" disabled={disabled} onClick={() => void send(c.message)} className="rounded-full border border-brand/25 bg-brand-soft px-3 py-2 text-xs font-medium text-brand hover:bg-brand/15 disabled:opacity-40">{c.label}</button>)}</div>}
+            {reply && current && i === messages.length - 1 && <div className="flex flex-wrap gap-2">{reply.choices.map((c) => <button key={c.message} type="button" disabled={disabled} onClick={() => void send(c.message)} className="rounded-full border border-brand/25 bg-brand-soft px-3 py-2 text-xs font-medium text-brand hover:bg-brand/15 disabled:opacity-40">{c.label}</button>)}</div>}
           </div>;
         })}
-        {busy && <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="size-4 animate-spin" aria-hidden /> Checking your trip and finding the next step…</p>}
+        {busy && <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="size-4 animate-spin" aria-hidden /> {locating ? "Finding where you are…" : "Checking your trip and finding the next step…"}</p>}
         {error && <div role="alert" className="text-sm text-sev-c"><p>{error}</p>{lastAttempt && <button type="button" disabled={disabled} onClick={() => void send(lastAttempt.text, lastAttempt.tripKey === tripKey ? lastAttempt.action : undefined)} className="mt-2 rounded-full border border-border px-3 py-1 text-xs text-foreground disabled:opacity-40">Try again</button>}</div>}
       </div>
-      {messages.length > 0 && <button type="button" disabled={disabled} onClick={() => { controller.current?.abort(); sequence.current++; setMessages([]); setFound(null); setDraft(""); setError(null); setLastAttempt(null); discover.clear(); }} className="mx-4 mb-3 text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-40">New conversation</button>}
-      {undo && undo.after === tripKey && <button type="button" disabled={disabled} onClick={() => { discover.clear(); onApply(undo.before); setUndo(null); setMessages((list) => [...list, { id: ++sequence.current * 2, role: "assistant", text: "Undid the last change. Your previous trip is restored.", tripKey: JSON.stringify(undo.before.request) }]); }} className="mx-4 mb-3 inline-flex items-center gap-1 text-xs font-medium text-brand"><RotateCcw className="size-3" aria-hidden /> Undo last trip change</button>}
+      {messages.length > 0 && <button type="button" disabled={disabled} onClick={() => { controller.current?.abort(); sequence.current++; setMessages([]); setPending(null); setFound(null); setDraft(""); setError(null); setLastAttempt(null); discover.clear(); }} className="mx-4 mb-3 text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-40">New conversation</button>}
+      {undo && undo.after === tripKey && <button type="button" disabled={disabled} onClick={() => { discover.clear(); setPending(null); setFound(null); onApply(undo.before); setUndo(null); setMessages((list) => [...list, { id: ++sequence.current * 2, role: "assistant", text: "Undid the last change. Your previous trip is restored.", tripKey: JSON.stringify(undo.before.request) }]); }} className="mx-4 mb-3 inline-flex items-center gap-1 text-xs font-medium text-brand"><RotateCcw className="size-3" aria-hidden /> Undo last trip change</button>}
       {!composerTarget && <div className="border-t border-border p-3">{composer}</div>}
     </div>
     {composerTarget && createPortal(composer, composerTarget)}

@@ -54,7 +54,7 @@ Wednesdays, so it's left out."*
 ```text
  "Saturday, the Met, a view, pizza"          picked on the map
               │                                      │
-      Gemini (structured output) ──► stops, day, mode, crowd preference
+      Grok (structured output) ──► stops, day, mode, crowd preference
                                                      │
             ┌────────────────────────────────────────┼──────────────────────────┐
             ▼                                        ▼                          ▼
@@ -68,7 +68,7 @@ Wednesdays, so it's left out."*
                      Timed itinerary + map + plain-language reasons
 ```
 
-**The AI does not plan the day.** Gemini only reads a free-text request into
+**The AI does not plan the day.** Grok only reads a free-text request into
 structured fields (which places, which day, how you'll travel). The ordering
 and timing are computed by deterministic code, so the same inputs always give
 the same plan, and every choice can be explained.
@@ -164,8 +164,10 @@ are within 400 m of the place.
 ## Tech stack
 
 - [Next.js 16](https://nextjs.org) (App Router) + React 19 + TypeScript
-- Gemini (`gemini-3.5-flash-lite`) through Google's `@google/genai` SDK,
-  using structured output with a JSON Schema generated from a Zod schema
+- Grok (`grok-4.7`, xAI) through its OpenAI-compatible chat API: structured
+  output with a JSON Schema generated from a Zod schema, and tool calls for the trip chat
+- [Backboard](https://backboard.io) for memory across trips: each traveler's lasting
+  facts ("vegetarian", "staying at the Ace") are kept and recalled into Grok's prompt
 - MapLibre GL with OpenFreeMap tiles
 - Tailwind CSS 4, shadcn/ui on Base UI, lucide icons
 - Zod request validation, Vitest unit tests
@@ -178,15 +180,16 @@ Requires Node.js 20+.
 git clone https://github.com/Joyshah62/divhacks-2026.git
 cd divhacks-2026
 npm install
-cp .env.example .env.local   # optional: Gemini key (assistant), Google Places key (photos)
+cp .env.example .env.local   # optional: Grok key (assistant), Google Places key (photos)
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Both keys are optional. Without a Gemini key, everything works except
+Both keys are optional. Without a Grok key, everything works except
 "Plan it for me"; pick spots by hand instead. Without a Google key, photos
-come from Wikipedia.
+come from Wikipedia. With `BACKBOARD_API_KEY`, Roam also remembers each
+traveler from one trip to the next (per device on the web, per thread over iMessage).
 
 ### Scripts
 
@@ -199,13 +202,33 @@ come from Wikipedia.
 | `npm run crowd-data` | Rebuild crowd profiles from the latest MTA ridership (~30 s) |
 | `npm run poi-data` | Rebuild the local copy of NYC places from OpenStreetMap, used by "Find something that fits my trip" (a few minutes) |
 | `node scripts/build-photo-data.mjs` | Rebuild catalog photos and credits from Wikipedia |
+| `npm run imessage` | Start the iMessage bot next to the dev server (see below) |
+
+### iMessage
+
+Roam also works over iMessage, through [Photon Spectrum](https://photon.codes/docs/spectrum-ts).
+Text the project's line what you'd like to do and the day comes back; text again to
+change it ("add Times Square and a café there"). Places come back numbered (reply `2`),
+and changes wait for `YES` or `NO`. On the day, the bot sends a morning rundown, and
+tells you when to leave for each stop. "Text to my phone" on an itinerary sends a plan
+from the website.
+
+1. Set `SPECTRUM_PROJECT_ID` and `SPECTRUM_PROJECT_SECRET` in `.env` (Photon dashboard, Settings),
+   plus `PHONE_BRIDGE_URL` and a random `PHONE_BRIDGE_TOKEN` for the website button (see `.env.example`).
+2. Run `npm run dev`, then `npm run imessage` in a second terminal.
+
+The bot plans through this app's API, so both must be running. Texts understand
+`PLAN`, `NEW TRIP`, `STOP` / `START` and `HELP`. Map links in texts use `PUBLIC_APP_URL`
+(default `http://localhost:3000`, which won't open on a phone; set it to a deploy or tunnel).
 
 ## API
 
 | Endpoint | Does |
 |---|---|
 | `POST /api/plan` | Stops + day + mode + crowd preference → ordered, timed itinerary with reasons |
-| `POST /api/assistant` | Free text → stops and settings (Gemini), with places geocoded |
+| `POST /api/assistant` | Free text → stops and settings (Grok), with places geocoded |
+| `POST /api/trip-chat` | A message about a planned day → places that fit, or a change to approve |
+| `POST /api/phone` | Text a plan to a phone number over iMessage (needs `npm run imessage`) |
 | `GET /api/resolve?q=` | Any NYC place or address → a point (NYC GeoSearch, Nominatim) |
 | `GET /api/route?from=&to=&mode=` | Street geometry for one leg (walk, bike, car), for the map |
 | `GET /api/place?id=` or `?lat=&lon=` `&date=` | Hours, hourly area busyness and the quietest time for one place |
@@ -219,7 +242,8 @@ src/
   components/plan/     planner view, map, itinerary, crowd strip, stop picker
   lib/plan/            optimizer, crowd model, travel matrix, attraction catalog
   lib/osm/             OSRM routing, Nominatim geocoding
-scripts/               crowd-data builder, MapLibre worker copy
+  lib/imessage/        iMessage bot: conversation, texts, day-of nudges
+scripts/               data builders, MapLibre worker copy, the iMessage bot (imessage.mts)
 ```
 
 ## Limitations
