@@ -64,7 +64,7 @@ export const auth = betterAuth({
     : {},
   user: {
     additionalFields: {
-      // Where Roam texts the day (see lib/imessage). Stored in E.164, e.g. "+12125550123".
+      // Where PlaNYt texts the day (see lib/imessage). Stored in E.164, e.g. "+12125550123".
       phoneNumber: { type: "string", required: false, input: true, validator: { input: PhoneSchema } },
       // Their Backboard memory (see lib/memory): set by the server on first use, never by the client.
       memoryId: { type: "string", required: false, input: false },
@@ -90,7 +90,7 @@ export const auth = betterAuth({
     // Optional in the database (a Google account starts without one), required to sign up with email.
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path === "/sign-up/email" && !String(ctx.body?.phoneNumber ?? "").trim()) {
-        throw new APIError("BAD_REQUEST", { message: "Add a phone number so Roam can text you your day." });
+        throw new APIError("BAD_REQUEST", { message: "Add a phone number so PlaNYt can text you your day." });
       }
     }),
   },

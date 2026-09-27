@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { GEMINI_ASSISTANT_MODEL, GeminiError, geminiJson, geminiKey } from "@/lib/llm/gemini";
-import { outsideTravelScope, SCOPE_REPLY, TRAVEL_SCOPE } from "@/lib/discover/scope";
+import { guardrail, TRAVEL_SCOPE } from "@/lib/discover/scope";
 import { recall, remember, rememberedFacts } from "@/lib/memory/backboard";
 import { travelerMemory } from "@/lib/memory/traveler";
 import { followUps } from "@/lib/plan/followUps";
@@ -11,7 +11,9 @@ import { z } from "zod";
 import { inNycArea } from "@/lib/osm/geo";
 import { resolveDestination } from "@/lib/osm/nominatim";
 import { nearbyWhy, placesNear } from "@/lib/discover/nearby";
+import { nearestPicks } from "@/lib/plan/nearestPick";
 import { ATTRACTIONS, ATTRACTION_BY_ID } from "@/lib/plan/attractions";
+import { webSearch, webSearchEnabled } from "@/lib/web/tavily";
 import { nycToday, toMinutes, WEEKDAYS, weekdayOf } from "@/lib/plan/time";
 import type { AssistantResult, Choice, ChoiceOption, PointLabel, StopInput } from "@/lib/plan/types";
 
@@ -61,22 +63,24 @@ const Understood = z.object({
   lunch: z.boolean().nullable().describe("true if they want a lunch break planned, false if they said no lunch, else null."),
   dinner: z.boolean().nullable().describe("true if they want a dinner break planned, false if they said no dinner, else null."),
   reply: z.string().describe("One or two friendly sentences: what you picked for anything vague, and any assumption you made."),
+  theme: z.string().nullish().describe("If the day is built around a theme (a TV show, film, book, person, era or scene, e.g. \"Friends\", \"Seinfeld\", \"Sex and the City\", \"the Gilded Age\", \"hip-hop history\"), its name; else null."),
 });
 
 type Understood = z.infer<typeof Understood>;
 
 const CATALOG = ATTRACTIONS.map((a) => `${a.id}: ${a.name} (${a.area}; ${a.kind}; ~${a.visitMin} min)`).join("\n");
 
-const SYSTEM = `You are Roam, a warm, thoughtful NYC day-planning companion. Sound natural and personal, with brief empathy when it fits, without pretending to have human experiences. If a remembered preference materially shaped a choice, say so conversationally ("Since you mentioned you like quieter places...") and invite correction if it may have changed. Don't announce memory when it didn't affect the plan.
+const SYSTEM = `Be warm and thoughtful: natural and personal, with brief empathy when it fits. If a remembered preference materially shaped a choice, say so conversationally ("Since you mentioned you like quieter places...") and invite correction if it may have changed. Don't announce memory when it didn't affect the plan.
 You help visitors plan a day in New York City. Read what the person wants and fill in the planner's fields. You do not order the stops or set times for them; a separate optimizer does that.
 
 Stops:
-- Use a catalog id whenever a catalog entry matches what they asked for. For vague wishes ("a great view", "some art", "a park"), choose the one catalog entry that fits best as the stop, and offer 2 or 3 genuinely different alternatives (a free one, a quieter one, one in another area). Prefer catalog entries for alternatives.
+- Use a catalog id whenever a catalog entry matches what they asked for. For vague wishes ("a great view", "some art", "a park"), choose the one catalog entry that fits best as the stop, and offer 2 or 3 genuinely different alternatives (a free one, a quieter one, one near the other places they asked for). Prefer catalog entries for alternatives. Nobody should cross the city for a vague wish: favour picks near the rest of their day, unless they asked for a particular area.
 - For specific places that are not in the catalog (a restaurant, a shop, a bar), set attractionId to null and give a precise, searchable query that includes the NYC neighborhood or street.
-- For vague food wishes ("good pizza", "bagels"), pick one well-known, long-running spot and name it precisely, with 2 or 3 alternatives in different neighborhoods.
+- For vague food wishes ("good pizza", "bagels"), pick one well-known, long-running spot and name it precisely, with 2 or 3 alternatives, at least one of them near the other places in their day. Prefer a spot near the rest of their day over a more famous one across town.
 - A place they named has no wish and no alternatives.
 - "Near me", "nearby" or "around here" means where they are right now, not a neighborhood you know: set nearMe, never name a place for it, and don't mention a specific place for it in your reply.
-- At most 8 stops. Do not add stops they did not ask for, except to satisfy a vague wish.
+- A themed day ("a Friends day", "Seinfeld spots", "Gossip Girl") means the places that theme is known for in New York, by their real names (Monk's Café is Tom's Restaurant): include the best-known ones even if they only named the theme (aim for 5 to 7 that make a good day, plus somewhere to eat that fits it), and don't take the theme's words literally. If the request comes with notes from a web search, trust them over memory, and say in the reply if something they expect isn't in New York (the Friends fountain is in Burbank; Cherry Hill Fountain in Central Park is the look-alike).
+- At most 8 stops. Do not add stops they did not ask for, except to satisfy a vague wish or a theme.
 
 Other fields:
 - Never assume party size from "I", "we", a student identity, the default profile, or past trips. Group and people must be null unless this request explicitly identifies the party. Do not invent a spending limit, total budget or per-person budget. Do not mention group size or a budget in your reply unless the traveler supplied it.
@@ -157,7 +161,8 @@ async function assistant(request: Request, progress: Progress) {
   }
   if (text.length < 3) return Response.json({ error: "Tell me a little about your day." }, { status: 400 });
   if (text.length > 1500) return Response.json({ error: "That's a lot! Keep it under 1,500 characters." }, { status: 400 });
-  if (outsideTravelScope(text)) return Response.json({ error: SCOPE_REPLY }, { status: 422 });
+  const blocked = guardrail(text);
+  if (blocked) return Response.json({ error: blocked }, { status: 422 });
 
   const today = nycToday();
   const party = partyFromText(text);
@@ -168,26 +173,41 @@ async function assistant(request: Request, progress: Progress) {
   }
   progress("Loading your travel preferences…");
   const { memoryId: memory, onAccount } = await travelerMemory(request, memoryId);
-  // What they told Roam on earlier trips, so a vague "somewhere for lunch" suits them too.
+  // What they told Roam AI on earlier trips, so a vague "somewhere for lunch" suits them too.
   const remembered = rememberedFacts(await recall(memory, text));
   after(() => remember(memory, text));
   try {
     progress("Working out your day…");
-    const answer = await geminiJson(
-      `${TRAVEL_SCOPE}\n\n${SYSTEM}${remembered}`,
-      `Today is ${WEEKDAYS[weekdayOf(today)]}, ${today}.${context}\n${here ? "The traveler shared where they are right now." : "The traveler's current location is unknown."}\n\n${text}`,
-      { name: "day_request", schema: UNDERSTOOD_SCHEMA },
-      // Reading a request into fields needs little deliberation; the planner does the thinking.
-      { timeoutMs: 25_000, effort: "low", model: GEMINI_ASSISTANT_MODEL },
-    );
+    const read = async (notes: string) =>
+      Understood.safeParse(
+        await geminiJson(
+          `${TRAVEL_SCOPE}\n\n${SYSTEM}${remembered}`,
+          `Today is ${WEEKDAYS[weekdayOf(today)]}, ${today}.${context}\n${here ? "The traveler shared where they are right now." : "The traveler's current location is unknown."}${notes}\n\n${text}`,
+          { name: "day_request", schema: UNDERSTOOD_SCHEMA },
+          // Reading a request into fields needs little deliberation; the planner does the thinking.
+          { timeoutMs: 25_000, effort: "low", model: GEMINI_ASSISTANT_MODEL },
+        ),
+      );
     // The schema constrains the reply, but validate anyway: a truncated or
     // refused response must not reach the planner as half a form.
-    const parsed = Understood.safeParse(answer);
+    const parsed = await read("");
     if (!parsed.success) {
       console.error("[assistant] unusable reply", parsed.error.issues[0]?.message);
       return Response.json({ error: "I couldn't turn that into a plan. Try naming a few places you'd like to see." }, { status: 422 });
     }
     understood = parsed.data;
+    // A themed day is grounded in what the web says the theme's places are, not the model's
+    // memory: it neither takes the theme literally nor leaves out what fans go for.
+    const theme = understood.theme?.trim();
+    if (theme && webSearchEnabled()) {
+      progress(`Checking where ${theme} fans go in New York…`);
+      const web = await webSearch(`${theme} New York City filming locations and places fans visit`);
+      if (web?.results.length) {
+        const notes = [web.answer, ...web.results.map((w) => `${w.title}: ${w.content}`)].filter(Boolean).join("\n").slice(0, 3500);
+        const grounded = await read(`\n\nNotes from a web search on "${theme}" places in New York (use them for the theme's stops):\n${notes}`).catch(() => null);
+        if (grounded?.success) understood = grounded.data;
+      }
+    }
     // Enforce explicit party evidence even when the model fills in defaults.
     understood.group = party.group && party.group !== "unspecified" ? party.group : null;
     understood.people = party.people ?? null;
@@ -280,6 +300,24 @@ async function assistant(request: Request, progress: Progress) {
     else unresolved.push(understood.origin);
   }
 
+  // Every option for a vague wish is a good one: take the one nearest the rest of the day, so
+  // nobody crosses the city for "good pizza". Places they named, and near-me picks, stay put.
+  const vague = choices.filter((c) => c.kind === "wish" && !nearChoices.includes(c) && c.currentKey);
+  const wishKeys = new Set(vague.map((c) => c.currentKey));
+  const fixed = [...stops.filter((s) => !wishKeys.has(s.key)), ...(origin ? [origin] : [])];
+  const swapped: string[] = [];
+  nearestPicks(fixed, vague.map((c) => ({ current: c.currentKey!, options: c.options }))).forEach((key, i) => {
+    const choice = vague[i];
+    if (key === choice.currentKey) return;
+    const at = stops.findIndex((s) => s.key === choice.currentKey);
+    const pick = choice.options.find((o) => o.key === key)!;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { why, ...stop } = pick;
+    swapped.push(`${stop.name} instead of ${stops[at].name}`);
+    stops[at] = { ...stop, fixedStartMin: stops[at].fixedStartMin ?? null, mealFor: stops[at].mealFor ?? null };
+    choice.currentKey = key;
+  });
+
   const date = understood.date && /^\d{4}-\d{2}-\d{2}$/.test(understood.date) && understood.date >= today ? understood.date : null;
   const result: AssistantResult = {
     stops,
@@ -304,7 +342,7 @@ async function assistant(request: Request, progress: Progress) {
       ...Object.fromEntries(stops.flatMap((s) => (s.mealFor ? [[s.mealFor, true]] : []))),
     },
     choices,
-    reply: nearReply(understood, here, nearChoices, stops) ?? understood.reply,
+    reply: nearReply(understood, here, nearChoices, stops) ?? (swapped.length ? `${understood.reply} I went with ${swapped.join(", and ")}, so you're not crossing town for it.` : understood.reply),
     ...(memory && !onAccount && { memoryId: memory }),
   };
   return Response.json(result);

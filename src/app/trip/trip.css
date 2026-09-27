@@ -1454,7 +1454,7 @@
 .tr-swatch { width: 1.8em; height: 1.8em; border-radius: 50%; border: 1px solid var(--hair); }
 .tr-swatch[aria-checked="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
 
-/* Ask Roam: the home page's prompt box, for the group. */
+/* Ask Roam AI: the home page's prompt box, for the group. */
 .tr-ask { display: grid; gap: var(--s-1); }
 .tr-ask-box { flex-direction: column; align-items: stretch; }
 .tr-ask-box textarea { width: 100%; resize: none; border: 0; outline: none; background: none; color: inherit; font: inherit; line-height: 1.4; }

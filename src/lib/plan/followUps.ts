@@ -20,7 +20,7 @@ function weekend(today: string): string[] {
 /**
  * What the request left out that changes the day: when (hours, closures,
  * crowds) and who's coming (pace, walking, what suits them). Asked once,
- * before planning; anything they already said, or Roam already knows, isn't.
+ * before planning; anything they already said, or PlaNYt already knows, isn't.
  */
 export function followUps(
   understood: { date: string | null; group: Group | null; nearMe: boolean },

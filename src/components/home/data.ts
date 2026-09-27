@@ -10,15 +10,15 @@ export const HERO: { high: Camera; landed: Camera } = {
 
 /** The hero's shortcuts: three show at a time and flip through the rest (PresetFlip). */
 export const PRESETS = [
-  { label: "The Friends walk", query: "Friends themed day in Greenwich Village: Central Perk coffee vibes, visit Monica's apartment on Bedford St, Washington Square Park fountain, and dinner at a West Village bistro." },
-  { label: "Seinfeld's Upper West Side", query: "Classic Seinfeld day on the Upper West Side: Monk's Diner at Tom's Restaurant, walk Central Park West reservoir, Jerry's West 81st St neighborhood, and an evening comedy show." },
-  { label: "DUMBO at dusk", query: "Explore DUMBO and Brooklyn Heights: walk across the Brooklyn Bridge, photo spot on Washington St, Jane's Carousel, and waterfront sunset." },
-  { label: "The HIMYM Midtown trail", query: "How I Met Your Mother route: MacLaren's Pub booth at McGee's, Yellow Umbrella at Central Park South, Empire State Building deck, and Corner Bistro burger." },
-  { label: "High Line & skyline", query: "Plan a Saturday with Central Park, the Met, Top of the Rock and Chelsea Market. Subway and walking, 9am to 6pm." },
-  { label: "Museum Mile morning", query: "A quiet morning on Museum Mile: the Met, the Guggenheim and the Neue Galerie, with coffee on Madison Avenue." },
-  { label: "Harlem soul & jazz", query: "An evening in Harlem: the Apollo Theater, soul food on Lenox Avenue and a late jazz set." },
-  { label: "Lower East Side food crawl", query: "A Lower East Side food crawl: Katz's Delicatessen, Russ & Daughters, dumplings in Chinatown and the Tenement Museum." },
-  { label: "Central Park, slowly", query: "A slow day in Central Park: Bethesda Terrace, the Bow Bridge, Strawberry Fields and a rowboat on the lake." },
+  { label: "The Friends walk", query: "My friends and I, four of us, on Saturday, a Friends day: the Friends apartment building at 90 Bedford Street, The FRIENDS Experience and its Central Perk on East 23rd Street, the Natural History Museum where Ross worked, and the Cherry Hill Fountain in Central Park, the look-alike of the opening-credits fountain. Dinner in the West Village." },
+  { label: "Seinfeld's New York", query: "My partner and I on Saturday, a Seinfeld day: breakfast at Tom's Restaurant (Monk's Café) at Broadway and 112th, a Central Park stroll, soup at The Original SoupMan on West 55th Street (the Soup Nazi), and a stand-up show at the Comedy Cellar in Greenwich Village." },
+  { label: "DUMBO at dusk", query: "A date day with my partner on Sunday: walk the Brooklyn Bridge, the DUMBO photo spot on Washington Street at Front Street, Jane's Carousel, the Time Out Market rooftop, Pebble Beach, the Brooklyn Heights Promenade at sunset, and dinner at Juliana's Pizza." },
+  { label: "Dinosaurs with the kids", query: "Saturday with our kids, 6 and 9: the Natural History Museum (dinosaurs, the blue whale), lunch nearby, the Diana Ross Playground in Central Park, Belvedere Castle and the Bethesda Terrace. Relaxed pace, short walks." },
+  { label: "The HIMYM night out", query: "My friends and I, five of us, on Friday, a How I Met Your Mother day: the Empire State Building, a walk through Central Park, a burger at Corner Bistro in the West Village, and the evening at McGee's Pub on West 55th Street, the bar that inspired MacLaren's." },
+  { label: "Museum Mile, gently", query: "With my elderly parents on Thursday: the Met, lunch at Café Sabarsky in the Neue Galerie, the Guggenheim, and a short stroll in Central Park. Slow pace, taxis for longer hops." },
+  { label: "Harlem soul & jazz", query: "My partner and I on Friday in Harlem: the Apollo Theater, a late lunch at Sylvia's on Malcolm X Boulevard, the brownstones of Strivers' Row, dinner at Red Rooster, and live jazz at Minton's Playhouse." },
+  { label: "Lower East Side food crawl", query: "My friends and I, three of us, on Sunday, a Lower East Side food crawl: Katz's Delicatessen, Russ & Daughters, Yonah Schimmel Knish Bakery, Economy Candy, Essex Market, the Tenement Museum, and dumplings in Chinatown." },
+  { label: "The harbor with grandparents", query: "Taking my grandparents out on Saturday: the Statue of Liberty and Ellis Island ferry, the Battery, lunch at Fraunces Tavern, and the 9/11 Memorial pools. Minimal walking, avoid crowds." },
 ];
 
 export interface DemoStop extends LatLng {
@@ -27,7 +27,7 @@ export interface DemoStop extends LatLng {
   why: string;
   /** Relative crowd level per hour, 8 bars. */
   crowd: number[];
-  /** Index into `crowd` of the hour Roam picked. */
+  /** Index into `crowd` of the hour PlaNYt picked. */
   slot: number;
 }
 

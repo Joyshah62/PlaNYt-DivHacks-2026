@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { geminiJson } from "@/lib/llm/gemini";
 import { POST } from "./route";
 import { readProgress } from "@/lib/progress";
+import { webSearch } from "@/lib/web/tavily";
 
 vi.mock("next/server", () => ({ after: vi.fn() }));
 vi.mock("@/lib/memory/traveler", () => ({ travelerMemory: vi.fn(async () => ({ memoryId: null, onAccount: false })) }));
 vi.mock("@/lib/memory/backboard", () => ({ recall: vi.fn(async () => []), rememberedFacts: () => "", remember: vi.fn() }));
+vi.mock("@/lib/web/tavily", () => ({ webSearchEnabled: () => true, webSearch: vi.fn(async () => ({ answer: "Fans visit 90 Bedford Street and Cherry Hill Fountain.", results: [{ title: "Friends NYC", url: "https://example.com", content: "90 Bedford St; Cherry Hill Fountain is the look-alike." }] })) }));
 vi.mock("@/lib/llm/gemini", async (original) => ({ ...await original<typeof import("@/lib/llm/gemini")>(), geminiKey: () => "test", geminiJson: vi.fn() }));
 
 const interpreted = {
@@ -38,5 +40,15 @@ describe("assistant party evidence and progress", () => {
     expect(result.profile).toEqual({ people: 4 });
     expect(stages.mock.calls.flat()).toContain("Working out your day…");
     expect(stages.mock.calls.flat()).toContain("Finding places and checking locations…");
+  });
+  it("grounds a themed day in a web search before reading it for good", async () => {
+    vi.mocked(geminiJson)
+      .mockResolvedValueOnce({ ...structuredClone(interpreted), theme: "Friends" })
+      .mockResolvedValueOnce({ ...structuredClone(interpreted), theme: "Friends", reply: "Grounded." });
+    const response = await POST(new Request("https://local/api/assistant", { method: "POST", body: JSON.stringify({ text: "A Friends day, just me", skipQuestions: true }) }));
+    const result = await response.json();
+    expect(vi.mocked(webSearch)).toHaveBeenCalledWith(expect.stringContaining("Friends"));
+    expect(vi.mocked(geminiJson).mock.calls.at(-1)![1]).toContain("Cherry Hill Fountain");
+    expect(result.reply).toBe("Grounded.");
   });
 });

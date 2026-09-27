@@ -27,7 +27,7 @@ export interface Thread {
   muted: boolean;
   /** Nudges already sent, by key. */
   sent: string[];
-  /** What Roam remembers about them across trips (see lib/memory); kept through a fresh start. */
+  /** What PlaNYt remembers about them across trips (see lib/memory); kept through a fresh start. */
   memoryId?: string | null;
   /** Their first request, waiting on answers to "when?" and "who?" before it's planned. */
   draft?: string | null;

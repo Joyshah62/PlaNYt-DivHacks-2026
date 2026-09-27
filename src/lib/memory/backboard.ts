@@ -1,5 +1,5 @@
 /**
- * What Roam remembers about a traveler across chats and trips ("we're
+ * What PlaNYt remembers about a traveler across chats and trips ("we're
  * vegetarian", "staying at the Ace", "hate crowds"), kept by Backboard
  * (https://docs.backboard.io). Each traveler gets their own Backboard
  * assistant, since memories are shared by everything on one assistant; its id
@@ -49,7 +49,7 @@ async function call<T>(path: string, body: unknown, timeoutMs: number): Promise<
  * The traveler's memory id: the one they have, or a new one; null when memory
  * is off or unreachable. `name` labels a new one in Backboard's dashboard.
  */
-export async function memoryFor(id: unknown, name = "Roam traveler"): Promise<string | null> {
+export async function memoryFor(id: unknown, name = "PlaNYt traveler"): Promise<string | null> {
   if (!memoryEnabled()) return null;
   if (isMemoryId(id)) return id;
   try {

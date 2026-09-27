@@ -1,4 +1,4 @@
-# Roam Design System: "Editorial × 3D Manhattan"
+# PlaNYt Design System: "Editorial × 3D Manhattan"
 
 The home page (`/`) is the reference implementation of this system. Every new page, including the
 redesign of the planner (`/plan`), should read like another page of the same magazine. This
@@ -71,7 +71,7 @@ All tokens are CSS custom properties on `.ed`; `.dark .ed` swaps the colours ("E
 | `--t-small` | 13 → 17px | Captions, reasons, credits |
 | `--t-body` | 16 → 22px | Body text (the `.ed` default) |
 | `--t-lead` | 16 → 24px | Prompt text, list items, row names |
-| `--t-wordmark` | 24 → 44px | The "Roam" wordmark in headers |
+| `--t-wordmark` | 24 → 44px | The "PlaNYt" wordmark in headers |
 | Headlines | `clamp(40px, 4.6vw, 104px)` (`.ed-h2`) | Section titles; hero and chapter titles are larger |
 
 Families: **Instrument Serif** 400 roman + italic (`--f-display`: headlines, wordmark),

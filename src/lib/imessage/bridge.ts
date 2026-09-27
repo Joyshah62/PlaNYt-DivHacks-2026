@@ -5,7 +5,7 @@ import { normalizeHandle } from "./format";
 
 /**
  * POST /send { handle, request } — the website's "Text it to me". Only the
- * Roam server calls this, with the shared token.
+ * PlaNYt server calls this, with the shared token.
  *
  * Locally binds 127.0.0.1. On Render (PORT set), bind 0.0.0.0 so the web
  * service can reach this worker; override with PHONE_BRIDGE_HOST.
@@ -52,7 +52,7 @@ export function startBridge(opts: {
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       // Shared-line projects only message numbers added as project users.
-      if (/Target not allowed/i.test(message)) return reply(403, { error: "This number isn't set up to receive texts from Roam yet. Ask the host to add it." });
+      if (/Target not allowed/i.test(message)) return reply(403, { error: "This number isn't set up to receive texts from PlaNYt yet. Ask the host to add it." });
       console.error("[bridge] send failed:", error);
       reply(502, { error: message || "Couldn't send the text." });
     }

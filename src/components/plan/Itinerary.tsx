@@ -22,6 +22,7 @@ import {
   Users,
   Umbrella,
   UtensilsCrossed,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ATTRACTION_BY_ID } from "@/lib/plan/attractions";
@@ -164,6 +165,8 @@ export function Itinerary({
   onShare,
   onCalendar,
   onAsk,
+  note,
+  onDismissNote,
   phone,
   budget,
   choices,
@@ -183,6 +186,9 @@ export function Itinerary({
   onCalendar: () => void;
   /** Opens the trip assistant: the main way to change the day. */
   onAsk: () => void;
+  /** What Roam AI said about the day it just built, and anything it couldn't find. */
+  note?: { reply: string; unresolved: string[] } | null;
+  onDismissNote?: () => void;
   /** Sends the planned day by text. */
   phone?: ReactNode;
   /** Optional cost estimate, fetched only when opened. */
@@ -238,9 +244,21 @@ export function Itinerary({
         </div>
       </header>
 
+      {note && (
+        <div className="pl-note pl-day-note" role="status">
+          <p>{note.reply}</p>
+          {note.unresolved.length > 0 && <p className="pl-muted mt-2">Couldn&apos;t find on the map: {note.unresolved.join(", ")}. Ask Roam AI for another, or add it yourself.</p>}
+          {onDismissNote && (
+            <button type="button" onClick={onDismissNote} aria-label="Dismiss" className="pl-icon pl-day-note-close">
+              <X aria-hidden />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Changing the day is a conversation first; the manual tools sit beside it. */}
       <button type="button" onClick={onAsk} className="ed-btn pl-ask">
-        <MessageCircle aria-hidden /> Ask the planner to change anything
+        <MessageCircle aria-hidden /> Ask Roam AI to change anything
       </button>
 
       <div className="pl-actions pl-mono">

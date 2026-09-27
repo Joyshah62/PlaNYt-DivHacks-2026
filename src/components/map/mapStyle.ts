@@ -32,6 +32,11 @@ export function keepAttributionCollapsed(map: MapLibre) {
 
 export type MapTheme = "day" | "night" | "satellite" | "transit";
 
+/**
+ * Esri's aerial imagery, flat: 3D is Google's photorealistic city now, so no terrain (its
+ * elevation tiles left dark patches where one was missing). A background the colour of the
+ * harbour fills any tile that hasn't arrived, instead of black.
+ */
 export const SATELLITE_STYLE = {
   version: 8 as const,
   sources: {
@@ -46,47 +51,14 @@ export const SATELLITE_STYLE = {
     },
   },
   layers: [
+    { id: "satellite-base", type: "background" as const, paint: { "background-color": "#4e5242" } },
     {
       id: "satellite-layer",
       type: "raster" as const,
       source: "esri-satellite",
       minzoom: 0,
       maxzoom: 22,
-    },
-  ],
-};
-
-export const SATELLITE_3D_STYLE = {
-  version: 8 as const,
-  sources: {
-    "esri-satellite": {
-      type: "raster" as const,
-      tiles: [
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      ],
-      tileSize: 256,
-      attribution: "Tiles © Esri, Maxar, Earthstar Geographics",
-      maxzoom: 19,
-    },
-    terrain: {
-      type: "raster-dem" as const,
-      tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
-      encoding: "terrarium" as const,
-      tileSize: 256,
-      maxzoom: 15,
-    },
-  },
-  terrain: {
-    source: "terrain",
-    exaggeration: 1.4,
-  },
-  layers: [
-    {
-      id: "satellite-layer",
-      type: "raster" as const,
-      source: "esri-satellite",
-      minzoom: 0,
-      maxzoom: 22,
+      paint: { "raster-fade-duration": 0 },
     },
   ],
 };
@@ -117,11 +89,11 @@ export const TRANSIT_STYLE = {
   ],
 };
 
-export const STYLES: Record<string, string | typeof SATELLITE_STYLE | typeof SATELLITE_3D_STYLE | typeof TRANSIT_STYLE> = {
+export const STYLES: Record<string, string | typeof SATELLITE_STYLE | typeof TRANSIT_STYLE> = {
   // Positron: quiet greys that sit on the planner's paper, so the route and pins carry the colour.
   day: "https://tiles.openfreemap.org/styles/positron",
   night: "https://tiles.openfreemap.org/styles/dark",
-  satellite: SATELLITE_3D_STYLE,
+  satellite: SATELLITE_STYLE,
   transit: TRANSIT_STYLE,
   // Backward-compatible aliases
   streets: "https://tiles.openfreemap.org/styles/liberty",
@@ -141,15 +113,18 @@ export function setMapTheme(theme: MapTheme) {
   }
 }
 
+/** The planner opens on satellite; a layer someone picked is remembered. */
+export const DEFAULT_MAP_THEME: MapTheme = "satellite";
+
 export function getMapTheme(): MapTheme {
-  if (typeof window === "undefined") return "day";
+  if (typeof window === "undefined") return DEFAULT_MAP_THEME;
   const stored = localStorage.getItem("roam_map_theme");
   if (stored === "day" || stored === "night" || stored === "satellite" || stored === "transit") {
     return stored;
   }
   if (stored === "streets" || stored === "light") return "day";
   if (stored === "dark") return "night";
-  return "day";
+  return DEFAULT_MAP_THEME;
 }
 
 export function useMapTheme(): [MapTheme, (theme: MapTheme) => void] {
@@ -169,7 +144,7 @@ export function useMapTheme(): [MapTheme, (theme: MapTheme) => void] {
       };
     },
     getMapTheme,
-    () => "streets" as MapTheme,
+    () => DEFAULT_MAP_THEME,
   );
   return [theme, setMapTheme];
 }

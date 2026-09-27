@@ -300,6 +300,118 @@
   "source": "https://commons.wikimedia.org/wiki/File:Coney_Island_beach_and_amusement_parks_(June_2016).jpg",
   "article": "Coney Island"
  },
+ "morgan-library": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/45/Morgan_Library_%26_Museum%2C_New_York_2017_02.jpg/960px-Morgan_Library_%26_Museum%2C_New_York_2017_02.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Photograph by Mike Peel (www.mikepeel.net).",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Morgan_Library_%26_Museum,_New_York_2017_02.jpg",
+  "article": "Morgan Library & Museum"
+ },
+ "brooklyn-heights-promenade": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Brooklyn_Heights_Promenade_%2855268460453%29.jpg/960px-Brooklyn_Heights_Promenade_%2855268460453%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "ajay_suresh",
+  "license": "CC BY 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Brooklyn_Heights_Promenade_(55268460453).jpg",
+  "article": "Brooklyn Heights Promenade"
+ },
+ "gantry-plaza": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Gantry_Plaza_State_Park_Long_Island_City_01_%289431668991%29.jpg/960px-Gantry_Plaza_State_Park_Long_Island_City_01_%289431668991%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Joe Mabel from Seattle, US",
+  "license": "CC BY-SA 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Gantry_Plaza_State_Park_Long_Island_City_01_(9431668991).jpg",
+  "article": "Gantry Plaza State Park"
+ },
+ "nypl": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/New_York_Public_Library_-_Main_Branch_%2851396225599%29.jpg/960px-New_York_Public_Library_-_Main_Branch_%2851396225599%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "ajay_suresh",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:New_York_Public_Library_-_Main_Branch_(51396225599).jpg",
+  "article": "New York Public Library Main Branch"
+ },
+ "flatiron": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Edificio_Fuller_%28Flatiron%29_en_2010_desde_el_Empire_State_crop_boxin.jpg/960px-Edificio_Fuller_%28Flatiron%29_en_2010_desde_el_Empire_State_crop_boxin.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Imelenchon (original work)",
+  "license": "Public domain",
+  "source": "https://commons.wikimedia.org/wiki/File:Edificio_Fuller_(Flatiron)_en_2010_desde_el_Empire_State_crop_boxin.jpg",
+  "article": "Flatiron Building"
+ },
+ "oculus": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/Oculus_World_Trade_Center_-_August_18_2016.jpg/960px-Oculus_World_Trade_Center_-_August_18_2016.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Anthony Quintano",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Oculus_World_Trade_Center_-_August_18_2016.jpg",
+  "article": "World Trade Center station (PATH)"
+ },
+ "stonewall": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/Stonewall_Inn_5_pride_weekend_2016.jpg/960px-Stonewall_Inn_5_pride_weekend_2016.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Rhododendrites",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Stonewall_Inn_5_pride_weekend_2016.jpg",
+  "article": "Stonewall National Monument"
+ },
+ "the-battery": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Battery_Park.JPG/960px-Battery_Park.JPG?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Gryffindor",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Battery_Park.JPG",
+  "article": "The Battery (Manhattan)"
+ },
+ "madison-square-park": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/Madison_Square_Park_from_Above_at_Night_New_York_City.jpg/960px-Madison_Square_Park_from_Above_at_Night_New_York_City.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "alq666",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Madison_Square_Park_from_Above_at_Night_New_York_City.jpg",
+  "article": "Madison Square and Madison Square Park"
+ },
+ "union-square": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/1_new_york_city_union_square_2010.JPG/960px-1_new_york_city_union_square_2010.JPG?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "chensiyuan",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:1_new_york_city_union_square_2010.JPG",
+  "article": "Union Square, Manhattan"
+ },
+ "joes-pizza": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/Joe%27s_Pizza%2C_Greenwich_Village%2C_NYC.jpg/960px-Joe%27s_Pizza%2C_Greenwich_Village%2C_NYC.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Steam Pipe Trunk Distribution Venue",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Joe%27s_Pizza,_Greenwich_Village,_NYC.jpg",
+  "article": "Joe's Pizza"
+ },
+ "russ-daughters": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Russ_%26_Daughters_%2851624125108%29.jpg/960px-Russ_%26_Daughters_%2851624125108%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "ajay_suresh",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Russ_%26_Daughters_(51624125108).jpg",
+  "article": "Russ & Daughters"
+ },
+ "essex-market": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Essex_Market_%2851623898821%29.jpg/960px-Essex_Market_%2851623898821%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "ajay_suresh",
+  "license": "CC BY 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Essex_Market_(51623898821).jpg",
+  "article": "Essex Market"
+ },
+ "arthur-avenue": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Arthur_Avenue_between_184th_and_186th_Street_in_the_Bronx%2C_New_York_City_001_crop.jpg/960px-Arthur_Avenue_between_184th_and_186th_Street_in_the_Bronx%2C_New_York_City_001_crop.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Leonard J. DeFrancisci",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Arthur_Avenue_between_184th_and_186th_Street_in_the_Bronx,_New_York_City_001_crop.jpg",
+  "article": "Arthur Avenue"
+ },
+ "east-village": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/East_Village_Second_Avenue.jpg/960px-East_Village_Second_Avenue.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Postdlf",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:East_Village_Second_Avenue.jpg",
+  "article": "East Village, Manhattan"
+ },
+ "astoria": {
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/2023-02-12-Newtown_Ave_29th_St.jpg/960px-2023-02-12-Newtown_Ave_29th_St.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "credit": "Sam",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:2023-02-12-Newtown_Ave_29th_St.jpg",
+  "article": "Astoria, Queens"
+ },
  "west-village": {
   "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/2_Horatio_Street_NYC_Summer_from_the_North.jpg/960px-2_Horatio_Street_NYC_Summer_from_the_North.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
   "credit": "WindingRoad",

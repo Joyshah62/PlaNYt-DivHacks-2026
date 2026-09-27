@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Roam Canvas & Layout Guidelines
+# PlaNYt Canvas & Layout Guidelines
 
 - **Design system**: Read `docs/DESIGN.md` before building or restyling any page. The home page (`src/app/home.css`, `src/components/home/`) is the reference: editorial paper-and-ink, Instrument Serif / Newsreader / IBM Plex Mono, one red accent, the 3D city as photography. New pages use the same tokens and components; the planner redesign brief is `docs/HANDOFF-planner.md`.
 - **Viewport Height & Width Always**: Design and style using full viewport height and width (`100dvh`, `100vw`), with equal left and right gutters (`--gut` / `.ed-gut`). Type and spacing are fluid (`clamp()` tokens, `em`), never fixed pixels; check 375 → 2560px wide with no horizontal overflow.

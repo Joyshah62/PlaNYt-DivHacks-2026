@@ -381,11 +381,8 @@
 .pl-hours .today { color: var(--red); }
 
 /* --- Map chrome ------------------------------------------------------------------------ */
-.pl-mapbar { position: absolute; z-index: 10; display: flex; background: var(--paper); border: 1px solid var(--rule); max-width: calc(100% - 5em); overflow-x: auto; scrollbar-width: none; }
-.pl-mapbar button { font: 500 var(--t-mono) / 1 var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase; padding: 0.8em 0.9em; white-space: nowrap; color: var(--ed-muted); }
-.pl-mapbar button + button { border-left: 1px solid var(--hair); }
-.pl-mapbar button:hover { color: var(--ink); }
-.pl-mapbar button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+/* Google's 3D city, laid over the flat map while 3D is on (the tools stay above it). */
+.pl-map3d { position: absolute; inset: 0; z-index: 1; background: var(--night, #1c1a17); }
 .pl-maptools { position: absolute; z-index: 10; display: flex; flex-direction: column; gap: 0.4em; }
 .pl-maptool { position: relative; display: grid; place-items: center; width: 2.5em; height: 2.5em; background: var(--paper); color: var(--ink); border: 1px solid var(--rule); font: 600 var(--t-mono) / 1 var(--f-mono); }
 .pl-maptool:hover:not(:disabled) { border-color: var(--ink); }
@@ -433,9 +430,19 @@
 @media (prefers-reduced-motion: reduce) {
   .ed-planner *, .ed-planner *::before, .ed-planner *::after { animation: none !important; transition: none !important; }
 }
-.pl-mapbar-kinds { top: var(--s-1); left: var(--s-1); }
+/* The map's legend: a "Places" switch that opens a key of the dot colours, each one a toggle. */
+.pl-legend { position: absolute; z-index: 10; top: var(--s-1); left: var(--s-1); display: grid; justify-items: start; gap: 0.4em; }
+.pl-legend-toggle { display: inline-flex; align-items: center; gap: 0.5em; padding: 0.7em 0.9em; background: var(--paper); border: 1px solid var(--rule); font: 500 var(--t-mono) / 1 var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; }
+.pl-legend-toggle svg { width: 1.2em; height: 1.2em; }
+.pl-legend-toggle[aria-expanded="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.pl-legend ul { background: var(--paper); border: 1px solid var(--rule); box-shadow: var(--offset) var(--offset) 0 var(--shadow); padding: 0.3em 0; min-width: 13em; }
+.pl-legend li button { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.7em; width: 100%; padding: 0.5em 0.9em; text-align: left; font-size: var(--t-small); }
+.pl-legend li button:hover { background: var(--wash); }
+.pl-legend li i { width: 0.85em; height: 0.85em; border-radius: 50%; border: 1.5px solid #f3ede1; box-shadow: 0 0 0 1px var(--hair); }
+.pl-legend li button[aria-pressed="false"] { color: var(--ed-muted); text-decoration: line-through; }
+.pl-legend li button[aria-pressed="false"] i { opacity: 0.25; }
 @media (max-width: 1023px) {
-  .pl-mapbar-kinds { top: calc(var(--s-1) + 3.4em); }
+  .pl-legend { top: calc(var(--s-1) + 3.4em); }
 }
 
 /* Folded sections: one ruled line each, opened in place. */
@@ -482,7 +489,7 @@
 .pl-assist-launch svg { width: 1.3em; height: 1.3em; }
 .pl-assist-dot { position: absolute; top: -0.35em; right: -0.35em; width: 0.9em; height: 0.9em; border-radius: 50%; background: var(--red); border: 2px solid var(--paper); }
 .pl-assist-panel {
-  display: flex; flex-direction: column; width: min(28em, calc(100vw - 2 * var(--s-1))); max-height: min(40em, calc(100dvh - var(--pad) * 2 - 6em));
+  display: flex; flex-direction: column; width: min(24rem, calc(100vw - 2 * var(--s-1))); max-height: min(34rem, 62dvh); font-size: var(--t-small);
   background: var(--paper); color: var(--ink); border: 1.5px solid var(--ink); box-shadow: var(--offset) var(--offset) 0 var(--shadow);
   animation: pl-up 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both; transform-origin: bottom right;
 }
@@ -493,7 +500,7 @@
 @media (max-width: 1023px) {
   .pl-assist { right: var(--s-1); bottom: calc(var(--sheet-h, 0px) + var(--s-1)); }
   .pl-assist-launch span { display: none; }
-  .pl-assist-panel { max-height: min(36em, calc(100dvh - var(--sheet-h, 0px) - 5em)); }
+  .pl-assist-panel { max-height: min(30rem, calc(100dvh - var(--sheet-h, 0px) - 5em)); }
   .pl-player.engaged { width: calc(100% - 2 * var(--s-1) - 4em); }
 }
 .pl-assist-panel[hidden] { display: none; }
@@ -506,14 +513,18 @@
   .pl-maptool { width: max(2.5em, 44px); height: max(2.5em, 44px); }
 }
 
-/* The AI-first extras: labels at 12px or more, the undo toast, "Ask the planner", the quiet way to pick places. */
+/* The AI-first extras: labels at 12px or more, the undo toast, "Ask Roam AI", the quiet way to pick places. */
 .ed-planner { --t-mono: clamp(12px, 0.25vw + 8.5px, 14px); } /* labels never smaller than 12px here */
 .pl-undo { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-1); margin-bottom: var(--s-1); font-size: var(--t-small); }
+.pl-day-note { position: relative; margin-top: var(--s-2); padding-right: 2.6em; }
+.pl-day-note-close { position: absolute; top: 0.2em; right: 0; }
 .pl-ask { width: 100%; margin-top: var(--s-2); justify-content: flex-start; }
 .pl-alt { margin-top: var(--s-2); font-size: var(--t-small); }
 
 /* Ideas under the prompt: a photo, a title and a line each, tapped to fill the prompt. */
-.pl-ideas { margin-top: var(--s-4); }
+.pl-ideas { margin-top: var(--s-3); }
+.pl-idea-filter { margin-top: var(--s-1); }
+.pl-idea-who { display: block; margin-top: 0.35em; color: var(--red); font-size: calc(var(--t-mono) * 0.9); }
 .pl-ideas ul { margin-top: var(--s-1); border-top: 1px solid var(--rule); }
 .pl-ideas li { border-bottom: 1px solid var(--hair); }
 .pl-idea { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--s-2); width: 100%; padding: var(--s-1) 0; text-align: left; }

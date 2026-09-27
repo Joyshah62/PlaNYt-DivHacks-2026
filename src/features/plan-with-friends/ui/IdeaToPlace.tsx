@@ -81,7 +81,7 @@ export function IdeaToPlace({
           emptyText="Nothing nearby matched that note."
         />
       )}
-      {found && !found.usedAi && <p className="tr-idea-note">Roam&apos;s AI isn&apos;t available right now, so these match the note&apos;s words.</p>}
+      {found && !found.usedAi && <p className="tr-idea-note">Roam AI isn&apos;t available right now, so these match the note&apos;s words.</p>}
     </div>
   );
 }

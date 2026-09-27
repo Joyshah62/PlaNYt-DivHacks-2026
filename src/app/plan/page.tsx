@@ -6,7 +6,7 @@ import { BRAND } from "@/lib/plan/display";
 import { requireTraveler } from "@/lib/session";
 
 export const metadata: Metadata = {
-  title: `Plan your day · ${BRAND.name} ${BRAND.suffix}`,
+  title: `Plan your day · ${BRAND.name}`,
 };
 
 export default async function PlanPage({ searchParams }: PageProps<"/plan">) {

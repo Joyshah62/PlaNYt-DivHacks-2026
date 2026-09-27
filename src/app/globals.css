@@ -336,6 +336,14 @@
 }
 
 /* The traveler during playback: a bright dot with a sonar ring. */
+/* A place from the chat, shown on the map: a named flag on a stem, in paper and ink. */
+.focus-pin {
+  position: relative; margin-bottom: 10px; padding: 0.45em 0.7em; white-space: nowrap;
+  font: 500 12px / 1 var(--f-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--paper, #f3ede1); color: var(--ink, #15120e); border: 1.5px solid var(--red, #c8321f);
+  box-shadow: 3px 3px 0 var(--red, #c8321f);
+}
+.focus-pin::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1.5px; height: 10px; background: var(--red, #c8321f); }
 .traveler-marker {
   width: 18px;
   height: 18px;

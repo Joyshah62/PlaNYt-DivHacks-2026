@@ -13,7 +13,7 @@ import { budgetFor } from "@/lib/web/prices";
 import { money } from "@/lib/plan/budget";
 import type { Progress } from "@/lib/progress";
 import { partyFromText } from "@/lib/plan/party";
-import { outsideTravelScope, SCOPE_REPLY, TRAVEL_SCOPE } from "./scope";
+import { guardrail, TRAVEL_SCOPE } from "./scope";
 import { GROUP, isMealBreak, mealBreakKey, visitFor } from "@/lib/plan/profile";
 import { CROWD_LABEL } from "@/lib/plan/display";
 import { ATTRACTIONS, searchAttractions } from "@/lib/plan/attractions";
@@ -388,7 +388,7 @@ async function change(name: string, args: unknown, request: Request, input: Inpu
       returnToOrigin !== undefined && start ? (returnToOrigin ? `end back at ${start.label}` : "don't return to the start") : "",
       group ? `plan for ${group === "solo" ? "one" : group === "couple" ? "a couple" : group === "family" ? "a family" : "older travelers"}` : "",
       interests ? `interests: ${interests.join(", ")}` : "",
-      optimizeOrder !== undefined ? (optimizeOrder ? "let Roam choose the best order" : "keep this order") : "",
+      optimizeOrder !== undefined ? (optimizeOrder ? "let Roam AI choose the best order" : "keep this order") : "",
       pace ? `${pace} pace` : "", a.mode ? `travel by ${a.mode}` : "", a.crowd ? `${a.crowd} crowds` : "",
       a.startMin !== undefined ? `start at ${clock(a.startMin)}` : "", a.endMin !== undefined ? `finish by ${clock(a.endMin)}` : "",
       walkMax !== undefined ? (walkMax === null ? "no walking limit" : `walks up to ${walkMax} minutes`) : "",
@@ -683,8 +683,8 @@ export function executeChatTool(name: string, args: unknown, input: Input): Prom
   return runTools([{ name, args }], input);
 }
 
-/** How Roam talks, and when it acts versus asks. */
-const PERSONA = `You are Roam, a friendly NYC trip planner chatting with a traveler about the day they've planned. Talk like a helpful local friend: warm, brief (one to three short sentences), plain text with no markdown.
+/** How Roam AI talks, and when it acts versus asks. */
+const PERSONA = `You're chatting with a traveler about the day they've planned. Talk like a helpful local friend: warm, brief (one to three short sentences), plain text with no markdown.
 
 Conversation:
 - Party size, companions and spending limits are unknown unless explicitly stated for this trip. Never infer them from "I", "we", a default profile, or memories of another day. Ask if they matter. Don't create a budget or volunteer cost totals unless asked; per-person cost estimates are not a spending limit.
@@ -812,7 +812,8 @@ export async function settle(result: ChatReply, input: Input): Promise<{ reply: 
 }
 
 export async function chat(input: z.infer<typeof ChatInput>, progress: Progress = () => {}): Promise<ChatReply> {
-  if (outsideTravelScope(input.message)) return { message: SCOPE_REPLY, choices: [] };
+  const blocked = guardrail(input.message);
+  if (blocked) return { message: blocked, choices: [] };
   progress("Checking your trip…");
   // A card's Add button is a clear choice: it goes in when it works.
   if (input.action) {

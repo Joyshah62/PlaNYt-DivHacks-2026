@@ -1,4 +1,5 @@
 import { geminiJson, geminiKey } from "@/lib/llm/gemini";
+import { TRAVEL_SCOPE } from "./scope";
 import { z } from "zod";
 import { isMealBreak } from "@/lib/plan/profile";
 import { clock } from "@/lib/plan/time";
@@ -62,7 +63,7 @@ function planContext(plan: DayPlan): string {
 export async function parseIntent(query: string, plan: DayPlan, previous: Intent | null): Promise<{ intent: Intent; area: Partial<Area> | null }> {
   if (geminiKey()) {
     try {
-      const answer = await geminiJson(SYSTEM, `${planContext(plan)}\n\n${previous ? `Previous search: ${JSON.stringify(previous)}\n\nFollow-up: ` : "Request: "}${query}`, { name: "search_intent", schema: SCHEMA }, { effort: "low" });
+      const answer = await geminiJson(`${TRAVEL_SCOPE}\n\n${SYSTEM}`, `${planContext(plan)}\n\n${previous ? `Previous search: ${JSON.stringify(previous)}\n\nFollow-up: ` : "Request: "}${query}`, { name: "search_intent", schema: SCHEMA }, { effort: "low" });
       const parsed = IntentSchema.safeParse(answer);
       if (parsed.success) return clean(parsed.data, plan, query, previous);
       console.error("[discover] unusable intent", parsed.error.issues[0]?.message);

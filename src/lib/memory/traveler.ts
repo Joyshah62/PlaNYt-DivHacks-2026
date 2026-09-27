@@ -13,7 +13,7 @@ export async function travelerMemory(req: Request, sent: unknown): Promise<{ mem
   if (!session) return { memoryId: await memoryFor(sent), onAccount: false };
   const kept = session.user.memoryId;
   if (isMemoryId(kept)) return { memoryId: kept, onAccount: true };
-  const memoryId = await memoryFor(null, `Roam user ${session.user.id} (${session.user.email})`);
+  const memoryId = await memoryFor(null, `PlaNYt user ${session.user.id} (${session.user.email})`);
   if (memoryId) {
     const ctx = await auth.$context;
     await ctx.internalAdapter.updateUser(session.user.id, { memoryId }).catch((error: unknown) => {

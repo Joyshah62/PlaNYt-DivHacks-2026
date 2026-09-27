@@ -21,7 +21,7 @@ export const CandidateBody = z.object({
   note: z.string().trim().max(140, "Keep the why under 140 characters.").nullish(),
   creditTo: MemberId.nullish(),
 });
-export const AskBody = z.object({ memberId: Claim, text: z.string().trim().min(3, "Tell Roam a little more.").max(600) });
+export const AskBody = z.object({ memberId: Claim, text: z.string().trim().min(3, "Tell Roam AI a little more.").max(600) });
 export const IdeaSuggestBody = z.object({ memberId: Claim, ideaId: z.string().regex(/^[A-Za-z0-9_-]{4,16}$/) });
 export const VoteBody = z.object({ memberId: Claim, stopKey: z.string().min(1).max(80), on: z.boolean() });
 export const RemoveBody = z.object({ memberId: Claim, stopKey: z.string().min(1).max(80) });

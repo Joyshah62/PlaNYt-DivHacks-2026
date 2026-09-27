@@ -1,5 +1,5 @@
 /**
- * Who is using the trip room. The app runs on Roam accounts: see
+ * Who is using the trip room. The app runs on PlaNYt accounts: see
  * `accountIdentity` in bridge/server, which server/member.ts uses, and the
  * trip pages, which require sign-in. `guestIdentity` is the no-login mode
  * (and what the tests use).

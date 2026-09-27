@@ -1,8 +1,8 @@
 import type { CrowdBand } from "./crowd";
 import type { LegMode, TravelMode } from "./types";
 
-/** The product's name, in one place. */
-export const BRAND = { name: "Roam", suffix: "NYC" };
+/** The product's name and tagline, in one place. */
+export const BRAND = { name: "PlaNYt", tagline: "Plan New York together" };
 
 export const CROWD_COLOR: Record<CrowdBand, string> = {
   quiet: "var(--cat-parks)",
