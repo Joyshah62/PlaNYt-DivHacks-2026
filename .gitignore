@@ -47,5 +47,7 @@ next-env.d.ts
 # Google photo usage counter (see src/lib/plan/photos.ts)
 /.data/
 
-# brainstorm mockups
+# Local agent tooling: superpowers working files and docs, impeccable cache
 .superpowers/
+/docs/superpowers/
+.impeccable/

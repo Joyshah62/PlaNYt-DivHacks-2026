@@ -45,7 +45,6 @@ A New York print magazine, with Google's photorealistic 3D city as its photograp
 | `src/components/home/cityMap*.ts`, `useCityMap.ts` | The map abstraction (§6) |
 | `src/components/home/visibility.ts` | `useInView`, `usePageVisible`, `usePrefersReducedMotion` |
 | `src/components/theme/ThemeToggle.tsx` | Shared toggle with the circular theme reveal |
-| `docs/superpowers/specs/2026-09-26-home-editorial-3d-design.md` | The approved spec |
 
 ## 3. Tokens
 
