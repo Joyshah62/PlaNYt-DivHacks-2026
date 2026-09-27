@@ -3,8 +3,9 @@
 import { AlarmClock, AlertTriangle, Bike, Bookmark, BookmarkCheck, CalendarPlus, Car, CarTaxiFront, ChevronDown, Footprints, Hourglass, Lightbulb, Link2, Map as MapIcon, MapPin, MessageCircle, Pencil, Share2, TrainFront, Umbrella, Users, UtensilsCrossed, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ATTRACTION_BY_ID } from "@/lib/plan/attractions";
-import { crowdBand } from "@/lib/plan/crowd";
+import { crowdBand } from "@/lib/plan/crowdBand";
 import { isMealBreak } from "@/lib/plan/profile";
+import { LiveAlerts } from "./LiveAlerts";
 import { CROWD_LABEL, LEG_VERB, MODE_LABEL } from "@/lib/plan/display";
 import { clock, duration, nycToday, WEEKDAYS } from "@/lib/plan/time";
 import { mapsDayRoute, mapsDirections, mapsPoint, type MapsPoint } from "@/lib/plan/maps";
@@ -230,6 +231,8 @@ export function Itinerary({
           </p>
         </div>
       </header>
+
+      <LiveAlerts date={request.date} places={plan.stops.filter((s) => !isMealBreak(s)).map((s) => s.name)} />
 
       {note && (
         <div className="pl-note pl-day-note" role="status">

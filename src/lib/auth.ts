@@ -5,6 +5,7 @@ import { nextCookies } from "better-auth/next-js";
 import { PhoneSchema } from "@/lib/phone";
 import { db } from "@/lib/db";
 import { GOOGLE_PHONE_SCOPE, googlePhone } from "@/lib/googlePhone";
+import { secureLinkedAccount } from "@/lib/authLinking";
 
 // A known secret would let anyone forge a session, so production must set its own.
 const secret = process.env.BETTER_AUTH_SECRET;
@@ -53,6 +54,16 @@ export const auth = betterAuth({
       ipAddressHeaders: process.env.BETTER_AUTH_IP_HEADERS?.split(",").map((h) => h.trim().toLowerCase()).filter(Boolean) ?? ["cf-connecting-ip", "x-vercel-forwarded-for", "x-forwarded-for"],
     },
   },
+  account: {
+    accountLinking: {
+      // Someone who signed up with a password can later use "Continue with Google" with the same
+      // email: Google proves they own it. Email sign-ups here aren't verified, so Better Auth would
+      // otherwise refuse ("account_not_linked"). The takeover risk this opens (a stranger
+      // pre-registering your email) is closed in the account hook below.
+      trustedProviders: ["google"],
+      requireLocalEmailVerified: false,
+    },
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
@@ -83,7 +94,17 @@ export const auth = betterAuth({
       create: {
         // A new Google sign-in: take the phone number from their Google profile when there is one.
         after: async (account, ctx) => {
-          if (account.providerId !== "google" || !account.accessToken || !ctx) return;
+          if (account.providerId !== "google" || !ctx) return;
+          try {
+            await secureLinkedAccount(account.userId, ctx.context.internalAdapter);
+          } catch (error) {
+            // The link is already saved, and this hook never runs for it again: undo it and fail this
+            // sign-in, so the next attempt links afresh and the safeguard gets another go.
+            console.error("[auth] couldn't secure a linked Google account, undoing the link:", error instanceof Error ? error.message : error);
+            await ctx.context.internalAdapter.deleteAccount(account.id).catch(() => {});
+            throw error;
+          }
+          if (!account.accessToken) return;
           const phoneNumber = await googlePhone(account.accessToken);
           if (!phoneNumber) return;
           const user = await ctx.context.internalAdapter.findUserById(account.userId);

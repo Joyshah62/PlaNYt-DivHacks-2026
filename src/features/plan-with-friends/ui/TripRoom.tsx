@@ -70,14 +70,14 @@ export function TripRoom({ id, viewer = null }: { id: string; viewer?: Viewer | 
         <div className="tr-who-line">
           <AvatarStack people={people} size="md" />
           <span className="ed-mono ed-muted">
-            {people.length} {people.length === 1 ? "person" : "people"} · hosted by {host}
+            {people.length} {people.length === 1 ? "person" : "people"} · organized by {host}
           </span>
         </div>
       </header>
 
-      {(room.offline || room.error || room.rememberWarning) && (
+      {(room.offline || room.slow || room.error || room.rememberWarning) && (
         <div className="ed-gut tr-status">
-          {room.offline && <p className="ed-small ed-muted">Reconnecting…</p>}
+          {room.offline ? <p className="ed-small ed-muted">Reconnecting…</p> : room.slow && <p className="ed-small ed-muted">The connection is slow. Still trying…</p>}
           {room.rememberWarning && <p className="ed-small ed-muted">You&apos;re in, but this browser won&apos;t remember you after you close it.</p>}
           {room.error && <p role="alert" className="ed-alert">{room.error}</p>}
         </div>

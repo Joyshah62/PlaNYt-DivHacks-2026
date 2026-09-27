@@ -1,15 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { StopInput } from "../bridge/index";
 import { canShareNatively, copyText, shareNatively } from "../bridge/ui";
 import type { Avatar } from "../core/avatars";
 import type { Member, Trip } from "../core/types";
-import { tripApi, TripApiError } from "./client";
+import { fetchTrip, tripApi, TripApiError, TripTimeoutError } from "./client";
 import { clearIdentity, parseIdentity, readIdentityRaw, storeIdentity, subscribeIdentity, type TripIdentity } from "./local";
 import { useDraftPlan } from "./useDraftPlan";
 
+/** Every 3 s while the room is changing; every 10 s once it's been quiet for a minute. Never while hidden. */
 const POLL_MS = 3000;
+const IDLE_POLL_MS = 10_000;
+const IDLE_AFTER_MS = 60_000;
 
 export type RoomStatus = "loading" | "missing" | "ready";
 
@@ -24,6 +27,9 @@ export function useTripRoom(id: string, viewer: Viewer | null = null) {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [status, setStatus] = useState<RoomStatus>("loading");
   const [offline, setOffline] = useState(false);
+  const [slow, setSlow] = useState(false);
+  const etag = useRef<string | null>(null);
+  const changedAt = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sessionIdentity, setSessionIdentity] = useState<TripIdentity | null>(null);
@@ -39,14 +45,20 @@ export function useTripRoom(id: string, viewer: Viewer | null = null) {
 
   const refresh = useCallback(
     () =>
-      tripApi<Trip>(`/${id}`).then(
+      fetchTrip<Trip>(id, etag.current).then(
         (next) => {
-          setTrip(next);
+          if (next.trip) {
+            etag.current = next.etag;
+            changedAt.current = Date.now();
+            setTrip(next.trip);
+          }
           setStatus("ready");
           setOffline(false);
+          setSlow(false);
         },
         (e: unknown) => {
           if (e instanceof TripApiError && e.status === 404) setStatus("missing");
+          else if (e instanceof TripTimeoutError) setSlow(true);
           else setOffline(true);
         },
       ),
@@ -55,10 +67,29 @@ export function useTripRoom(id: string, viewer: Viewer | null = null) {
 
   useEffect(() => {
     // Sign-in is checked on the server before this page renders (app/trip/[id]/page.tsx).
-    refresh();
-    if (locked) return;
-    const timer = window.setInterval(refresh, POLL_MS);
-    return () => window.clearInterval(timer);
+    let timer: number | undefined;
+    let stopped = false;
+    let inFlight = false;
+    const tick = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      await refresh();
+      inFlight = false;
+      if (stopped || locked || document.hidden) return;
+      timer = window.setTimeout(tick, Date.now() - changedAt.current > IDLE_AFTER_MS ? IDLE_POLL_MS : POLL_MS);
+    };
+    // A hidden tab stops asking; coming back catches up at once.
+    const onVisible = () => {
+      window.clearTimeout(timer);
+      if (!document.hidden && !locked) void tick();
+    };
+    void tick();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [id, refresh, locked]);
 
   async function act(work: () => Promise<Trip>) {
@@ -121,7 +152,7 @@ export function useTripRoom(id: string, viewer: Viewer | null = null) {
     },
   };
 
-  return { trip, me, draft, status, offline, error, busy, copied, locked, viewer, rememberWarning: !viewer && !!sessionIdentity, actions };
+  return { trip, me, draft, status, offline, slow, error, busy, copied, locked, viewer, rememberWarning: !viewer && !!sessionIdentity, actions };
 }
 
 export type TripRoomState = ReturnType<typeof useTripRoom>;

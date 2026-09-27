@@ -47,6 +47,12 @@ export function chooseEngine(env: EngineEnv, role: MapRole): "google" | "maplibr
 type VisibilityDoc = Pick<Document, "visibilityState" | "addEventListener" | "removeEventListener">;
 
 /**
+ * How long a new map may take to settle before it counts as ready anyway, in visible time. The
+ * hero's letters are waiting on it, so it starts sooner and lets the last tiles fill in as it moves.
+ */
+export const readyWithin = (role: MapRole) => (role === "hero" ? 2500 : 8000);
+
+/**
  * Like setTimeout, but the clock only starts once the page is visible. A hidden tab doesn't
  * render maps, so "no answer yet" there means "not tried yet", not "slow". Returns a cancel.
  */

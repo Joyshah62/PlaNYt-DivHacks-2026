@@ -14,7 +14,7 @@ import { nearbyWhy, placesNear } from "@/lib/discover/nearby";
 import { nearestPicks } from "@/lib/plan/nearestPick";
 import { ATTRACTIONS, ATTRACTION_BY_ID } from "@/lib/plan/attractions";
 import { webSearch, webSearchEnabled } from "@/lib/web/tavily";
-import { nycToday, toMinutes, WEEKDAYS, weekdayOf } from "@/lib/plan/time";
+import { nycToday, toMinutes, upcoming, WEEKDAYS, weekdayOf } from "@/lib/plan/time";
 import type { AssistantResult, Choice, ChoiceOption, PointLabel, StopInput } from "@/lib/plan/types";
 
 /**
@@ -86,7 +86,7 @@ Other fields:
 - Never assume party size from "I", "we", a student identity, the default profile, or past trips. Group and people must be null unless this request explicitly identifies the party. Do not invent a spending limit, total budget or per-person budget. Do not mention group size or a budget in your reply unless the traveler supplied it.
 - mode: "transit" means walking plus the subway. Default to null unless they said how they'll get around.
 - crowd: "avoid" if they mention crowds, lines or wanting it calm; "ignore" if they say they don't mind; otherwise null.
-- Dates and times: resolve relative days ("tomorrow", "Saturday") against today's date in the request. Leave anything unmentioned null.
+- Dates and times: resolve relative days ("tomorrow", "Saturday") against today's date in the request. A weekday means its next occurrence, never a past date ("Saturday" on a Sunday is six days later), and the reply names that same date. Leave anything unmentioned null.
 - fixedTime: only for a stop with a set start ("ferry at 10", "Hamilton at 8pm"). A show or performance usually lasts about 150 minutes.
 - Traveler: group "family" for children, "seniors" for older parents or grandparents, "couple" only for two partners travelling together. For friends, colleagues or a group whose makeup isn't clear, group is null (never "couple"). pace "relaxed" for a slow or easy day, "packed" to see as much as possible. interests only when they say what they like. lunch/dinner true only if they mention eating or ask for meal breaks; a named restaurant is a stop, not a meal break.
 - The request may include the traveler profile they already set; don't repeat it back unless their text changes it.
@@ -319,7 +319,7 @@ async function assistant(request: Request, progress: Progress) {
     choice.currentKey = key;
   });
 
-  const date = understood.date && /^\d{4}-\d{2}-\d{2}$/.test(understood.date) && understood.date >= today ? understood.date : null;
+  const date = upcoming(understood.date, today);
   const result: AssistantResult = {
     stops,
     unresolved,

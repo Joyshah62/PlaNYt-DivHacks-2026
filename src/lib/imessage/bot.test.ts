@@ -125,6 +125,18 @@ it("falls back to the full plan link when it can't be shortened", async () => {
   expect(texts.join("\n")).toContain("Map: https://roam.test/plan?plan=");
 });
 
+it("keeps what it sends the planner within its limits, however long the voice note", async () => {
+  const roam = fakeRoam([{ message: "Sure.", choices: [] }]);
+  const bot = createBot(roam, "https://roam.test");
+  const thread = newThread("any;-;+15550000001");
+  await bot.handle(thread, "The Met and MoMA on Saturday");
+  thread.history.push({ role: "assistant", text: "x".repeat(5000) });
+  await bot.handle(thread, `make it slower ${"please ".repeat(200)}`);
+  const sent = vi.mocked(roam.tripChat).mock.calls.at(-1)![0];
+  expect(sent.message.length).toBeLessThanOrEqual(600);
+  expect(Math.max(...sent.history.map((h) => h.text.length))).toBeLessThanOrEqual(2000);
+});
+
 describe("short replies", () => {
   const ctx = { proposal: true, offers: 3, choices: 2 };
   it("reads numbers, letters and yes/no only when they mean something", () => {

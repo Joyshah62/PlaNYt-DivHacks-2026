@@ -1,8 +1,7 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 
 export { getDb, hasMongo } from "@/lib/mongo";
 import { auth } from "@/lib/auth";
+import { loadPois } from "@/lib/discover/sources";
 import { ObjectId } from "mongodb";
 import { db } from "@/lib/db";
 import { canTextPlans, sendPlanText } from "@/lib/imessage/sendPlan";
@@ -58,11 +57,15 @@ export async function textMembers(trip: { code: string; userIds: string[]; intro
 
 /** The ~30k NYC places bundled for Discover (built by scripts/build-poi-data.mjs). */
 export async function readPoiRows(): Promise<unknown[]> {
-  const raw = await readFile(path.join(process.cwd(), "src/lib/discover/poi-data.json"), "utf8");
-  return (JSON.parse(raw) as { places: unknown[] }).places;
+  // The same parsed copy discovery uses: the file is 4 MB, so it's read into memory once.
+  const rows = await loadPois();
+  if (!rows) throw new Error("The places data file is missing.");
+  return rows;
 }
 
-export { searchLocal } from "@/lib/discover/sources";
+export { searchGoogle, searchLocal } from "@/lib/discover/sources";
+export { weightedRating } from "@/lib/discover/evaluate";
+export { renownOf } from "@/lib/discover/renown";
 export { fallbackIntent } from "@/lib/discover/intent";
 export type { Intent, Candidate as DiscoverCandidate } from "@/lib/discover/types";
 
@@ -71,3 +74,7 @@ export { geminiJson, geminiKey } from "@/lib/llm/gemini";
 export { resolveDestination } from "@/lib/osm/nominatim";
 export { suggestAddresses } from "@/lib/nyc/geosearch";
 export { guardrail, TRAVEL_SCOPE } from "@/lib/discover/scope";
+
+// Ridership and station data: server only, so the trip pages don't ship it to browsers.
+export { crowdProfile, nearestStations, STATIONS } from "@/lib/plan/crowd";
+export { subwayLeg } from "@/lib/plan/travel";

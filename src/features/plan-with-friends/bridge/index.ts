@@ -9,8 +9,7 @@ export { inNycArea } from "@/lib/osm/geo";
 export { ATTRACTIONS, type Attraction } from "@/lib/plan/attractions";
 export { CATEGORIES, CATEGORY } from "@/lib/discover/categories";
 export { parseOsmHours } from "@/lib/discover/hours";
-export { crowdBand, crowdProfile, nearestStations, STATIONS } from "@/lib/plan/crowd";
-export { subwayLeg } from "@/lib/plan/travel";
+export { crowdBand } from "@/lib/plan/crowdBand";
 export type { AssistantResult } from "@/lib/plan/types";
 
 /** App endpoints this feature calls over HTTP. If the app moves one, change it here. */

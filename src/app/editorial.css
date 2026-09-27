@@ -273,7 +273,7 @@
    entrances run once on mount with `backwards` fill, so nothing keeps a transform (and a
    containing block) afterwards. Reduced motion stops all of it (globals.css). --- */
 .ed { --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); }
-@keyframes ed-rise { from { opacity: 0; transform: translateY(0.5em); } }
+@keyframes ed-enter { from { opacity: 0; transform: translateY(0.5em); } }
 @keyframes ed-fade { from { opacity: 0; } }
 @keyframes ed-grow { from { transform: scaleY(0); } }
 
@@ -304,9 +304,9 @@
 .ed .tr-carousel li:hover .tr-carousel-thumb img { transform: scale(1.04); }
 
 /* Entrances: panels and new notes rise into place; lists of results follow one by one. */
-.ed .ed-app .ed-panel, .ed .ed-card { animation: ed-rise 0.45s var(--ease-out) backwards; }
-.ed :is(.tr-ask-reply, .tr-idea-panel, .tr-places-picker, .pl-note, .ed-alert) { animation: ed-rise 0.35s var(--ease-out) backwards; }
-.ed :is(.tr-carousel li, .tr-search-results li, .tr-idea-item, .tr-places-item, .tr-day-stop, .tr-who li) { animation: ed-rise 0.4s var(--ease-out) backwards; }
+.ed .ed-app .ed-panel, .ed .ed-card { animation: ed-enter 0.45s var(--ease-out) backwards; }
+.ed :is(.tr-ask-reply, .tr-idea-panel, .tr-places-picker, .pl-note, .ed-alert) { animation: ed-enter 0.35s var(--ease-out) backwards; }
+.ed :is(.tr-carousel li, .tr-search-results li, .tr-idea-item, .tr-places-item, .tr-day-stop, .tr-who li) { animation: ed-enter 0.4s var(--ease-out) backwards; }
 .ed :is(.tr-carousel li, .tr-search-results li, .tr-idea-item, .tr-places-item, .tr-day-stop, .tr-who li):nth-child(2) { animation-delay: 40ms; }
 .ed :is(.tr-carousel li, .tr-search-results li, .tr-idea-item, .tr-places-item, .tr-day-stop, .tr-who li):nth-child(3) { animation-delay: 80ms; }
 .ed :is(.tr-carousel li, .tr-search-results li, .tr-idea-item, .tr-places-item, .tr-day-stop, .tr-who li):nth-child(4) { animation-delay: 120ms; }
@@ -315,3 +315,13 @@
 /* Crowd bars grow up from the axis. */
 .ed .pl-bars span { transform-origin: bottom; animation: ed-grow 0.6s var(--ease-out) backwards; }
 @media (prefers-reduced-motion: reduce) { .ed * { animation-delay: 0s !important; } }
+
+/* Live heads-up (LiveAlerts): today's events and closures from the web, beside the day. */
+.ed .ed-live { border-left: 2px solid var(--red); padding: 0.5em 0 0.5em var(--s-1); margin-block: var(--s-1); font-size: var(--t-small); animation: ed-enter 0.35s var(--ease-out) backwards; }
+.ed .ed-live-kicker { display: flex; align-items: center; gap: 0.45em; font: 500 var(--t-mono) / 1.4 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--red); margin-bottom: 0.4em; }
+.ed .ed-live-kicker svg { width: 1.1em; height: 1.1em; }
+.ed .ed-live ul { display: grid; gap: 0.6em; list-style: none; padding: 0; margin: 0; }
+.ed .ed-live-place { color: var(--ed-muted); }
+.ed .ed-live-detail { display: block; }
+.ed .ed-live-source { font: 500 calc(var(--t-mono) * 0.95) / 1.4 var(--f-mono); letter-spacing: 0.08em; color: var(--ed-muted); text-decoration: none; }
+.ed .ed-live-source:hover { color: var(--red); }

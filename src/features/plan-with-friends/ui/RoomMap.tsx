@@ -3,7 +3,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import { AttributionControl, LngLatBounds, Map as MapLibre, Marker, type GeoJSONSource } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
-import { ensureWorker, keepAttributionCollapsed, resolveMissingStyleImages, STYLES, useDarkScheme } from "../bridge/ui";
+import { ensureWorker, keepAttributionCollapsed, resolveMissingStyleImages, STYLES, useDarkScheme } from "../bridge/map";
 import { AVATAR_HEX, type Avatar } from "../core/avatars";
 
 export interface MapPerson {

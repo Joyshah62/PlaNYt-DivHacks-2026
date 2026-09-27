@@ -1,6 +1,6 @@
-import { CATEGORIES, CATEGORY, CROWD_LABEL, clock, crowdBand, crowdProfile, weekdayOf, type StopInput } from "../bridge/index";
+import { CATEGORIES, CATEGORY, CROWD_LABEL, clock, crowdBand, weekdayOf, type StopInput } from "../bridge/index";
 import { inNycArea } from "../bridge/index";
-import { fallbackIntent, geminiJson, geminiKey, guardrail, resolveDestination, searchLocal, TRAVEL_SCOPE, type DiscoverCandidate, type Intent } from "../bridge/server";
+import { crowdProfile, fallbackIntent, geminiJson, geminiKey, guardrail, renownOf, resolveDestination, searchGoogle, searchLocal, TRAVEL_SCOPE, weightedRating, type DiscoverCandidate, type Intent } from "../bridge/server";
 import type { Point } from "../core/fairness";
 import type { SuggestionItem } from "../core/suggestions";
 import type { Idea, Trip } from "../core/types";
@@ -142,13 +142,26 @@ async function resolveWant(want: Want, trip: Trip, limit: number, strict = false
   const near = (radius: number, i: Intent) => searchLocal([{ ...center, radius }], i).then((r) => (r ?? []).sort((a, b) => a.meters - b.meters));
   // Keywords only match names, so a mood ("artsy", "historical") matches almost nothing: top up
   // with the closest places of that kind, then look further out if the area is thin.
-  const matched = await near(1800, intent);
+  // Google first, for ratings and review counts (it keeps to its own quota); the bundled OpenStreetMap otherwise.
+  const rated = await searchGoogle([{ ...center, radius: 1800 }], intent).catch(() => null);
+  const matched = rated?.length ? rated.sort((a, b) => a.meters - b.meters) : await near(1800, intent);
   let found = matched;
   if (found.length < limit && (intent.keywords.length || intent.cuisine)) found = [...found, ...(await near(1800, { ...intent, keywords: [], cuisine: null }))];
   if (found.length < limit) found = [...found, ...(await near(4500, { ...intent, keywords: [], cuisine: null }))];
   const seen = new Set<string>();
-  const items = found
-    .filter((c) => !seen.has(c.id) && (seen.add(c.id), true))
+  const pool = found.filter((c) => !seen.has(c.id) && (seen.add(c.id), true)).slice(0, 24);
+  // Best first: what they asked for, then how good and well known it is (rating and review count,
+  // or renown without them), then closeness. Quality is worth up to about half an hour's walk
+  // (80 m a minute): a known place a little further beats an unknown one next door, never one across town.
+  const renown = await renownOf(pool);
+  const hits = new Set(matched.map((c) => c.id));
+  const quality = (c: DiscoverCandidate) => {
+    const w = weightedRating(c);
+    return w === null ? (renown.get(c.id) ?? 0) * 8 : Math.max(-20, (w - 4) * 35) + Math.min(4, Math.log10((c.reviews ?? 0) + 1)) * 2;
+  };
+  const rank = (c: DiscoverCandidate) => (hits.has(c.id) ? 0 : 15) + c.meters / 80 - quality(c);
+  const items = pool
+    .sort((a, b) => rank(a) - rank(b))
     .slice(0, limit)
     .map((c) => fromDiscover(c, want.why, trip));
   // "Chess in Central Park" with nothing named for chess: the place they asked for is the answer.

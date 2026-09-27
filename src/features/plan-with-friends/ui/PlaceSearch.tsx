@@ -34,7 +34,7 @@ export function PlaceSearch({
   initialQuery?: string;
 }) {
   const [query, setQuery] = useState(initialQuery);
-  const [found, setFound] = useState<{ q: string; results: Result[] }>({ q: "", results: [] });
+  const [found, setFound] = useState<{ q: string; results: Result[]; failed?: boolean }>({ q: "", results: [] });
   const [active, setActive] = useState(0);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,13 +48,17 @@ export function PlaceSearch({
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       fetch(`/api/trips/places?q=${encodeURIComponent(q)}${forStart ? "&for=start" : ""}`, { signal: controller.signal })
-        .then((res) => (res.ok ? res.json() : { results: [] }))
+        .then((res) => {
+          if (!res.ok) throw new Error(`search ${res.status}`);
+          return res.json();
+        })
         .then((body: { results: Result[] }) => {
           setFound({ q, results: body.results });
           setActive(0);
         })
         .catch(() => {
-          if (!controller.signal.aborted) setFound({ q, results: [] });
+          // A failed search isn't "no matches": say so, and leave the map lookup to try.
+          if (!controller.signal.aborted) setFound({ q, results: [], failed: true });
         });
     }, 150);
     return () => {
@@ -158,7 +162,9 @@ export function PlaceSearch({
             );
           })}
           {searching && results.length === 0 && <li className="tr-search-empty">Searching…</li>}
-          {!searching && results.length === 0 && <li className="tr-search-empty">No named places match. Try the map search below.</li>}
+          {!searching && results.length === 0 && (
+            <li className="tr-search-empty">{found.q === q && found.failed ? "Search isn't working right now. Try the map search below, or try again in a moment." : "No named places match. Try the map search below."}</li>
+          )}
           {!searching && (
           <li id={`${listId}-${results.length}`} role="option" aria-selected={active === results.length}>
             <button

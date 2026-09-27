@@ -35,7 +35,12 @@ export interface TripChatBody {
   memoryId?: string | null;
 }
 
-export class RoamError extends Error {}
+export class RoamError extends Error {
+  /** The web app's HTTP status; null when it couldn't be reached. A 4xx is an answer for the person, not a fault. */
+  constructor(message: string, readonly status: number | null = null) {
+    super(message);
+  }
+}
 
 export function roamClient(baseUrl: string, bridgeToken = process.env.PHONE_BRIDGE_TOKEN): Roam {
   async function call<T>(path: string, init?: RequestInit, timeoutMs = 60_000): Promise<T> {
@@ -47,7 +52,7 @@ export function roamClient(baseUrl: string, bridgeToken = process.env.PHONE_BRID
     }
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     // The web app's errors are written for people, so they go straight to the text.
-    if (!res.ok) throw new RoamError(body.error ?? "Something went wrong on my end. Try again in a minute.");
+    if (!res.ok) throw new RoamError(body.error ?? "Something went wrong on my end. Try again in a minute.", res.status);
     return body as T;
   }
   const post = <T>(path: string, body: unknown) =>

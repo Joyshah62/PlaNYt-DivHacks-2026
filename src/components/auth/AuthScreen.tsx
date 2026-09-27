@@ -21,6 +21,9 @@ const PERKS = [
 /** Better Auth's OAuth error codes, said plainly. */
 function oauthMessage(code: string): string {
   if (code === "access_denied") return "Google sign-in was cancelled. Try again, or use your email.";
+  // The sign-in was already used or expired (a refresh, the back button, a second tab): start it again.
+  if (code === "state_mismatch" || code === "please_restart_the_process" || code === "state_not_found") return "That sign-in expired. Tap Continue with Google again.";
+  if (code === "account_not_linked") return "This email already has a PlaNYt account. Sign in with your email and password.";
   return "Google sign-in didn't work. Try again, or use your email.";
 }
 
@@ -256,6 +259,9 @@ function SignIn({ next, googleEnabled, initialMode, oauthError }: { next: string
         >
           {signup ? "Sign in" : "Create an account"}
         </button>
+      </p>
+      <p className="ed-small ed-muted">
+        How we handle your data: <Link href="/privacy" className="ed-link">privacy policy</Link>.
       </p>
     </div>
   );

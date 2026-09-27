@@ -8,6 +8,7 @@ import { isMealBreak, MEAL_WINDOW } from "@/lib/plan/profile";
 import { clock, duration } from "@/lib/plan/time";
 import type { DayPlan, MealKind, PlanRequest, StopInput } from "@/lib/plan/types";
 import { CATEGORY } from "./categories";
+import { renownOf, renownText } from "./renown";
 import type { SearchPoint } from "./sources";
 import type { Area, Candidate, Intent, Result } from "./types";
 
@@ -90,9 +91,11 @@ function popularity(reviews: number | null): number {
  * travel, the rating (trusted more with more reviews), how many people
  * reviewed it, and fit with what was asked and the rest of the day.
  */
-export function scoreOf(r: Pick<Result, "travelDelta" | "overDelta" | "conflicts" | "closed" | "crowdBand" | "meters" | "price" | "rating" | "reviews" | "after">, intent: Intent, matched: number, afterKey: string | null): number {
+export function scoreOf(r: Pick<Result, "travelDelta" | "overDelta" | "conflicts" | "closed" | "crowdBand" | "meters" | "price" | "rating" | "reviews" | "after" | "renown">, intent: Intent, matched: number, afterKey: string | null): number {
   const weighted = weightedRating(r);
   let score = Math.max(0, r.travelDelta) + Math.max(0, r.overDelta) * 1.5 + r.conflicts.length * 45 + (r.closed ? 1000 : 0);
+  // Without ratings, how famous and well loved it is stands in: worth up to ~24 minutes of detour, no more.
+  if (weighted === null && r.renown) score -= r.renown * 8;
   score -= weighted === null ? 0 : (weighted - 4.0) * (intent.sort === "rating" ? 60 : 35);
   // A place thousands have reviewed is a safer bet than one a few dozen have.
   score -= popularity(r.reviews) * (intent.sort === "rating" ? 8 : 6);
@@ -125,13 +128,19 @@ function mealFor(intent: Intent, base: DayPlan, food: boolean): MealKind | null 
 export async function evaluate(request: PlanRequest, candidates: Candidate[], intent: Intent, preferredStartMin: number | null = null): Promise<Result[]> {
   const def = CATEGORY[intent.category];
   // Cheap first pass: close, matching, well-evidenced places get tried in the day.
-  const pre = candidates
+  const cost = (c: Candidate) => c.meters / 60 - matchCount(c, intent) * 8 - ((weightedRating(c) ?? 4) - 4) * 20 + (c.hours ? 0 : 2) - (c.renown ?? 0) * 6;
+  const pool = candidates
     .filter((c) => !request.stops.some((s) => s.name.toLowerCase() === c.name.toLowerCase()))
     .filter((c) => intent.minRating === null || c.rating === null || c.rating >= intent.minRating)
-    .map((c) => ({ c, pre: c.meters / 60 - matchCount(c, intent) * 8 - ((weightedRating(c) ?? 4) - 4) * 20 + (c.hours ? 0 : 2) }))
-    .sort((a, b) => a.pre - b.pre)
-    .slice(0, TRY)
-    .map((x) => x.c);
+    .sort((a, b) => cost(a) - cost(b))
+    .slice(0, TRY * 3);
+  // Unrated places (OpenStreetMap) get graded for renown, so a famous spot a little further
+  // along can beat an unknown one next door.
+  const renown = await renownOf(pool);
+  const pre = pool
+    .map((c) => (renown.has(c.id) ? { ...c, renown: renown.get(c.id) } : c))
+    .sort((a, b) => cost(a) - cost(b))
+    .slice(0, TRY);
   if (!pre.length) return [];
 
   const legSource = sharedLegs(request, pre);
@@ -208,6 +217,7 @@ export async function evaluate(request: PlanRequest, candidates: Candidate[], in
       if (intent.cuisine && matched) reasons.push(c.cuisine ? c.cuisine.charAt(0).toUpperCase() + c.cuisine.slice(1) : `Matches “${intent.cuisine}”`);
       const rated = ratingText(c);
       if (rated) reasons.push(rated);
+      else if (renownText(c.renown)) reasons.push(renownText(c.renown)!);
       if (c.price) reasons.push("$".repeat(c.price));
       if (intent.quiet && planned?.crowd && (planned.crowd.band === "quiet" || planned.crowd.band === "moderate")) reasons.push("Quieter streets then");
       if (c.meters < 250) reasons.push("Right on your route");

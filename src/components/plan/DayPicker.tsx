@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Star } from "lucide-react";
 import { ATTRACTION_BY_ID } from "@/lib/plan/attractions";
 import type { DayOutcome } from "@/lib/plan/compare";
-import { crowdBand } from "@/lib/plan/crowd";
+import { crowdBand } from "@/lib/plan/crowdBand";
 import { CROWD_LABEL } from "@/lib/plan/display";
 import { encodePlan } from "@/lib/plan/share";
 import { addDays, nycToday, WEEKDAYS } from "@/lib/plan/time";
